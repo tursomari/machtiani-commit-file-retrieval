@@ -2,6 +2,18 @@
 
 Code retieval.
 
+## Setup
+
+```
+poetry install
+```
+
+Run example script show casing making a query with openai and anthropic using LangChain.
+
+```
+poetry run python scripts/hello-query.py
+```
+
 ## A two-pronged approach
 
 1. A self-hosted api service to generate a summary of a file (e.g. source code) and retrieve the full file by it's name.
@@ -47,3 +59,8 @@ Structure prompt something like this.
 ```
 {pre-prompt}\n{prompt}\n{post-prompt}\n(files}
 ```
+
+## Scripts and experiments
+
+
+
