@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "businessmachine-work"
+version = "0.1.0"
+description = "Code retrieval."
+authors = ["7db9a"]
+license = "MIT"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.8"
+langchain = "^0.0.56"
+openai = "^0.27.0"
+anthropic = "^0.2.6"
+
