@@ -11,7 +11,7 @@ poetry install
 Run example script show casing making a query with openai and anthropic using LangChain.
 
 ```
-poetry run python scripts/hello-query.py
+poetry run python scripts/langchain_usage.py
 ```
 
 ## A two-pronged approach
