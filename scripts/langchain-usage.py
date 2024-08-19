@@ -15,7 +15,7 @@ anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
 prompt = PromptTemplate(input_variables=["input_text"], template="Translate the following text to French: '{input_text}'")
 
 # Initialize OpenAI LLM
-openai_llm = ChatOpenAI(api_key=openai_api_key)
+openai_llm = ChatOpenAI(api_key=openai_api_key, model="gpt-4o-mini")
 
 # Initialize Anthropic LLM
 #anthropic_llm = ChatAnthropic(model="claude-3-opus-20240229", api_key=anthropic_api_key)
