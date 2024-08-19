@@ -1,49 +1,61 @@
 # businessmachine-work
 
-Version control files and chats about the files.
+Code retieval.
 
 ## Idea
 
-git add {businessmachine}
-    git add {chat}
+**project structure**
 
-git add {submodule}
-    git add {files}
-    git commit {files} -m "{message}"
+Say you have a project called `alpha`. You also have a git submodule `alpha-work`.
 
-git commit -m "{prompt}"
+`alpha-work` is a normal git project. Add or change code and version control.
 
-embed prompt and map file(s).
+`alpha`, on the other hand, simply commit's along with every change to `alpha-work` a chat prompt that created the change to `alpha-work`.
 
+**indexing of project data**
 
+You embed and index all `alpha` commit messages against the effected files.
 
-prompt: How do I {x}?
+`alpha embeddings`
+```
+   {
+     <commit-message-embedding>: [<files>, ..]
+     <commit-message-embedding>: [<files>, ..]
+     <commit-message-embedding>: [<files>, ..]
+   }
+```
 
----> embed {prompt} ---> {embedded prompt}
+**file retrieval**
 
-                        ---> find close matches to {embedded prompt} ---> {files}
+Embed the prompt, and find related files based on matching `alpha embeddings`.
 
-                            ---> load {files}
+**answer prompt**
 
-                                ---> How do I do {x}?\n (files}
+Structure prompt something like this.
 
-## businessmachine file structure
+```
+{pre-prompt}\n{prompt}\n{post-prompt}\n(files}
+```
+## file structure
 
+The aim.
+```
 project/
-  .businessmachine/
-    project/
-      {chat files}
+  .git/
+  .businesmachine/
     .git
-  .git
+```
 
-## simplified businessmachine file strucutre
+I'm not quite sure how to do that just yet, as we'd need to unest the submodule.
 
+Simplified for ease for ease for now.
+
+```
 project/
-  .businessmachine/
-    .git
+  .git/
   project-work/
-    .git
-
+    .git/
+```
 
 ### project-work
 
