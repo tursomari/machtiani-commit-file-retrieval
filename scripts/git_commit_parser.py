@@ -45,7 +45,7 @@ def iterate_commits(limit=10):
     return commits
 
 if __name__ == "__main__":
-    limit = 10  # Number of commits to retrieve
+    limit = 1000  # Number of commits to retrieve
     commit_logs = iterate_commits(limit)
 
     print(json.dumps(commit_logs, indent=2))
