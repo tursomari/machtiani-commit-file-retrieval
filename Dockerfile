@@ -33,9 +33,9 @@ RUN poetry install --no-root --no-dev
 # Copy the rest of the application code
 COPY . .
 
-# Expose the port (if your application requires one)
-# EXPOSE 8000
+# Set the entrypoint to poetry run python
+ENTRYPOINT ["poetry", "run", "python"]
 
-# Command to run your application (replace with your actual entry point)
-CMD ["poetry", "run", "python", "scripts/cosine_similarity_match.py"]
+# Set a default script as a fallback
+CMD ["scripts/cosine_similarity_match.py"]
 
