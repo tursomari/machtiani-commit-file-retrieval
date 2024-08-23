@@ -29,8 +29,12 @@ def get_commit_info(commit_ref):
             "files": files
         }
     except subprocess.CalledProcessError as e:
-        print(f"Error processing commit {commit_ref}: {e}")
-        return None
+        if e.returncode == 128:
+            # Return None if we've reached the end of the commit history
+            return None
+        else:
+            print(f"Error processing commit {commit_ref}: {e}")
+            return None
 
 def iterate_commits(limit=10):
     commits = []
