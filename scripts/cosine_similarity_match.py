@@ -13,7 +13,7 @@ load_dotenv()
 openai_api_key = os.getenv('OPENAI_API_KEY')
 
 # Initialize the OpenAIEmbeddings object with the API key
-embedding_generator = OpenAIEmbeddings(openai_api_key=openai_api_key)
+embedding_generator = OpenAIEmbeddings(openai_api_key=openai_api_key, model="text-embedding-3-large")
 
 # Function to calculate cosine similarity
 def cosine_similarity(vec1, vec2):
@@ -25,6 +25,7 @@ with open('embeddings.json', 'r') as f:
 
 # The text you want to match
 input_text = f"Update my python project config to use python 3.9 to 4.0."
+print(f"prompt: {input_text}")
 
 # Generate the embedding for the input text
 input_embedding = embedding_generator.embed_query(input_text)
