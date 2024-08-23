@@ -2,36 +2,30 @@
 
 Code retieval.
 
-## Setup
-
-```
-poetry install
-```
-
-Run example script show casing making a query with openai and anthropic using LangChain.
-
-```
-poetry run python scripts/langchain_usage.py
-```
-
 ## Example of document retrieval using embeddings
 
-Generate `embeddings.json`:
+In this example, `cosine_similarity_match_commits.py` will find the most likely matching commit oid based on an example prompt.
+
+### Example etup
+
+From the project's git history, generate `commits_embeddings.json`:
 
 ```
-poetry run python scripts/embedd_text.py
+poetry run python scripts/embedd_commits.py
 ```
 
-Build the image
+Build the image.
 
 ```
 docker build -t businessmachine-work .
 ```
 
-Find matching text from `embeddings.json`
+### Example usage
+
+Find matching text from `commits_embeddings.json`
 
 ```
-poetry run python scripts/cosine_similarity_match.py
+poetry run python scripts/cosine_similarity_match_commits.py
 ```
 
 ## A two-pronged approach
