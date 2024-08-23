@@ -14,6 +14,26 @@ Run example script show casing making a query with openai and anthropic using La
 poetry run python scripts/langchain_usage.py
 ```
 
+## Example of document retrieval using embeddings
+
+Generate `embeddings.json`:
+
+```
+poetry run python scripts/embedd_text.py
+```
+
+Build the image
+
+```
+docker build -t businessmachine-work .
+```
+
+Find matching text from `embeddings.json`
+
+```
+poetry run python scripts/cosine_similarity_match.py
+```
+
 ## A two-pronged approach
 
 1. A self-hosted api service to generate a summary of a file (e.g. source code) and retrieve the full file by it's name.
