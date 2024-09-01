@@ -1,0 +1,50 @@
+import os
+import json
+import numpy as np
+from dotenv import load_dotenv
+from langchain_openai import OpenAIEmbeddings
+
+class CommitEmbeddingMatcher:
+    def __init__(self, embeddings_file: str, model: str = "text-embedding-3-large"):
+        load_dotenv()  # Load environment variables from a .env file
+
+        # Set up your OpenAI API key
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+
+        if not self.openai_api_key:
+            raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
+
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=model)
+        self.embeddings_dict = self.load_embeddings(embeddings_file)
+
+    def load_embeddings(self, filepath: str) -> dict:
+        with open(filepath, 'r') as f:
+            return json.load(f)
+
+    def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
+        return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+
+    def find_closest_commit(self, input_text: str) -> dict:
+        input_embedding = self.embedding_generator.embed_query(input_text)
+        closest_match = {"oid": None, "similarity": -1}
+
+        for oid, value in self.embeddings_dict.items():
+            embedding = value["embedding"]
+            similarity = self.cosine_similarity(input_embedding, embedding)
+
+            if similarity > closest_match["similarity"]:
+                closest_match = {"oid": oid, "similarity": similarity}
+
+        return closest_match
+
+    def match_commit(self, input_text: str) -> None:
+        closest_match = self.find_closest_commit(input_text)
+        print(f"The closest match to '{input_text}' is commit OID '{closest_match['oid']}' "
+              f"with a similarity of {closest_match['similarity']:.4f}")
+
+# Example usage:
+#if __name__ == "__main__":
+#    matcher = CommitEmbeddingMatcher(embeddings_file='commits_embeddings.json')
+#    input_text = "Update my python project config to use python 3.9 to 4.0."
+#    matcher.match_commit(input_text)
+#
