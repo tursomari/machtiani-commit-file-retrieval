@@ -17,7 +17,7 @@ poetry run python -m scripts.git_commit_parser_up_to_depth
 From the project's git history, generates `commits_embeddings.json`:
 
 ```
-poetry run python scripts/embedd_commits.py
+poetry run python -m scripts.embedd_commits
 ```
 
 Build the image.
