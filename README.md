@@ -6,9 +6,18 @@ Code retieval.
 
 In this example, `cosine_similarity_match_commits.py` will find the most likely matching commit oid based on an example prompt.
 
-### Example etup
+### Example setup
+
+Creates `data/commit_logs.json` file
+
+```
+poetry run python -m scripts.git_commit_parser_up_to_depth
+```
+
 
 From the project's git history, generate `commits_embeddings.json`:
+
+- [  ] Update as a module so it can use `data/commit_logs.json`
 
 ```
 poetry run python scripts/embedd_commits.py
