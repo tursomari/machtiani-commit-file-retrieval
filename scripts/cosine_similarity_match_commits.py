@@ -1,50 +1,23 @@
-import os
 import json
-import numpy as np
-from dotenv import load_dotenv
-from langchain_openai import OpenAIEmbeddings
+import logging
+import argparse
+from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
+from lib.utils.utilities import read_json_file, write_json_file
 
-print("Script is running")
+def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Match a commit to the input text using embeddings.")
+    parser.add_argument('input_text', type=str, help="The input text to find the closest commit match.")
 
-# Load environment variables from a .env file
-load_dotenv()
+    # Parse the arguments
+    args = parser.parse_args()
 
-# Set up your OpenAI API key
-openai_api_key = os.getenv('OPENAI_API_KEY')
+    # Initialize the CommitEmbeddingMatcher
+    matcher = CommitEmbeddingMatcher(embeddings_file='data/commits_embeddings.json')
 
-# Initialize the OpenAIEmbeddings object with the API key
-embedding_generator = OpenAIEmbeddings(openai_api_key=openai_api_key, model="text-embedding-3-large")
+    # Match the commit based on input text
+    matcher.match_commit(args.input_text)
 
-# Function to calculate cosine similarity
-def cosine_similarity(vec1, vec2):
-    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
-
-# Load the embeddings from the JSON file
-with open('commits_embeddings.json', 'r') as f:
-    embeddings_dict = json.load(f)
-
-# The text you want to match
-input_text = "Update my python project config to use python 3.9 to 4.0."
-print(f"prompt: {input_text}")
-
-# Generate the embedding for the input text
-input_embedding = embedding_generator.embed_query(input_text)
-
-# Find the closest match by calculating similarity
-closest_match_oid = None
-highest_similarity = -1
-
-for key, value in embeddings_dict.items():
-    oid = value["oid"]
-    embedding = value["embedding"]
-
-    # Calculate similarity
-    similarity = cosine_similarity(input_embedding, embedding)
-
-    if similarity > highest_similarity:
-        highest_similarity = similarity
-        closest_match_oid = oid
-
-# Output the closest match
-print(f"The closest match to '{input_text}' is commit OID '{closest_match_oid}' with a similarity of {highest_similarity:.4f}")
+if __name__ == "__main__":
+    main()
 
