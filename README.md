@@ -14,10 +14,7 @@ Creates `data/commit_logs.json` file
 poetry run python -m scripts.git_commit_parser_up_to_depth
 ```
 
-
-From the project's git history, generate `commits_embeddings.json`:
-
-- [  ] Update as a module so it can use `data/commit_logs.json`
+From the project's git history, generates `commits_embeddings.json`:
 
 ```
 poetry run python scripts/embedd_commits.py
@@ -31,10 +28,10 @@ docker build -t businessmachine-work .
 
 ### Example usage
 
-Find matching text from `commits_embeddings.json`
+Find matching commits from `commits_embeddings.json`
 
 ```
-poetry run python scripts/cosine_similarity_match_commits.py
+docker run --rm businessmachine-work scripts.cosine_similarity_match_commits "What is the first commit."
 ```
 
 ## A two-pronged approach
