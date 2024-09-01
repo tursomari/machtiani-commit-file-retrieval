@@ -24,13 +24,15 @@ def get_commit_info_at_depth(repo, depth):
         print(f"Error processing commit at depth {depth}: {e}")
         return None
 
-def get_commits_up_to_depth(repo_path, max_depth):
+def get_commits_up_to_depth_or_oid(repo_path, max_depth, stop_oid=None):
     try:
         repo = git.Repo(repo_path)
         commits = []
         for i in range(max_depth):
             commit_info = get_commit_info_at_depth(repo, i)
             if commit_info:
+                if commit_info['oid'] == stop_oid:
+                    break  # Stop just before processing the specified OID
                 commits.append(commit_info)
             else:
                 break  # Stop if we've reached an invalid commit or error occurs
@@ -43,8 +45,10 @@ def get_commits_up_to_depth(repo_path, max_depth):
 
 if __name__ == "__main__":
     repo_path = '.'  # Path to your git repository
-    depth = 10  # Depth or level of commits to retrieve
-    commit_logs = get_commits_up_to_depth(repo_path, depth)
+    depth = 1000  # Maximum depth or level of commits to retrieve
+    stop_oid = "322ba9108612bead5eb7731ccb66763dec69ef1b"  # The OID to stop at, or set to None if not needed
+
+    commit_logs = get_commits_up_to_depth_or_oid(repo_path, depth, stop_oid)
 
     print(json.dumps(commit_logs, indent=2))
 
