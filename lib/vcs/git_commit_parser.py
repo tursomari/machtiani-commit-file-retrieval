@@ -1,5 +1,10 @@
 import git
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class GitCommitParser:
     def __init__(self, json_data):
@@ -38,7 +43,7 @@ class GitCommitParser:
             }
 
         except Exception as e:
-            print(f"Error processing commit at depth {depth}: {e}")
+            logger.error(f"Error processing commit at depth {depth}: {e}")
             return None
 
     def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
@@ -50,6 +55,7 @@ class GitCommitParser:
                 if commit_info:
                     if commit_info['oid'] == self.stop_oid:
                         break  # Stop just before processing the specified OID
+                    logger.info(f"Added OID {commit_info['oid']}")
                     commits.append(commit_info)
                 else:
                     break  # Stop if we've reached an invalid commit or error occurs
@@ -57,7 +63,7 @@ class GitCommitParser:
             return commits
 
         except Exception as e:
-            print(f"Error accessing the repository: {e}")
+            logger.error(f"Error accessing the repository: {e}")
             return []
 
     def add_commits_to_log(self, repo_path, max_depth):
@@ -66,3 +72,4 @@ class GitCommitParser:
         """
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
+
