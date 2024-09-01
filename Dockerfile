@@ -34,8 +34,8 @@ RUN poetry install --no-root --no-dev
 COPY . .
 
 # Set the entrypoint to poetry run python
-ENTRYPOINT ["poetry", "run", "python"]
+ENTRYPOINT ["poetry", "run", "python", "-m"]
 
 # Set a default script as a fallback
-CMD ["scripts/cosine_similarity_match.py"]
+CMD ["scripts.cosine_similarity_match"]
 
