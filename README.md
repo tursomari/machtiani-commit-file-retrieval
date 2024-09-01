@@ -74,7 +74,6 @@ Structure prompt something like this.
 {pre-prompt}\n{prompt}\n{post-prompt}\n(files}
 ```
 
-## Scripts and experiments
+## To do
 
-
-
+- [  ] Only embed commits that don't exist in embedd.json  - `scripts/embedd_commits.py`
