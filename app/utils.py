@@ -40,6 +40,24 @@ class DataDir(Enum):
 
         logger.debug(f"All directories created for project '{project_name}'.")
 
+    @staticmethod
+    def list_projects() -> list:
+        """
+        Lists the names of all projects in the BASE_PATH directory.
+
+        :return: A list of project names.
+        """
+        try:
+            projects = [
+                name for name in os.listdir(BASE_PATH)
+                if os.path.isdir(os.path.join(BASE_PATH, name))
+            ]
+            logger.debug(f"Found projects: {projects}")
+            return projects
+        except FileNotFoundError:
+            logger.error(f"Base path '{BASE_PATH}' not found.")
+            return []
+
 # Example usage:
 #if __name__ == "__main__":
 #    project_name = "example_project"
@@ -53,4 +71,8 @@ class DataDir(Enum):
 #
 #    logger.debug(f"Repo Directory: {repo_dir}")
 #    logger.debug(f"Commits Embeddings Directory: {commits_embeddings_dir}")
+#
+#    # List all projects in the BASE_PATH
+#    projects = DataDir.list_projects()
+#    logger.debug(f"Projects in BASE_PATH: {projects}")
 
