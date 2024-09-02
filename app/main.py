@@ -2,6 +2,7 @@ from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List
+from repository_manager import clone_repository
 
 app = FastAPI()
 
@@ -26,29 +27,42 @@ class FileSearchResponse(BaseModel):
     mode: SearchMode
     file_paths: List[FilePathEntry]
 
+class VCSType(str, Enum):
+    git = "git"
+    # Additional VCS types can be added here in the future, e.g., "svn", "mercurial", etc.
+
 class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
+    destination_path: str
+    project_name: str
+    vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
-
     @validator('api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
         return v
 
-# Define your routes here or import them from a routes.py file
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
     codehost_url = data.codehost_url
-    api_key = data.api_key.get_secret_value() if data.api_key else None
+    destination_path = data.destination_path
+    project_name = data.project_name
+    vcs_type = data.vcs_type
+    api_key = data.api_key
 
-    # Example logic to handle adding the repository
-    if "github.com" in codehost_url.host and not api_key:
-        raise HTTPException(status_code=400, detail="API key is required for GitHub repositories.")
+    if vcs_type != VCSType.git:
+        raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
+
+    # Create necessary directories
+    create_project_directories(destination_path, project_name)
+
+    # Clone the repository using the module, into the 'git' directory
+    clone_repository(codehost_url, destination_path, project_name, api_key)
 
     return {
-        "message": "Repository added successfully",
-        "codehost_url": codehost_url,
+        "message": f"{vcs_type} repository added successfully",
+        "full_path": f"{destination_path}/{project_name}/repo/git",
         "api_key_provided": bool(api_key)
     }
 
