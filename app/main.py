@@ -3,7 +3,7 @@ from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
-from app.utils import create_project_directories
+from app.utils import DataDir
 import logging
 
 app = FastAPI()
@@ -50,6 +50,7 @@ async def startup_event():
     # Use the logger instead of print
     logger = logging.getLogger("uvicorn")
     logger.info("Application is starting up...")
+    #DataDir.get_path.REPO.get_path(project_name)
 
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
@@ -61,11 +62,9 @@ def add_repository(data: AddRepositoryRequest):
     if vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
 
-    # Get from a config in future
-    destination_path = "/data/user/repositories"
-
     # Create necessary directories
-    create_project_directories(destination_path, project_name)
+    DataDir.create_all(project_name)
+    destination_path = DataDir.REPO.get_path(project_name)
 
     # Clone the repository using the module, into the 'git' directory
     clone_repository(codehost_url, destination_path, project_name, api_key)

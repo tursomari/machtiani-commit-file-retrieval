@@ -5,7 +5,7 @@ from fastapi import HTTPException
 import os
 
 def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None):
-    full_path = os.path.join(destination_path, project_name, "repo", "git")
+    full_path = os.path.join(destination_path, "git")
 
     try:
         # Convert the HttpUrl to a string
