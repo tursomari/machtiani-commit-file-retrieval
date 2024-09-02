@@ -6,6 +6,7 @@ from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
+from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file
 from app.utils import DataDir
 import logging
@@ -29,9 +30,11 @@ class FilePathEntry(BaseModel):
     created_at: str
 
 class FileSearchResponse(BaseModel):
+    oid: str
+    similarity: float
+    file_paths: List[FilePathEntry]
     embedding_model: EmbeddingModel
     mode: SearchMode
-    file_paths: List[FilePathEntry]
 
 class VCSType(str, Enum):
     git = "git"
@@ -110,6 +113,31 @@ def add_repository(data: AddRepositoryRequest):
         "api_key_provided": bool(api_key)
     }
 
+@app.get("/infer-file/", response_model=FileSearchResponse)
+def infer_file(
+    prompt: str = Query(..., description="The prompt to search for"),
+    project: str = Query(..., description="The project to search"),
+    mode: SearchMode = Query(..., description="Search mode: content, commit, or super"),
+    model: EmbeddingModel = Query(..., description="The embedding model used")
+) -> FileSearchResponse:
+    if not prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
+
+    commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path)
+    closest_match = matcher.find_closest_commit(prompt)
+
+    # Create an instance of FileSearchResponse with all required fields
+    response = FileSearchResponse(
+        oid=closest_match["oid"],
+        similarity=closest_match["similarity"],
+        file_paths=[],  # Replace with the actual file paths if applicable
+        embedding_model=model.value,
+        mode=mode.value,
+    )
+
+    return response
+
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(
     prompt: str = Query(..., description="The prompt to search for"),
@@ -126,9 +154,9 @@ def get_file_paths(
     ]
 
     return FileSearchResponse(
+
         embedding_model=model,
         mode=mode,
-        file_paths=mock_file_paths
     )
 
 @app.get("/health")
