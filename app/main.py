@@ -1,8 +1,11 @@
+import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
+from lib.vcs.git_commit_parser import GitCommitParser
+from lib.utils.utilities import read_json_file, write_json_file
 from app.utils import DataDir
 import logging
 
@@ -50,7 +53,29 @@ async def startup_event():
     # Use the logger instead of print
     logger = logging.getLogger("uvicorn")
     logger.info("Application is starting up...")
-    #DataDir.get_path.REPO.get_path(project_name)
+
+    # List all projects
+    projects = DataDir.list_projects()
+
+    # Iterate over each project and call get_path for each directory type
+    for project in projects:
+        # Should pull latest git changes
+        git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
+        logger.info(f"{project}'s git repo path: {git_project_path}")
+
+        # Generate new commit logs
+        commit_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+        commit_logs_file_path = os.path.join(commit_logs_dir_path, "commit_logs.json")
+        logger.info(f"{project}'s commit logs file path: {commit_logs_file_path}")
+        commit_logs_json = read_json_file(commit_logs_file_path)
+        parser = GitCommitParser(commit_logs_json)
+        depth = 1000  # Maximum depth or level of commits to retrieve (should get from config).
+        parser.add_commits_to_log(git_project_path, depth)  # Add new commits to the beginning of the log
+        write_json_file(parser.commits, commit_logs_file_path)  # Write updated logs back to the JSON file
+
+        #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
+
+
 
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
