@@ -153,11 +153,11 @@ def health_check():
 - [ ] Turn into a service
      - docker-compose.yml
      - mount data volume to /data in container
-     - git data goes into /data/repositories/<project_name>/repo/
-     - commit embeddings go into /data/repositories/<project_name>/commits/embeddings/
-     - commit logs json go into /data/repositories/<project_name>/commits/logs/
-     - content embeddings go into /data/repositories/<project_name>/contents/embeddings/
-     - content logs json go into /data/repositories/<project_name>/contents/logs/
+     - git data goes into /data/user/repositories/<project_name>/repo/git
+     - commit embeddings go into /data/user/repositories/<project_name>/commits/embeddings/
+     - commit logs json go into /data/user/repositories/<project_name>/commits/logs/
+     - content embeddings go into /data/user/repositories/<project_name>/contents/embeddings/
+     - content logs json go into /data/user/repositories/<project_name>/contents/logs/
      - an endpoint that users can pass git url and api key, if needed.
 
 - [ ] Implement FastAPI endpoints.
