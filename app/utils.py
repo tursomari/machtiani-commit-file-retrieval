@@ -16,14 +16,18 @@ class DataDir(Enum):
     CONTENT_EMBEDDINGS = "contents/embeddings"
     CONTENT_LOGS = "contents/logs"
 
-    def get_path(self, project_name: str) -> str:
+    def get_path(self, project_name: str, dir_type: 'DataDir' = None) -> str:
         """
         Gets the full path for a specific project based on the directory type.
+        If dir_type is provided, it returns the path for that specific directory type.
 
         :param project_name: The name of the project.
+        :param dir_type: The specific directory type from the DataDir enum.
         :return: The full path to the requested directory.
         """
-        return os.path.join(BASE_PATH, project_name, self.value)
+        if dir_type is None:
+            dir_type = self
+        return os.path.join(BASE_PATH, project_name, dir_type.value)
 
     @staticmethod
     def create_all(project_name: str):
@@ -60,19 +64,16 @@ class DataDir(Enum):
 
 # Example usage:
 #if __name__ == "__main__":
+#    # Create an example project
 #    project_name = "example_project"
-#
-#    # Create all directories for the project
 #    DataDir.create_all(project_name)
 #
-#    # Get specific directory path
-#    repo_dir = DataDir.REPO.get_path(project_name)
-#    commits_embeddings_dir = DataDir.COMMITS_EMBEDDINGS.get_path(project_name)
-#
-#    logger.debug(f"Repo Directory: {repo_dir}")
-#    logger.debug(f"Commits Embeddings Directory: {commits_embeddings_dir}")
-#
-#    # List all projects in the BASE_PATH
+#    # List all projects
 #    projects = DataDir.list_projects()
-#    logger.debug(f"Projects in BASE_PATH: {projects}")
+#
+#    # Iterate over each project and call get_path for each directory type
+#    for project in projects:
+#        for dir_type in DataDir:
+#            path = dir_type.get_path(project, dir_type)
+#            logger.debug(f"Path for {dir_type.name} in project '{project}': {path}")
 
