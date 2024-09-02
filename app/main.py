@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
 from app.utils import create_project_directories
+import logging
 
 app = FastAPI()
 
@@ -37,11 +38,18 @@ class AddRepositoryRequest(BaseModel):
     project_name: str
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
+
     @validator('api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
         return v
+
+@app.on_event("startup")
+async def startup_event():
+    # Use the logger instead of print
+    logger = logging.getLogger("uvicorn")
+    logger.info("Application is starting up...")
 
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
