@@ -2,8 +2,8 @@ from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List
-from lib.vcs.repository_manager import clone_repository
-from utils import create_project_directories
+from lib.vcs.repo_manager import clone_repository
+from app.utils import create_project_directories
 
 app = FastAPI()
 
