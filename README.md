@@ -18,6 +18,12 @@ In this example, `cosine_similarity_match_commits.py` will find the most likely 
 
 ### Setup
 
+Add .env file.
+
+```
+OPENAI_API_KEY=sk-proj...
+```
+
 Create the `data/commit_logs.json` file:
 
 ```bash
