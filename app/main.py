@@ -2,7 +2,8 @@ from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List
-from repository_manager import clone_repository
+from lib.vcs.repository_manager import clone_repository
+from utils import create_project_directories
 
 app = FastAPI()
 
@@ -46,13 +47,15 @@ class AddRepositoryRequest(BaseModel):
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
     codehost_url = data.codehost_url
-    destination_path = data.destination_path
     project_name = data.project_name
     vcs_type = data.vcs_type
     api_key = data.api_key
 
     if vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
+
+    # Get from a config in future
+    destination_path = "/data/user/repositories"
 
     # Create necessary directories
     create_project_directories(destination_path, project_name)

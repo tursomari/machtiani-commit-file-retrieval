@@ -15,7 +15,7 @@ def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name:
     :raises HTTPException: If the clone operation fails.
     :return: None
     """
-    full_path = os.path.join(destination_path, project_name)
+    full_path = os.path.join(destination_path, project_name, "repo", "git")
 
     try:
         # Prepare the git clone command
