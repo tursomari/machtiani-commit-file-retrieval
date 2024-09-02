@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
 from lib.vcs.git_commit_parser import GitCommitParser
+from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.utils.utilities import read_json_file, write_json_file
 from app.utils import DataDir
 import logging
@@ -64,14 +65,23 @@ async def startup_event():
         logger.info(f"{project}'s git repo path: {git_project_path}")
 
         # Generate new commit logs
-        commit_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
-        commit_logs_file_path = os.path.join(commit_logs_dir_path, "commit_logs.json")
-        logger.info(f"{project}'s commit logs file path: {commit_logs_file_path}")
-        commit_logs_json = read_json_file(commit_logs_file_path)
-        parser = GitCommitParser(commit_logs_json)
+        commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+        commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+        logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+        commits_logs_json = read_json_file(commits_logs_file_path)
+        parser = GitCommitParser(commits_logs_json)
         depth = 1000  # Maximum depth or level of commits to retrieve (should get from config).
         parser.add_commits_to_log(git_project_path, depth)  # Add new commits to the beginning of the log
-        write_json_file(parser.commits, commit_logs_file_path)  # Write updated logs back to the JSON file
+        write_json_file(parser.commits, commits_logs_file_path)  # Write updated logs back to the JSON file
+
+        # Embed commit logs (if any new ones)
+        commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+        logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
+        commits_logs_json = read_json_file(commits_logs_file_path)
+        existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+        generator = CommitEmbeddingGenerator(commits_logs_json, existing_commits_embeddings_json)
+        updated_commits_embeddings_json = generator.generate_embeddings()
+        write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)  # Write updated logs back to the JSON file
 
         #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
 
