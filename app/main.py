@@ -34,7 +34,6 @@ class VCSType(str, Enum):
 
 class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
-    destination_path: str
     project_name: str
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
