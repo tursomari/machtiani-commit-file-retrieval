@@ -33,9 +33,6 @@ RUN poetry install --no-root --no-dev
 # Copy the rest of the application code
 COPY . .
 
-# Set the entrypoint to poetry run python
-ENTRYPOINT ["poetry", "run", "python", "-m"]
-
-# Set a default script as a fallback
-CMD ["scripts.cosine_similarity_match"]
+# Set a default command to run the FastAPI app
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "5070"]
 

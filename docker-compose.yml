@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  businessmachine:
+    build: .
+    container_name: businessmachine_work
+    ports:
+      - "5070:5070"
+    volumes:
+      - ./data:/data
+    # The command can override the CMD in the Dockerfile if needed
+    command: ["poetry", "run", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "5070"]
+
