@@ -12,14 +12,6 @@ This project provides two main services:
 
 While everything is currently part of this single project, it can be split into separate projects if needed.
 
-## Setup
-
-Create a `.env` file with your OpenAI API key:
-
-```env
-OPENAI_API_KEY=sk-proj...
-```
-
 Build the Docker containers:
 
 ```bash
@@ -92,6 +84,7 @@ Use this interface to interactively test the endpoints and view their inputs and
 - [x] Only embed commits that don't exist in `commits_embeddings.json` - `scripts/embed_commits.py`.
 - [x] Turn into a full service:
 - [x] Implement FastAPI endpoints.
+- [x] Pass api key.
 - [ ] Save repo settings:
      - default branch: save in /data/users/repositories/<project>/repo/default_git file
      - you get default from clone
