@@ -16,9 +16,9 @@ class MatchStrength(Enum):
         if self == MatchStrength.HIGH:
             return 0.40
         elif self == MatchStrength.MID:
-            return 0.20
+            return 0.30
         else:
-            return 0.10
+            return 0.20
 
 class EmbeddingModel(str, Enum):
     gpt_4o_mini = "gpt-4o-mini"
