@@ -6,17 +6,17 @@ from langchain_openai import OpenAIEmbeddings
 from lib.utils.enums import MatchStrength
 
 class CommitEmbeddingMatcher:
-    def __init__(self, embeddings_file: str, model: str = "text-embedding-3-large"):
+    def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
         load_dotenv()  # Load environment variables from a .env file
 
         # Set up your OpenAI API key
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        if api_key:
+            self.openai_api_key = api_key
+            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=model)
+            self.embeddings_dict = self.load_embeddings(embeddings_file)
 
-        if not self.openai_api_key:
+        else:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
-
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=model)
-        self.embeddings_dict = self.load_embeddings(embeddings_file)
 
     def load_embeddings(self, filepath: str) -> dict:
         with open(filepath, 'r') as f:

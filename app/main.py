@@ -21,8 +21,11 @@ import logging
 
 app = FastAPI()
 
-@app.on_event("startup")
-async def startup_event():
+#@app.on_event("startup")
+@app.post("/load/")
+async def load(
+    api_key: str = Query(..., description="The openai api key."),
+):
     # Use the logger instead of print
     logger = logging.getLogger("uvicorn")
     logger.info("Application is starting up...")
@@ -51,7 +54,7 @@ async def startup_event():
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
         commits_logs_json = read_json_file(commits_logs_file_path)
         existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
-        generator = CommitEmbeddingGenerator(commits_logs_json, existing_commits_embeddings_json)
+        generator = CommitEmbeddingGenerator(commits_logs_json, api_key, existing_commits_embeddings_json)
         updated_commits_embeddings_json = generator.generate_embeddings()
         write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)  # Write updated logs back to the JSON file
 
@@ -114,13 +117,14 @@ def infer_file(
     project: str = Query(..., description="The project to search"),
     mode: SearchMode = Query(..., description="Search mode: content, commit, or super"),
     model: EmbeddingModel = Query(..., description="The embedding model used"),
+    api_key: str = Query(..., description="The openai api key."),
     match_strength: MatchStrength = Query(MatchStrength.HIGH, description="The strength of the match")
 ) -> List[FileSearchResponse]:
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path)
+    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
     closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
     responses = [
