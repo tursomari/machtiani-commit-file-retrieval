@@ -3,6 +3,7 @@ import json
 import numpy as np
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
+from lib.utils.enums import MatchStrength
 
 class CommitEmbeddingMatcher:
     def __init__(self, embeddings_file: str, model: str = "text-embedding-3-large"):
@@ -24,18 +25,23 @@ class CommitEmbeddingMatcher:
     def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-    def find_closest_commit(self, input_text: str) -> dict:
+    def find_closest_commits(self, input_text: str, match_strength: MatchStrength) -> list:
         input_embedding = self.embedding_generator.embed_query(input_text)
-        closest_match = {"oid": None, "similarity": -1}
+        min_similarity = match_strength.get_min_similarity()
+
+        matches = []
 
         for oid, value in self.embeddings_dict.items():
             embedding = value["embedding"]
             similarity = self.cosine_similarity(input_embedding, embedding)
 
-            if similarity > closest_match["similarity"]:
-                closest_match = {"oid": oid, "similarity": similarity}
+            if similarity >= min_similarity:
+                matches.append({"oid": oid, "similarity": similarity})
 
-        return closest_match
+        # Sort matches by similarity in descending order
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+
+        return matches
 
     def match_commit(self, input_text: str) -> None:
         closest_match = self.find_closest_commit(input_text)

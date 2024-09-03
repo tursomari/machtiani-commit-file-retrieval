@@ -6,15 +6,17 @@ from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file
 from app.utils import DataDir
-import logging
+from typing import Optional, List
 from lib.utils.enums import (
     SearchMode,
+    MatchStrength,
     EmbeddingModel,
     FilePathEntry,
     FileSearchResponse,
     VCSType,
     AddRepositoryRequest
 )
+import logging
 
 app = FastAPI()
 
@@ -79,30 +81,33 @@ def add_repository(data: AddRepositoryRequest):
         "api_key_provided": bool(api_key)
     }
 
-@app.get("/infer-file/", response_model=FileSearchResponse)
+@app.get("/infer-file/", response_model=List[FileSearchResponse])
 def infer_file(
     prompt: str = Query(..., description="The prompt to search for"),
     project: str = Query(..., description="The project to search"),
     mode: SearchMode = Query(..., description="Search mode: content, commit, or super"),
-    model: EmbeddingModel = Query(..., description="The embedding model used")
-) -> FileSearchResponse:
+    model: EmbeddingModel = Query(..., description="The embedding model used"),
+    match_strength: MatchStrength = Query(MatchStrength.HIGH, description="The strength of the match")
+) -> List[FileSearchResponse]:
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path)
-    closest_match = matcher.find_closest_commit(prompt)
+    closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
-    # Create an instance of FileSearchResponse with all required fields
-    response = FileSearchResponse(
-        oid=closest_match["oid"],
-        similarity=closest_match["similarity"],
-        file_paths=[],  # Replace with the actual file paths if applicable
-        embedding_model=model.value,
-        mode=mode.value,
-    )
+    responses = [
+        FileSearchResponse(
+            oid=match["oid"],
+            similarity=match["similarity"],
+            file_paths=[],  # Replace with the actual file paths if applicable
+            embedding_model=model.value,
+            mode=mode.value,
+        )
+        for match in closest_matches
+    ]
 
-    return response
+    return responses
 
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(

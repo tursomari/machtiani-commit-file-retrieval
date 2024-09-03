@@ -7,6 +7,19 @@ class SearchMode(str, Enum):
     commit = "commit"
     super = "super"
 
+class MatchStrength(Enum):
+    HIGH = "high"
+    MID = "mid"
+    LOW = "low"
+
+    def get_min_similarity(self) -> float:
+        if self == MatchStrength.HIGH:
+            return 0.40
+        elif self == MatchStrength.MID:
+            return 0.20
+        else:
+            return 0.10
+
 class EmbeddingModel(str, Enum):
     gpt_4o_mini = "gpt-4o-mini"
     vector_ai_plus = "vector-ai-plus"
