@@ -87,6 +87,7 @@ Use this interface to interactively test the endpoints and view their inputs and
 - [x] Pass api key.
 - [x] Fetch and checkout list of projects.
 - [x] Add list of files to result of find_closest_commits.
+- [ ] Add enpoint to retrieve file content from list of files.
 - [ ] Save repo settings:
      - default branch: save in /data/users/repositories/<project>/repo/default_git file
      - you get default from clone
