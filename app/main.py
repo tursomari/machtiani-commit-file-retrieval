@@ -18,6 +18,9 @@ from lib.utils.enums import (
     FetchAndCheckoutBranchRequest
 )
 import logging
+# Use the logger instead of print
+logger = logging.getLogger("uvicorn")
+logger.info("Application is starting up...")
 
 app = FastAPI()
 
@@ -26,10 +29,6 @@ app = FastAPI()
 async def load(
     api_key: str = Query(..., description="The openai api key."),
 ):
-    # Use the logger instead of print
-    logger = logging.getLogger("uvicorn")
-    logger.info("Application is starting up...")
-
     # List all projects
     projects = DataDir.list_projects()
 
@@ -127,18 +126,34 @@ def infer_file(
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
     closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
-    responses = [
-        FileSearchResponse(
+    # Update so
+    commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+    commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+    logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+    commits_logs_json = read_json_file(commits_logs_file_path)
+    parser = GitCommitParser(commits_logs_json)
+
+    responses = []
+    for match in closest_matches:
+        # Retrieve the file paths from the commits
+        file_paths = parser.get_files_from_commits(match["oid"])
+
+        # Ensure each item is of type FilePathEntry
+        closest_file_matches: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
+
+        # Create the FileSearchResponse
+        response = FileSearchResponse(
             oid=match["oid"],
             similarity=match["similarity"],
-            file_paths=[],  # Replace with the actual file paths if applicable
+            file_paths=closest_file_matches,  # Pass the list of FilePathEntry objects
             embedding_model=model.value,
             mode=mode.value,
         )
-        for match in closest_matches
-    ]
 
+        # Append the response to the list
+        responses.append(response)
     return responses
+
 
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(
@@ -150,9 +165,9 @@ def get_file_paths(
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     mock_file_paths = [
-        FilePathEntry(path="/path/to/file1.txt", size=12345, created_at="2024-08-23T12:34:56Z"),
-        FilePathEntry(path="/path/to/file2.txt", size=67890, created_at="2024-08-23T12:35:56Z"),
-        FilePathEntry(path="/path/to/file3.txt", size=54321, created_at="2024-08-23T12:36:56Z")
+        FilePathEntry(path="/path/to/file1.txt"),
+        FilePathEntry(path="/path/to/file2.txt"),
+        FilePathEntry(path="/path/to/file3.txt")
     ]
 
     return FileSearchResponse(

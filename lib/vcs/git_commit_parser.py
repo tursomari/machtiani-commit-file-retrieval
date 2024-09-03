@@ -73,3 +73,57 @@ class GitCommitParser:
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
+
+    def get_files_from_commits(self, oid):
+        """
+        Extracts and returns the list of files from the commit with the specified OID.
+
+        Args:
+            json_data (dict): The JSON object containing commit information.
+            oid (str): The OID of the commit to retrieve files from.
+
+        Returns:
+            list: A list of files associated with the specified OID, or an empty list if not found.
+        """
+        for commit in self.commits:
+            if commit.get('oid') == oid:
+                return commit.get('files', [])
+        return []
+
+    # Example usage:
+    #json_data = [
+    #    {
+    #        "oid": "d780af879ae1967e565861d0426ed864aaddf35a",
+    #        "message": "Initial commit",
+    #        "files": [
+    #            "Dockerfile",
+    #            "README.md",
+    #            "app/main.py",
+    #            "docker-compose.yml",
+    #            "lib/__init__.py",
+    #            "lib/ai/__init__.py",
+    #            "lib/indexer/__init__.py",
+    #            "lib/indexer/commit_indexer.py",
+    #            "lib/search/commit_embedding_matcher.py",
+    #            "lib/utils/utilities.py",
+    #            "lib/vcs/__init__.py",
+    #            "lib/vcs/git_commit_parser.py",
+    #            "lib/vcs/repo_manager.py",
+    #            "poetry.lock",
+    #            "pyproject.toml",
+    #            "scripts/cosine_similarity_match.py",
+    #            "scripts/cosine_similarity_match_commits.py",
+    #            "scripts/embedd_commits.py",
+    #            "scripts/embedd_text.py",
+    #            "scripts/git_commit_parser.py",
+    #            "scripts/git_commit_parser_up_to_depth.py",
+    #            "scripts/langchain_usage.py"
+    #        ]
+    #    },
+    #    # Other commits...
+    #]
+    #
+    #oid = "d780af879ae1967e565861d0426ed864aaddf35a"
+    #files = get_files_from_commit(json_data, oid)
+    #print(files)
+

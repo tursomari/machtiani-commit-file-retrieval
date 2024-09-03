@@ -43,11 +43,6 @@ class CommitEmbeddingMatcher:
 
         return matches
 
-    def match_commit(self, input_text: str) -> None:
-        closest_match = self.find_closest_commit(input_text)
-        print(f"The closest match to '{input_text}' is commit OID '{closest_match['oid']}' "
-              f"with a similarity of {closest_match['similarity']:.4f}")
-
 # Example usage:
 #if __name__ == "__main__":
 #    matcher = CommitEmbeddingMatcher(embeddings_file='commits_embeddings.json')

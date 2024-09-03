@@ -49,6 +49,10 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         repo = Repo(full_path)
         logger.info(f"Opened repository at {full_path}")
 
+        # Add the directory as a safe directory
+        logger.info(f"Adding {full_path} as a safe directory for Git operations")
+        repo.git.config('--global', '--add', 'safe.directory', full_path)
+
         # Handle authentication for fetching and pulling
         url_str = str(codehost_url)
         if api_key:

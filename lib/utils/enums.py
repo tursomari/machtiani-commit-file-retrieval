@@ -27,8 +27,6 @@ class EmbeddingModel(str, Enum):
 
 class FilePathEntry(BaseModel):
     path: str
-    size: int
-    created_at: str
 
 class FileSearchResponse(BaseModel):
     oid: str
