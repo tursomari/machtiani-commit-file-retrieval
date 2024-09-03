@@ -52,3 +52,16 @@ class AddRepositoryRequest(BaseModel):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
         return v
+
+class FetchAndCheckoutBranchRequest(BaseModel):
+    codehost_url: HttpUrl
+    project_name: str
+    branch_name: str
+    vcs_type: VCSType = VCSType.git  # Default to "git"
+    api_key: Optional[SecretStr] = None
+
+    @validator('api_key')
+    def validate_api_key(cls, v):
+        if v and not v.get_secret_value().strip():
+            raise ValueError("API key cannot be empty if provided")
+        return v

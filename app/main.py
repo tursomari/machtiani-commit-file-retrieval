@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
-from lib.vcs.repo_manager import clone_repository
+from lib.vcs.repo_manager import clone_repository, fetch_and_checkout_branch
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
@@ -14,7 +14,8 @@ from lib.utils.enums import (
     FilePathEntry,
     FileSearchResponse,
     VCSType,
-    AddRepositoryRequest
+    AddRepositoryRequest,
+    FetchAndCheckoutBranchRequest
 )
 import logging
 
@@ -56,8 +57,6 @@ async def startup_event():
 
         #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
 
-
-
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
     codehost_url = data.codehost_url
@@ -79,6 +78,34 @@ def add_repository(data: AddRepositoryRequest):
         "message": f"{vcs_type} repository added successfully",
         "full_path": f"{destination_path}/{project_name}/repo/git",
         "api_key_provided": bool(api_key)
+    }
+
+@app.post("/fetch-and-checkout/")
+def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
+    codehost_url = data.codehost_url
+    project_name = data.project_name
+    branch_name = data.branch_name
+    api_key = data.api_key
+
+    if data.vcs_type != VCSType.git:
+        raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
+
+    # Get the destination path
+    destination_path = DataDir.REPO.get_path(data.project_name)
+
+    # Fetch and checkout the branch using the module function
+    fetch_and_checkout_branch(
+        codehost_url,
+        destination_path,
+        project_name,
+        branch_name,
+        api_key
+    )
+
+    return {
+        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}'",
+        "branch_name": data.branch_name,
+        "project_name": data.project_name
     }
 
 @app.get("/infer-file/", response_model=List[FileSearchResponse])
