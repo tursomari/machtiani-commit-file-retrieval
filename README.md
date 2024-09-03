@@ -5,65 +5,74 @@ Code retrieval and file path search via embeddings.
 
 ## Overview
 
-This project aims to provide a two-pronged approach:
+This project provides two main services:
 
-1. **Document and Code Retrieval**: A service that allows you to generate summaries of files (e.g., source code) and retrieve the full file by its name.
-2. **Commit Message Generation and Indexing**: A service that auto-generates commit messages and indexes them against the hashes of the affected files.
+1. **Document and Code Retrieval**: Generate summaries of files (e.g., source code) and retrieve the full file by its name using embedding-based search.
+2. **Commit Message Generation and Indexing**: Automatically generate commit messages and index them against the hashes of the affected files, enabling advanced search and retrieval capabilities.
 
-While everything is currently part of this single project, it can be broken up into separate projects if needed.
+While everything is currently part of this single project, it can be split into separate projects if needed.
 
 ## Setup
 
-Add .env file.
+Create a `.env` file with your OpenAI API key:
 
-```
+```env
 OPENAI_API_KEY=sk-proj...
 ```
 
-Build.
+Build the Docker containers:
 
-```
+```bash
 docker-compose build
 ```
 
+***Use the fetch and checkout branch endpoint to pull latest git changes in the project you added. When you restart the service, it will automatically reindex.***
+
 ## Local API Service
 
-This project now includes a FastAPI-based local service that serves endpoints for file path retrieval and other related tasks.
+The project includes a FastAPI-based service that provides endpoints for various tasks, including file path retrieval, repository management, and health checks.
 
 ### FastAPI Endpoints
 
-1. **File Path Retrieval**: An endpoint to search for file paths based on a given prompt, search mode, and embedding model.
-2. **Health Check**: A simple health check endpoint to verify the service status.
-3. **Add Repository**: An endpoint to add a repository that can be searched, requiring a code host URL and optionally an API key.
+1. **File Path Retrieval**: Search for file paths based on a given prompt, search mode, and embedding model.
+2. **Add Repository**: Add a repository that can be searched, requiring a code host URL and optionally an API key. The repository is cloned to a specific directory, and its commits are indexed.
+3. **Fetch and Checkout Branch**: Fetch and check out a specific branch of a repository, with support for authentication using an API key.
+4. **Infer File**: Infer files based on a similarity search using a given prompt, project, search mode, and embedding model.
+5. **Health Check**: Verify the service status with a simple health check endpoint.
 
 ### Running the FastAPI Application
 
-This will start the FastAPI server, and the application will be accessible at `http://localhost:5070`.
+Start the FastAPI server:
 
-```
+```bash
 docker-compose up
 ```
 
+The application will be accessible at `http://localhost:5070`.
+
 ### Accessing the API Documentation
 
-Once the FastAPI application is running, you can access the automatically generated Swagger UI documentation at:
+After starting the FastAPI application, you can access the automatically generated Swagger UI documentation at:
 
-```
+```bash
 http://localhost:5070/docs
 ```
 
-You can use this interface to interactively test the endpoints and view their inputs and outputs.
+Use this interface to interactively test the endpoints and view their inputs and outputs.
 
-For example, `add_repository`. It will clone the repo to the data. When you restart the service, it will automatically capture the git logs and index.
+### Repository Management
 
-## Strategy
+- The `add-repository` endpoint clones a repository into the appropriate data directory and indexes the commit logs. 
+- The `fetch-and-checkout` endpoint allows you to fetch and check out a branch from the repository.
 
-### Document Retrieval
+### Strategy
+
+#### Document Retrieval
 
 1. Embed the prompt.
 2. Find related files based on matching embeddings.
 
-### Commit Message Generation and Indexing
+#### Commit Message Generation and Indexing
 
 1. Diff the changes.
 2. Generate a concise and informative Git commit message using an AI model.
@@ -80,15 +89,11 @@ For example, `add_repository`. It will clone the repo to the data. When you rest
 
 ## To-Do List
 
-- [ x ] Only embed commits that don't exist in commits_embeddings.json - `scripts/embedd_commits.py`.
-- [ ] Turn into a service
-     - docker-compose.yml
-     - mount data volume to /data in container
-     - git data goes into /data/user/repositories/<project_name>/repo/git
-     - commit embeddings go into /data/user/repositories/<project_name>/commits/embeddings/
-     - commit logs json go into /data/user/repositories/<project_name>/commits/logs/
-     - content embeddings go into /data/user/repositories/<project_name>/contents/embeddings/
-     - content logs json go into /data/user/repositories/<project_name>/contents/logs/
-     - an endpoint that users can pass git url and api key, if needed.
-
-- [ ] Implement FastAPI endpoints.
+- [x] Only embed commits that don't exist in `commits_embeddings.json` - `scripts/embed_commits.py`.
+- [x] Turn into a full service:
+- [x] Implement FastAPI endpoints.
+- [ ] Save repo settings:
+     - default branch: save in /data/users/repositories/<project>/repo/default_git file
+     - you get default from clone
+     - always use default on fetch and checkout, later can add branch granularity.
+- [ ] Fetch and checkout list of projects.
