@@ -1,8 +1,5 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
-from pydantic import BaseModel, HttpUrl, SecretStr, validator
-from enum import Enum
-from typing import Optional, List
 from lib.vcs.repo_manager import clone_repository
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
@@ -10,47 +7,16 @@ from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file
 from app.utils import DataDir
 import logging
+from lib.utils.enums import (
+    SearchMode,
+    EmbeddingModel,
+    FilePathEntry,
+    FileSearchResponse,
+    VCSType,
+    AddRepositoryRequest
+)
 
 app = FastAPI()
-
-# Define your models here or in a separate file (e.g., models.py)
-class SearchMode(str, Enum):
-    content = "content"
-    commit = "commit"
-    super = "super"
-
-class EmbeddingModel(str, Enum):
-    gpt_4o_mini = "gpt-4o-mini"
-    vector_ai_plus = "vector-ai-plus"
-    hyper_embed_v2 = "hyper-embed-v2"
-
-class FilePathEntry(BaseModel):
-    path: str
-    size: int
-    created_at: str
-
-class FileSearchResponse(BaseModel):
-    oid: str
-    similarity: float
-    file_paths: List[FilePathEntry]
-    embedding_model: EmbeddingModel
-    mode: SearchMode
-
-class VCSType(str, Enum):
-    git = "git"
-    # Additional VCS types can be added here in the future, e.g., "svn", "mercurial", etc.
-
-class AddRepositoryRequest(BaseModel):
-    codehost_url: HttpUrl
-    project_name: str
-    vcs_type: VCSType = VCSType.git  # Default to "git"
-    api_key: Optional[SecretStr] = None
-
-    @validator('api_key')
-    def validate_api_key(cls, v):
-        if v and not v.get_secret_value().strip():
-            raise ValueError("API key cannot be empty if provided")
-        return v
 
 @app.on_event("startup")
 async def startup_event():
