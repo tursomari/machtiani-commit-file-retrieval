@@ -1,5 +1,5 @@
 
-# businessmachine-work
+# machtiani-commit-file-retrieval
 
 Code retrieval and file path search via embeddings.
 
@@ -86,7 +86,7 @@ Use this interface to interactively test the endpoints and view their inputs and
 - [x] Implement FastAPI endpoints.
 - [x] Pass api key.
 - [x] Fetch and checkout list of projects.
-- [ ] Add list of files to result of find_closest_commits.
+- [x] Add list of files to result of find_closest_commits.
 - [ ] Save repo settings:
      - default branch: save in /data/users/repositories/<project>/repo/default_git file
      - you get default from clone
