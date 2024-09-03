@@ -1,12 +1,13 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
+from pydantic import ValidationError
 from lib.vcs.repo_manager import clone_repository, fetch_and_checkout_branch
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file
-from app.utils import DataDir
-from typing import Optional, List
+from app.utils import DataDir, retrieve_file_contents
+from typing import Optional, List, Dict
 from lib.utils.enums import (
     SearchMode,
     MatchStrength,
@@ -154,6 +155,45 @@ def infer_file(
         responses.append(response)
     return responses
 
+@app.post("/retrieve-file-contents/", response_model=Dict[str, str])
+def get_file_contents(
+    project_name: str = Query(..., description="The name of the project"),
+    file_paths: List[FilePathEntry] = Body(..., description="A list of file paths to retrieve content for")
+) -> Dict[str, str]:
+    """
+    Retrieve the content of files specified by file paths within a given project.
+
+    :param project_name: The name of the project to search in.
+    :param file_paths: A list of FilePathEntry objects representing the files to retrieve content for.
+    :return: A dictionary mapping file paths to their contents.
+    """
+    if not project_name.strip():
+        raise HTTPException(status_code=400, detail="Project name cannot be empty.")
+
+    if not file_paths:
+        raise HTTPException(status_code=400, detail="File paths cannot be empty.")
+
+    # Log the incoming file paths for debugging
+    logger.info(f"Received file paths: {file_paths}")
+
+    try:
+        # Explicitly validate each file path entry
+        for entry in file_paths:
+            logger.info(f"Validating file path entry: {entry.path}")
+            # Pydantic validation can be triggered explicitly
+            entry = FilePathEntry(**entry.dict())
+
+        # Use the retrieve_file_contents function to get the contents of the specified files
+        contents = retrieve_file_contents(project_name, file_paths)
+
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail=f"Validation error: {e}")
+    except Exception as e:
+        logger.error(f"Error retrieving file contents: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving file contents.")
+
+    return contents
 
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(
