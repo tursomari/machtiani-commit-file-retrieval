@@ -56,8 +56,16 @@ Use this interface to interactively test the endpoints and view their inputs and
 
 ### Repository Management
 
-- The `add-repository` endpoint clones a repository into the appropriate data directory and indexes the commit logs. 
+- The `add-repository` endpoint clones a repository into the appropriate data directory and indexes the commit logs.
 - The `fetch-and-checkout` endpoint allows you to fetch and check out a branch from the repository.
+
+## Tests
+
+Test utilities.
+
+```
+docker exec -it commit-file-retrieval poetry run python -m tests.test_utilities
+```
 
 ### Strategy
 
