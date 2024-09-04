@@ -51,3 +51,25 @@ def parse_github_url(github_url: str):
         return f"https://{parsed_url.netloc}/{user_repo_path}/", token
     else:
         raise ValueError("Invalid GitHub URL format")
+
+def validate_github_url(github_url: str) -> bool:
+    """
+    Validate the GitHub URL format.
+
+    The expected format is: https://<github-api-key>@github.com/<user>/<project>/
+
+    Parameters:
+        github_url (str): The GitHub URL to validate.
+
+    Returns:
+        bool: True if the URL is valid, False otherwise.
+    """
+    pattern = r"^https://ghp_[a-zA-Z0-9]+@github\.com/[^/]+/[^/]+/$"
+    match = re.match(pattern, github_url)
+
+    if match:
+        logger.info(f"Valid GitHub URL: {github_url}")
+        return True
+    else:
+        logger.error(f"Invalid GitHub URL: {github_url}")
+        return False
