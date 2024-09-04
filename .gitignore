@@ -163,3 +163,5 @@ cython_debug/
 
 # Directory of the users repos and related indexing data.
 data/
+
+.machtiani
