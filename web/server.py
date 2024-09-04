@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 import requests
 import logging
+import os
 
 app = Flask(__name__)
 
@@ -14,6 +15,22 @@ FASTAPI_URL = 'http://localhost:5070'
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/load', methods=['GET', 'POST'])
+def load():
+    if request.method == 'POST':
+        api_key = request.form['api_key']
+        # Call the FastAPI /load endpoint with the API key
+        try:
+            response = requests.post(f'{FASTAPI_URL}/load/', json={"api_key": api_key})
+            response.raise_for_status()
+            return render_template('result.html', message="Projects loaded successfully.")
+        except requests.exceptions.RequestException as e:
+            return render_template('result.html', message=f"Error loading projects: {e}")
+
+    # Prepopulate the API key from environment variables
+    openai_api_key = os.getenv('OPENAI_API_KEY', '')
+    return render_template('load.html', api_key=openai_api_key)
 
 @app.route('/fetch-git-repo', methods=['GET', 'POST'])
 def fetch_git_repo():

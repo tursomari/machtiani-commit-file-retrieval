@@ -40,8 +40,10 @@ async def get_project_info(project: str = Query(..., description="The name of th
 #@app.on_event("startup")
 @app.post("/load/")
 async def load(
-    api_key: str = Query(..., description="The openai api key."),
+    load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
+
+    api_key = load_request.get("api_key")
     # List all projects
     projects = DataDir.list_projects()
 
