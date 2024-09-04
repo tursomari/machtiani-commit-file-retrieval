@@ -36,6 +36,12 @@ The project includes a FastAPI-based service that provides endpoints for various
 
 ### Running the FastAPI Application
 
+Add `.env` file with your OPENAI_API_KEY.
+
+```
+OPENAI_API_KEY=skj-proj-...
+```
+
 Start the FastAPI server:
 
 ```bash
@@ -97,8 +103,9 @@ docker exec -it commit-file-retrieval poetry run python -m tests.test_utilities
 - [x] Pass api key.
 - [x] Fetch and checkout list of projects.
 - [x] Add list of files to result of find_closest_commits.
-- [ ] Add enpoint to retrieve file content from list of files.
-- [ ] Save repo settings:
+- [x] Add enpoint to retrieve file content from list of files.
+- [ ] General support for other models, and locally ran.
+- [  ] Save repo settings:
      - default branch: save in /data/users/repositories/<project>/repo/default_git file
      - you get default from clone
      - always use default on fetch and checkout, later can add branch granularity.
