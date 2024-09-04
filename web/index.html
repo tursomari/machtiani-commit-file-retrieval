@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch and Checkout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        form {
+            display: grid;
+            gap: 10px;
+        }
+        input, button {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fetch and Checkout Branch</h1>
+    <form id="checkout-form">
+        <label for="codehost_url">Code Host URL:</label>
+        <input type="text" id="codehost_url" name="codehost_url" required>
+
+        <label for="project_name">Project Name:</label>
+        <input type="text" id="project_name" name="project_name" required>
+
+        <label for="branch_name">Branch Name:</label>
+        <input type="text" id="branch_name" name="branch_name" required>
+
+        <label for="vcs_type">VCS Type:</label>
+        <input type="text" id="vcs_type" name="vcs_type" value="git" readonly>
+
+        <label for="api_key">API Key:</label>
+        <input type="password" id="api_key" name="api_key" required>
+
+        <button type="submit">Fetch and Checkout</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('checkout-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const requestBody = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('http://localhost:8000/fetch-and-checkout/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const jsonResponse = await response.json();
+                document.getElementById('response').innerText = JSON.stringify(jsonResponse, null, 2);
+            } catch (error) {
+                document.getElementById('response').innerText = 'Error: ' + error.message;
+                console.error('Fetch error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
