@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
-from lib.vcs.repo_manager import clone_repository, fetch_and_checkout_branch, get_repo_info
+from lib.vcs.repo_manager import clone_repository, add_repository, fetch_and_checkout_branch, get_repo_info
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
@@ -74,26 +74,7 @@ async def load(
 
 @app.post("/add-repository/")
 def add_repository(data: AddRepositoryRequest):
-    codehost_url = data.codehost_url
-    project_name = data.project_name
-    vcs_type = data.vcs_type
-    api_key = data.api_key
-
-    if vcs_type != VCSType.git:
-        raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
-
-    # Create necessary directories
-    DataDir.create_all(project_name)
-    destination_path = DataDir.REPO.get_path(project_name)
-
-    # Clone the repository using the module, into the 'git' directory
-    clone_repository(codehost_url, destination_path, project_name, api_key)
-
-    return {
-        "message": f"{vcs_type} repository added successfully",
-        "full_path": f"{destination_path}/{project_name}/repo/git",
-        "api_key_provided": bool(api_key)
-    }
+    return add_repository(data)
 
 @app.post("/fetch-and-checkout/")
 def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):

@@ -1,6 +1,10 @@
 from git import Repo, GitCommandError
 from app.utils import DataDir
-from lib.utils.utilities import parse_github_url
+from lib.utils.enums import (
+    AddRepositoryRequest
+)
+from fastapi import FastAPI, Query, HTTPException, Body
+from lib.utils.utilities import parse_github_url, validate_github_auth_url
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union
 from fastapi import HTTPException
@@ -67,6 +71,29 @@ def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name:
         logger.error(f"Failed to clone the repository: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clone the repository: {str(e)}")
 
+
+def add_repository(data: AddRepositoryRequest):
+    codehost_url = data.codehost_url
+    project_name = data.project_name
+    vcs_type = data.vcs_type
+    api_key = data.api_key
+
+    if vcs_type != VCSType.git:
+        raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
+
+    # Create necessary directories
+    DataDir.create_all(project_name)
+    destination_path = DataDir.REPO.get_path(project_name)
+
+    # Clone the repository using the module, into the 'git' directory
+    clone_repository(codehost_url, destination_path, project_name, api_key)
+
+    return {
+        "message": f"{vcs_type} repository added successfully",
+        "full_path": f"{destination_path}/{project_name}/repo/git",
+        "api_key_provided": bool(api_key)
+    }
+
 def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None):
     full_path = os.path.join(destination_path, "git")
 
@@ -89,6 +116,9 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
             # Construct the authentication URL with the token, as done in clone_repository
             url_parts = url_str.split("://")
             auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
+            if not validate_github_auth_url(auth_url):
+                logger.info(f"{auth_url} is an invalid authorized url")
+                raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
 
             # Set the authenticated URL for the remote
             repo.remotes.origin.set_url(auth_url)

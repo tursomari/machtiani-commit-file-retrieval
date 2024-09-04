@@ -52,7 +52,7 @@ def parse_github_url(github_url: str):
     else:
         raise ValueError("Invalid GitHub URL format")
 
-def validate_github_url(github_url: str) -> bool:
+def validate_github_auth_url(github_url: str) -> bool:
     """
     Validate the GitHub URL format.
 
