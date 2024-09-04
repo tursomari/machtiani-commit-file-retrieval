@@ -1,27 +1,48 @@
-<!DOCTYPE html>                                                                                                   
-<html lang="en">                                                                                                  
-<head>                                                                                                            
-    <meta charset="UTF-8">                                                                                        
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">                                        
-    <title>Fetch and Checkout</title>                                                                             
-</head>                                                                                                           
-<body>                                                                                                            
-    <h1>Fetch and Checkout Git Branch</h1>                                                                        
-    <form action="/submit" method="POST">                                                                         
-        <label for="codehost_url">Codehost URL:</label><br>                                                       
-        <input type="text" id="codehost_url" name="codehost_url" required><br><br>                                
-                                                                                                                  
-        <label for="project_name">Project Name:</label><br>                                                       
-        <input type="text" id="project_name" name="project_name" required><br><br>                                
-                                                                                                                  
-        <label for="branch_name">Branch Name:</label><br>                                                         
-        <input type="text" id="branch_name" name="branch_name" required><br><br>                                  
-                                                                                                                  
-        <label for="api_key">API Key:</label><br>                                                                 
-        <input type="text" id="api_key" name="api_key"><br><br>                                                   
-                                                                                                                  
-        <input type="submit" value="Fetch and Checkout">                                                          
-    </form>                                                                                                       
-</body>                                                                                                           
-</html>                                                                                                           
-             
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch and Checkout</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header text-center">
+                        <h2>Fetch and Checkout Git Branch</h2>
+                    </div>
+                    <div class="card-body">
+                        <form action="/submit" method="POST">
+                            <div class="form-group">
+                                <label for="codehost_url">Codehost URL:</label>
+                                <input type="text" id="codehost_url" name="codehost_url" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="project_name">Project Name:</label>
+                                <input type="text" id="project_name" name="project_name" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="branch_name">Branch Name:</label>
+                                <input type="text" id="branch_name" name="branch_name" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="api_key">API Key:</label>
+                                <input type="text" id="api_key" name="api_key" class="form-control">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">Fetch and Checkout</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
