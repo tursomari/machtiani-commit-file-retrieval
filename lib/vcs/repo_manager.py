@@ -1,4 +1,6 @@
 from git import Repo, GitCommandError
+from app.utils import DataDir
+from lib.utils.utilities import parse_github_url
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union
 from fastapi import HTTPException
@@ -10,6 +12,34 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def get_repo_info(project_name: str):
+    """
+    Retrieve the remote URL and current branch of the repository for a given project.
+
+    :param project_name: The name of the project.
+    :return: A dictionary with remote URL and current branch.
+    """
+    repo_path = DataDir.REPO.get_path(project_name)
+    git_path = os.path.join(repo_path, "git")
+
+    if not os.path.exists(git_path):
+        raise FileNotFoundError(f"Repository for project '{project_name}' does not exist at path: {git_path}")
+
+    repo = Repo(git_path)
+
+    # Get the remote URL
+    remote_url_with_api_key = repo.remotes.origin.url
+    remote_url, api_key = parse_github_url(remote_url_with_api_key)
+
+    # Get the current branch
+    current_branch = repo.active_branch.name
+
+    return {
+        "remote_url": remote_url,
+        "current_branch": current_branch,
+        "api_key": api_key
+    }
 
 def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None):
     full_path = os.path.join(destination_path, "git")

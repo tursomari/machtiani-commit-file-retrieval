@@ -1,3 +1,5 @@
+import re
+from urllib.parse import urlparse
 import json
 import logging
 
@@ -32,3 +34,20 @@ def write_json_file(data, file_path):
     except IOError as e:
         logger.error(f"Error writing to file {file_path}: {e}")
 
+def parse_github_url(github_url: str):
+    # Regex to extract the token and the URL part
+    pattern = r"(https://ghp_[a-zA-Z0-9]+)@(github.com/[\w-]+/[\w-]+)"
+
+    match = re.match(pattern, github_url)
+    if match:
+        token = match.group(1).replace("https://", "")
+        url_part = match.group(2)
+
+        # Parse the URL to extract user and repo
+        parsed_url = urlparse(f"https://{url_part}")
+        user_repo_path = parsed_url.path.strip("/")
+
+        # Return the tuple
+        return f"https://{parsed_url.netloc}/{user_repo_path}/", token
+    else:
+        raise ValueError("Invalid GitHub URL format")

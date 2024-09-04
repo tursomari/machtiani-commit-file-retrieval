@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
-from lib.vcs.repo_manager import clone_repository, fetch_and_checkout_branch
+from lib.vcs.repo_manager import clone_repository, fetch_and_checkout_branch, get_repo_info
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
@@ -24,6 +24,18 @@ logger = logging.getLogger("uvicorn")
 logger.info("Application is starting up...")
 
 app = FastAPI()
+
+@app.get("/get-project-info/")
+async def get_project_info(project: str = Query(..., description="The name of the project")):
+    """
+    Get project information including the remote URL and the current git branch.
+    """
+    try:
+        result = get_repo_info(project)
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get project info for '{project}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 #@app.on_event("startup")
 @app.post("/load/")

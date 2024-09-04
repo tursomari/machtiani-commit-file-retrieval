@@ -26,11 +26,13 @@ The project includes a FastAPI-based service that provides endpoints for various
 
 ### FastAPI Endpoints
 
-1. **File Path Retrieval**: Search for file paths based on a given prompt, search mode, and embedding model.
-2. **Add Repository**: Add a repository that can be searched, requiring a code host URL and optionally an API key. The repository is cloned to a specific directory, and its commits are indexed.
-3. **Fetch and Checkout Branch**: Fetch and check out a specific branch of a repository, with support for authentication using an API key.
-4. **Infer File**: Infer files based on a similarity search using a given prompt, project, search mode, and embedding model.
-5. **Health Check**: Verify the service status with a simple health check endpoint.
+**Get Project Info**: Retrieve the remote URL and current branch of a specific project.
+**Add Repository**: Add a repository that can be searched, requiring a code host URL and optionally an API key. The repository is cloned to a specific directory, and its commits are indexed.
+**Fetch and Checkout Branch**: Fetch and check out a specific branch of a repository, with support for authentication using an API key.
+**Infer File**: Infer files based on a similarity search using a given prompt, project, search mode, and embedding model.
+**Health Check**: Verify the service status with a simple health check endpoint.
+**File Path Retrieval**: Search for file paths based on a given prompt, search mode, and embedding model.
+
 
 ### Running the FastAPI Application
 
