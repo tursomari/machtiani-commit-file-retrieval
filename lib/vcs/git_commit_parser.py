@@ -11,7 +11,12 @@ class GitCommitParser:
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
         """
-        self.commits = json_data
+        if isinstance(json_data, list):
+            self.commits = json_data
+        else:
+            logger.warning("Provided json_data is not a list; initializing with an empty list.")
+            self.commits = []  # Ensure it's a list
+
         # Get the first OID from the initialized JSON and assign it to self.stop_oid
         if self.commits:
             self.stop_oid = self.commits[0]['oid']

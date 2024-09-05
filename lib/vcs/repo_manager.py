@@ -1,7 +1,8 @@
 from git import Repo, GitCommandError
 from app.utils import DataDir
 from lib.utils.enums import (
-    AddRepositoryRequest
+    AddRepositoryRequest,
+    VCSType,
 )
 from fastapi import FastAPI, Query, HTTPException, Body
 from lib.utils.utilities import parse_github_url, validate_github_auth_url

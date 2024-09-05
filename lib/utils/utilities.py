@@ -5,10 +5,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def read_json_file(file_path):
     """
     Reads a JSON file and returns its content as a Python object.
-    If the file doesn't exist or an error occurs, it returns an empty list.
+    If the file doesn't exist or an error occurs, it returns an empty dictionary.
     """
     try:
         with open(file_path, 'r') as file:
@@ -16,11 +17,11 @@ def read_json_file(file_path):
             logger.info(f"Successfully read data from {file_path}")
             return data
     except FileNotFoundError:
-        logger.warning(f"File {file_path} not found. Returning an empty list.")
-        return []
+        logger.warning(f"File {file_path} not found. Returning an empty dictionary.")
+        return {}  # Change here to return an empty dictionary instead of a list
     except json.JSONDecodeError as e:
         logger.error(f"Error decoding JSON from {file_path}: {e}")
-        return []
+        return {}  # Also return an empty dictionary on JSON error
 
 def write_json_file(data, file_path):
     """

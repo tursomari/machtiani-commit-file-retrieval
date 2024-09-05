@@ -32,6 +32,29 @@ def load():
     openai_api_key = os.getenv('OPENAI_API_KEY', '')
     return render_template('load.html', api_key=openai_api_key)
 
+@app.route('/add-repository', methods=['GET', 'POST'])
+def add_repository():
+    if request.method == 'POST':
+        codehost_url = request.form['codehost_url']
+        project_name = request.form['project_name']
+        api_key = request.form['api_key']
+
+        data = {
+            "codehost_url": codehost_url,
+            "project_name": project_name,
+            "vcs_type": "git",  # Default value for VCS type
+            "api_key": api_key
+        }
+
+        try:
+            response = requests.post(f'{FASTAPI_URL}/add-repository/', json=data)
+            response.raise_for_status()  # Raise an error for bad responses
+            return render_template('result.html', message=response.json()['message'])
+        except requests.exceptions.RequestException as e:
+            return render_template('result.html', message=f"Error adding repository: {e}")
+
+    return render_template('add-repository.html')
+
 @app.route('/fetch-git-repo', methods=['GET', 'POST'])
 def fetch_git_repo():
     if request.method == 'POST':

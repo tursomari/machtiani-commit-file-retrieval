@@ -75,7 +75,7 @@ async def load(
         #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
 
 @app.post("/add-repository/")
-def add_repository(data: AddRepositoryRequest):
+def handle_add_repository(data: AddRepositoryRequest):
     return add_repository(data)
 
 @app.post("/fetch-and-checkout/")

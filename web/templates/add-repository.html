@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Repository</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header text-center">
+                        <h2>Add Repository</h2>
+                    </div>
+                    <div class="card-body">
+                        <form action="/add-repository" method="POST">
+                            <div class="form-group">
+                                <label for="codehost_url">Code Host URL:</label>
+                                <input type="text" id="codehost_url" name="codehost_url" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="project_name">Project Name:</label>
+                                <input type="text" id="project_name" name="project_name" class="form-control" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="api_key">API Key:</label>
+                                <input type="text" id="api_key" name="api_key" class="form-control" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">Add Repository</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
