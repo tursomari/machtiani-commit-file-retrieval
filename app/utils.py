@@ -74,13 +74,8 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -
     """
     file_contents = {}
     repo_path = DataDir.REPO.get_path(project_name)
-    skip_files = {"go.sum", "go.mod", "poetry.lock"}
 
     for entry in file_paths:
-        if entry.path in skip_files:
-            logger.debug(f"Skipping file: {entry.path}")
-            continue
-
         full_path = os.path.join(repo_path, "git", entry.path)
         try:
             with open(full_path, 'r') as file:
