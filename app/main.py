@@ -14,6 +14,7 @@ from lib.utils.enums import (
     EmbeddingModel,
     FilePathEntry,
     FileSearchResponse,
+    FileContentResponse,
     VCSType,
     AddRepositoryRequest,
     FetchAndCheckoutBranchRequest
@@ -150,17 +151,17 @@ def infer_file(
         responses.append(response)
     return responses
 
-@app.post("/retrieve-file-contents/", response_model=Dict[str, str])
+@app.post("/retrieve-file-contents/", response_model=FileContentResponse)
 def get_file_contents(
     project_name: str = Query(..., description="The name of the project"),
     file_paths: List[FilePathEntry] = Body(..., description="A list of file paths to retrieve content for")
-) -> Dict[str, str]:
+) -> FileContentResponse:
     """
     Retrieve the content of files specified by file paths within a given project.
 
     :param project_name: The name of the project to search in.
     :param file_paths: A list of FilePathEntry objects representing the files to retrieve content for.
-    :return: A dictionary mapping file paths to their contents.
+    :return: A dictionary mapping file paths to their contents and a list of successfully retrieved file paths.
     """
     if not project_name.strip():
         raise HTTPException(status_code=400, detail="Project name cannot be empty.")
@@ -171,6 +172,9 @@ def get_file_contents(
     # Log the incoming file paths for debugging
     logger.info(f"Received file paths: {file_paths}")
 
+    retrieved_file_paths = []
+    contents = {}
+
     try:
         # Explicitly validate each file path entry
         for entry in file_paths:
@@ -179,7 +183,11 @@ def get_file_contents(
             entry = FilePathEntry(**entry.dict())
 
         # Use the retrieve_file_contents function to get the contents of the specified files
-        contents = retrieve_file_contents(project_name, file_paths)
+        file_contents = retrieve_file_contents(project_name, file_paths)
+
+        # Collect the successfully retrieved file paths
+        for path in file_contents.keys():
+            retrieved_file_paths.append(path)
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
@@ -188,7 +196,7 @@ def get_file_contents(
         logger.error(f"Error retrieving file contents: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while retrieving file contents.")
 
-    return contents
+    return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
 
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(

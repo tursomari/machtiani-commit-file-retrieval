@@ -1,6 +1,6 @@
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 class SearchMode(str, Enum):
     content = "content"
@@ -34,6 +34,10 @@ class FileSearchResponse(BaseModel):
     file_paths: List[FilePathEntry]
     embedding_model: EmbeddingModel
     mode: SearchMode
+
+class FileContentResponse(BaseModel):
+    contents: Dict[str, str]
+    retrieved_file_paths: List[str]
 
 class VCSType(str, Enum):
     git = "git"
