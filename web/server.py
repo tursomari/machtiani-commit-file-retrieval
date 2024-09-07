@@ -14,7 +14,7 @@ FASTAPI_URL = 'http://localhost:5070'
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return 'machtiani'  # Updated to display 'machtiani'
 
 @app.route('/load', methods=['GET', 'POST'])
 def load():
@@ -55,8 +55,8 @@ def add_repository():
 
     return render_template('add-repository.html')
 
-@app.route('/fetch-git-repo', methods=['GET', 'POST'])
-def fetch_git_repo():
+@app.route('/fetch-get-repo', methods=['GET', 'POST'])  # Updated route name
+def fetch_get_repo_info():
     if request.method == 'POST':
         project_name = request.form['project']
 
@@ -70,9 +70,9 @@ def fetch_git_repo():
         except requests.exceptions.RequestException as e:
             return render_template('index.html', message=f"Error fetching project info: {e}")
 
-        return render_template('index.html', project_info=project_info)
+        return render_template('fetch-git-repo.html', project_info=project_info)  # Updated template name
 
-    return render_template('fetch-git-repo.html')
+    return render_template('fetch-get-repo-info.html')  # Updated to use new template
 
 @app.route('/submit', methods=['POST'])
 def submit():
