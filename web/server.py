@@ -55,8 +55,8 @@ def add_repository():
 
     return render_template('add-repository.html')
 
-@app.route('/fetch-get-repo', methods=['GET', 'POST'])  # Updated route name
-def fetch_get_repo_info():
+@app.route('/pull-repo-data', methods=['GET', 'POST'])  # Updated route name
+def pull_repo_data():
     if request.method == 'POST':
         project_name = request.form['project']
 
@@ -70,9 +70,9 @@ def fetch_get_repo_info():
         except requests.exceptions.RequestException as e:
             return render_template('index.html', message=f"Error fetching project info: {e}")
 
-        return render_template('fetch-git-repo.html', project_info=project_info)  # Updated template name
+        return render_template('pull-repo-data.html', project_info=project_info)  # Updated template name
 
-    return render_template('fetch-get-repo-info.html')  # Updated to use new template
+    return render_template('pull-repo-data-info.html')  # Updated to use new template
 
 @app.route('/submit', methods=['POST'])
 def submit():
