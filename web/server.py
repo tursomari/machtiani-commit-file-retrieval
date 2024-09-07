@@ -14,7 +14,7 @@ FASTAPI_URL = 'http://localhost:5070'
 
 @app.route('/')
 def index():
-    return 'machtiani'  # Updated to display 'machtiani'
+    return render_template('index.html')
 
 @app.route('/load', methods=['GET', 'POST'])
 def load():
