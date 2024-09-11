@@ -107,6 +107,7 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
         "project_name": data.project_name
     }
 
+
 @app.get("/infer-file/", response_model=List[FileSearchResponse])
 def infer_file(
     prompt: str = Query(..., description="The prompt to search for"),
@@ -123,7 +124,6 @@ def infer_file(
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
     closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
-    # Update so
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
@@ -132,23 +132,23 @@ def infer_file(
 
     responses = []
     for match in closest_matches:
-        # Retrieve the file paths from the commits
         file_paths = parser.get_files_from_commits(match["oid"])
-
-        # Ensure each item is of type FilePathEntry
         closest_file_matches: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
 
-        # Create the FileSearchResponse
         response = FileSearchResponse(
             oid=match["oid"],
             similarity=match["similarity"],
-            file_paths=closest_file_matches,  # Pass the list of FilePathEntry objects
+            file_paths=closest_file_matches,
             embedding_model=model.value,
             mode=mode.value,
         )
 
-        # Append the response to the list
+        if not closest_file_matches:
+            logger.info(f"No valid file paths found for commit {match['oid']}.")
+            continue  # Skip this response if no valid files
+
         responses.append(response)
+
     return responses
 
 @app.post("/retrieve-file-contents/", response_model=FileContentResponse)

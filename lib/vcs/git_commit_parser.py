@@ -78,57 +78,43 @@ class GitCommitParser:
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
+    def is_file_deleted(repo, file_path, commit_oid):
+        """
+        Check if a file was deleted in the history of the given commit.
+
+        :param repo: The Git repository object.
+        :param file_path: The file path to check.
+        :param commit_oid: The OID of the commit to check against.
+        :return: True if the file was deleted, False otherwise.
+        """
+        try:
+            commit = repo.commit(commit_oid)
+            # Check if the file exists in the commit
+            if file_path in commit.stats['files']:
+                return False  # File exists in this commit
+            # Check parent commits to see if it was deleted
+            for parent in commit.parents:
+                if file_path in parent.stats['files']:
+                    return False  # File exists in the parent commit
+            return True  # File was deleted
+
+        except Exception as e:
+            logger.error(f"Error checking if file {file_path} was deleted: {e}")
+            return False  # Default to False if there's an error
+
 
     def get_files_from_commits(self, oid):
-        """
-        Extracts and returns the list of files from the commit with the specified OID.
-
-        Args:
-            json_data (dict): The JSON object containing commit information.
-            oid (str): The OID of the commit to retrieve files from.
-
-        Returns:
-            list: A list of files associated with the specified OID, or an empty list if not found.
-        """
         for commit in self.commits:
             if commit.get('oid') == oid:
-                return commit.get('files', [])
+                files = commit.get('files', [])
+                repo_path = "path/to/repo"  # Set the path to your repository
+                repo = git.Repo(repo_path)  # Initialize the repo object
+                existing_files = []
+                for file in files:
+                    if not is_file_deleted(repo, file, oid):
+                        existing_files.append(file)
+                    else:
+                        logger.info(f"File {file} was deleted vcs. Skipping.")
+                return existing_files
         return []
-
-    # Example usage:
-    #json_data = [
-    #    {
-    #        "oid": "d780af879ae1967e565861d0426ed864aaddf35a",
-    #        "message": "Initial commit",
-    #        "files": [
-    #            "Dockerfile",
-    #            "README.md",
-    #            "app/main.py",
-    #            "docker-compose.yml",
-    #            "lib/__init__.py",
-    #            "lib/ai/__init__.py",
-    #            "lib/indexer/__init__.py",
-    #            "lib/indexer/commit_indexer.py",
-    #            "lib/search/commit_embedding_matcher.py",
-    #            "lib/utils/utilities.py",
-    #            "lib/vcs/__init__.py",
-    #            "lib/vcs/git_commit_parser.py",
-    #            "lib/vcs/repo_manager.py",
-    #            "poetry.lock",
-    #            "pyproject.toml",
-    #            "scripts/cosine_similarity_match.py",
-    #            "scripts/cosine_similarity_match_commits.py",
-    #            "scripts/embedd_commits.py",
-    #            "scripts/embedd_text.py",
-    #            "scripts/git_commit_parser.py",
-    #            "scripts/git_commit_parser_up_to_depth.py",
-    #            "scripts/langchain_usage.py"
-    #        ]
-    #    },
-    #    # Other commits...
-    #]
-    #
-    #oid = "d780af879ae1967e565861d0426ed864aaddf35a"
-    #files = get_files_from_commit(json_data, oid)
-    #print(files)
 
