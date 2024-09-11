@@ -21,9 +21,8 @@ class MatchStrength(Enum):
             return 0.20
 
 class EmbeddingModel(str, Enum):
+    gpt_4o = "gpt-4o"
     gpt_4o_mini = "gpt-4o-mini"
-    vector_ai_plus = "vector-ai-plus"
-    hyper_embed_v2 = "hyper-embed-v2"
 
 class FilePathEntry(BaseModel):
     path: str
