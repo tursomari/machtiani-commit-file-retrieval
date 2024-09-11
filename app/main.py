@@ -59,7 +59,7 @@ async def load(
         commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
         logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
         commits_logs_json = read_json_file(commits_logs_file_path)
-        parser = GitCommitParser(commits_logs_json)
+        parser = GitCommitParser(commits_logs_json, project)
         depth = 1000  # Maximum depth or level of commits to retrieve (should get from config).
         parser.add_commits_to_log(git_project_path, depth)  # Add new commits to the beginning of the log
         write_json_file(parser.commits, commits_logs_file_path)  # Write updated logs back to the JSON file
@@ -128,7 +128,7 @@ def infer_file(
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
     commits_logs_json = read_json_file(commits_logs_file_path)
-    parser = GitCommitParser(commits_logs_json)
+    parser = GitCommitParser(commits_logs_json, project)
 
     responses = []
     for match in closest_matches:

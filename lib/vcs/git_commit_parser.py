@@ -1,13 +1,15 @@
 import git
 import json
+import os
 import logging
+from app.utils import DataDir
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GitCommitParser:
-    def __init__(self, json_data):
+    def __init__(self, json_data, project):
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
         """
@@ -22,6 +24,9 @@ class GitCommitParser:
             self.stop_oid = self.commits[0]['oid']
         else:
             self.stop_oid = None
+        self.project = project
+        self.git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
+        self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
 
     def get_commit_info_at_depth(self, repo, depth):
         try:
@@ -78,7 +83,7 @@ class GitCommitParser:
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
-    def is_file_deleted(repo, file_path, commit_oid):
+    def is_file_deleted(self, file_path, commit_oid):
         """
         Check if a file was deleted in the history of the given commit.
 
@@ -88,7 +93,7 @@ class GitCommitParser:
         :return: True if the file was deleted, False otherwise.
         """
         try:
-            commit = repo.commit(commit_oid)
+            commit = self.repo.commit(commit_oid)
             # Check if the file exists in the commit
             if file_path in commit.stats['files']:
                 return False  # File exists in this commit
@@ -102,19 +107,15 @@ class GitCommitParser:
             logger.error(f"Error checking if file {file_path} was deleted: {e}")
             return False  # Default to False if there's an error
 
-
     def get_files_from_commits(self, oid):
         for commit in self.commits:
             if commit.get('oid') == oid:
                 files = commit.get('files', [])
-                repo_path = "path/to/repo"  # Set the path to your repository
-                repo = git.Repo(repo_path)  # Initialize the repo object
                 existing_files = []
                 for file in files:
-                    if not is_file_deleted(repo, file, oid):
+                    if not self.is_file_deleted(file, oid):
                         existing_files.append(file)
                     else:
-                        logger.info(f"File {file} was deleted vcs. Skipping.")
+                        logger.info(f"File {file} was deleted. Skipping.")
                 return existing_files
         return []
-
