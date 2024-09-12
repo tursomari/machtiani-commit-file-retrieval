@@ -1,4 +1,3 @@
-
 # machtiani-commit-file-retrieval
 
 Code retrieval and file path search via embeddings.
@@ -10,15 +9,48 @@ This project provides two main services:
 1. **Document and Code Retrieval**: Generate summaries of files (e.g., source code) and retrieve the full file by its name using embedding-based search.
 2. **Commit Message Generation and Indexing**: Automatically generate commit messages and index them against the hashes of the affected files, enabling advanced search and retrieval capabilities.
 
-While everything is currently part of this single project, it can be split into separate projects if needed.
+## Getting Started
 
-Build the Docker containers:
+### Accessing the Web Tool
 
-```bash
-docker-compose build
-```
+1. **Open the Web Tool**: Navigate to `http://localhost:5072` in your web browser.
 
-***Use the fetch and checkout branch endpoint to pull latest git changes in the project you added. When you restart the service, it will automatically reindex.***
+### Homepage Actions
+
+From the homepage, you can choose to:
+
+- **Add Repository**: Navigate to add a new repository.
+- **Get Repository Info**: Fetch information about an existing repository.
+- **Load Projects**: Load projects into the system.
+
+### Detailed Usage Flow
+
+1. **Load Projects (`load.html`)**:
+   - Enter your OpenAI API key.
+   - Click **Load Projects** to submit. A success/error message will be displayed based on the operation's outcome.
+
+2. **Add Repository (`add-repository.html`)**:
+   - Fill in the form with the code host URL, project name, and your OpenAI API key.
+   - Submit to add the repository; you'll receive feedback on success or errors.
+
+3. **Get Repository Info (`pull-repo-data-info.html`)**:
+   - Select a project to fetch its information.
+   - Submit the form to display the project's details on a new page.
+
+4. **Submit Changes**:
+   - To fetch and check out a specific branch, fill in the required fields (code host URL, project name, branch name, API key) and submit.
+   - You'll be notified of the operation's success or failure.
+
+### Important Note for Handling New Commits
+
+If new commits are pushed to GitHub after you have already added a repository and loaded projects, you must:
+
+- **Get Repository Info Again**: Re-fetch the repository information to get the latest commits and branches.
+- **Load Projects Again**: Reload to ensure any new data is integrated into your local system.
+
+### Result Display
+
+After any operation, you'll be redirected to a results page displaying the operation's success or failure. You can return to the homepage for further actions.
 
 ## Local API Service
 
@@ -26,74 +58,32 @@ The project includes a FastAPI-based service that provides endpoints for various
 
 ### FastAPI Endpoints
 
-**Get Project Info**: Retrieve the remote URL and current branch of a specific project.
-**Add Repository**: Add a repository that can be searched, requiring a code host URL and optionally an API key. The repository is cloned to a specific directory, and its commits are indexed.
-**Fetch and Checkout Branch**: Fetch and check out a specific branch of a repository, with support for authentication using an API key.
-**Infer File**: Infer files based on a similarity search using a given prompt, project, search mode, and embedding model.
-**Health Check**: Verify the service status with a simple health check endpoint.
-**File Path Retrieval**: Search for file paths based on a given prompt, search mode, and embedding model.
-
+- **Get Project Info**: Retrieve the remote URL and current branch of a specific project.
+- **Add Repository**: Add a repository for indexing and searching, requiring a code host URL and optionally an API key. The repository is cloned to a specific directory, and its commits are indexed.
+- **Fetch and Checkout Branch**: Fetch and check out a specific branch of a repository, with support for authentication using an API key.
+- **Infer File**: Infer files based on a similarity search using a given prompt, project, search mode, and embedding model.
+- **Health Check**: Verify the service status with a simple health check endpoint.
+- **File Path Retrieval**: Search for file paths based on a given prompt, search mode, and embedding model.
 
 ### Running the FastAPI Application
 
-Add `.env` file with your OPENAI_API_KEY.
+1. Create a `.env` file with your OpenAI API key:
 
-```
-OPENAI_API_KEY=skj-proj-...
-```
+   ```
+   OPENAI_API_KEY=skj-proj-...
+   ```
 
-Start the FastAPI server:
+2. Start the FastAPI server:
 
-```bash
-docker-compose up
-```
+   ```bash
+   docker-compose up --build
+   ```
 
-The application will be accessible at `http://localhost:5070`.
+3. Access the application at `http://localhost:5070` and explore the API documentation at `http://localhost:5070/docs`.
 
-### Accessing the API Documentation
+## Conclusion
 
-After starting the FastAPI application, you can access the automatically generated Swagger UI documentation at:
-
-```bash
-http://localhost:5070/docs
-```
-
-Use this interface to interactively test the endpoints and view their inputs and outputs.
-
-### Repository Management
-
-- The `add-repository` endpoint clones a repository into the appropriate data directory and indexes the commit logs.
-- The `fetch-and-checkout` endpoint allows you to fetch and check out a branch from the repository.
-
-## Tests
-
-Test utilities.
-
-```
-docker exec -it commit-file-retrieval poetry run python -m tests.test_utilities
-```
-
-### Strategy
-
-#### Document Retrieval
-
-1. Embed the prompt.
-2. Find related files based on matching embeddings.
-
-#### Commit Message Generation and Indexing
-
-1. Diff the changes.
-2. Generate a concise and informative Git commit message using an AI model.
-3. Embed and index all commit messages against the affected files.
-
-### Example Commit Message Indexing Structure
-
-```json
-{
-  "<commit-message-embedding>": ["<file1>", "<file2>", ...],
-  "<commit-message-embedding>": ["<file3>", "<file4>", ...]
-}
-```
+This web tool simplifies managing Git repositories through a user-friendly interface, utilizing a FastAPI backend for various tasks like loading projects, adding repositories, fetching project information, and checking out branches.
 
 ## To-Do List
 
@@ -109,3 +99,4 @@ docker exec -it commit-file-retrieval poetry run python -m tests.test_utilities
      - default branch: save in /data/users/repositories/<project>/repo/default_git file
      - you get default from clone
      - always use default on fetch and checkout, later can add branch granularity.
+
