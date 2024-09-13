@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional, List, Dict
 
 class SearchMode(str, Enum):
-    content = "content"
+    chat = "chat"
     commit = "commit"
     super = "super"
 

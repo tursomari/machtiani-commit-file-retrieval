@@ -112,7 +112,7 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
 def infer_file(
     prompt: str = Query(..., description="The prompt to search for"),
     project: str = Query(..., description="The project to search"),
-    mode: SearchMode = Query(..., description="Search mode: content, commit, or super"),
+    mode: SearchMode = Query(..., description="Search mode: chat, commit, or super"),  # Updated here
     model: EmbeddingModel = Query(..., description="The embedding model used"),
     api_key: str = Query(..., description="The openai api key."),
     match_strength: MatchStrength = Query(MatchStrength.HIGH, description="The strength of the match")
@@ -201,7 +201,7 @@ def get_file_contents(
 @app.get("/file-paths/", response_model=FileSearchResponse)
 def get_file_paths(
     prompt: str = Query(..., description="The prompt to search for"),
-    mode: SearchMode = Query(..., description="Search mode: content, commit, or super"),
+    mode: SearchMode = Query(..., description="Search mode: chat, commit, or super"),  # Updated here
     model: EmbeddingModel = Query(..., description="The embedding model used")
 ) -> FileSearchResponse:
     if not prompt.strip():
