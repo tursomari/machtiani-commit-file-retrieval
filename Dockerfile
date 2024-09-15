@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libffi-dev \
     libssl-dev \
+    libmagic1 \
+    libmagic-dev \
     curl \
     git \
     && apt-get clean \

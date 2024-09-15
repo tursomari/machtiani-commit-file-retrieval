@@ -1,5 +1,6 @@
 import os
 import logging
+import magic
 from enum import Enum
 from typing import List, Dict
 from lib.utils.enums import FilePathEntry
@@ -64,20 +65,26 @@ class DataDir(Enum):
             logger.error(f"Base path '{BASE_PATH}' not found.")
             return []
 
-def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -> Dict[str, str]:
-    """
-    Retrieves the content of files specified in the file_paths list within the given project.
+def is_text_file(filepath: str) -> bool:
+    """Check if the file at the given path is a text file."""
+    mime = magic.Magic(mime=True)
+    mime_type = mime.from_file(filepath)
 
-    :param project_name: The name of the project.
-    :param file_paths: A list of FilePathEntry objects.
-    :return: A dictionary mapping file paths to their contents.
-    """
+    # Check if the mime type starts with 'text/'
+    return mime_type.startswith('text/')
+
+def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -> Dict[str, str]:
     file_contents = {}
     repo_path = DataDir.REPO.get_path(project_name)
 
     for entry in file_paths:
         full_path = os.path.join(repo_path, "git", entry.path)
         try:
+            # Check if the file is a text file
+            if not is_text_file(full_path):
+                logger.warning(f"Skipping non-text file: {full_path}")
+                continue  # Skip non-text files
+
             with open(full_path, 'r') as file:
                 content = file.read()
                 file_contents[entry.path] = content
@@ -88,15 +95,3 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -
             logger.error(f"Error reading file {full_path}: {e}")
 
     return file_contents
-
-# Example usage:
-#if __name__ == "__main__":
-#    file_paths = [
-#        FilePathEntry(path="app/main.py"),
-#        FilePathEntry(path="app/utils.py"),
-#        FilePathEntry(path="README.md")
-#    ]
-#    contents = retrieve_file_contents("example_project", file_paths)
-#    for path, content in contents.items():
-#        logger.info(f"Content of {path}: {content[:100]}")  # Show only the first 100 characters
-
