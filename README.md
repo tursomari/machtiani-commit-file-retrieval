@@ -71,7 +71,10 @@ The project includes a FastAPI-based service that provides endpoints for various
 
    ```
    OPENAI_API_KEY=skj-proj-...
+   HOST_MODE=local
    ```
+
+Use `HOST_MODE=production`  you're running this in a production environment - the enables the service to the embedding from the client side. Likely, this should just be the default functionality.
 
 2. Start the FastAPI server:
 

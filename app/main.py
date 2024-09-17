@@ -108,21 +108,41 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     }
 
 
-@app.get("/infer-file/", response_model=List[FileSearchResponse])
+@app.post("/infer-file/", response_model=List[FileSearchResponse])
 def infer_file(
-    prompt: str = Query(..., description="The prompt to search for"),
-    project: str = Query(..., description="The project to search"),
-    mode: SearchMode = Query(..., description="Search mode: pure-chat, commit, or super"),  # Updated here
-    model: EmbeddingModel = Query(..., description="The embedding model used"),
-    api_key: str = Query(..., description="The openai api key."),
-    match_strength: MatchStrength = Query(MatchStrength.HIGH, description="The strength of the match")
+    prompt: str = Body(..., description="The prompt to search for"),
+    project: str = Body(..., description="The project to search"),
+    mode: SearchMode = Body(..., description="Search mode: pure-chat, commit, or super"),
+    model: EmbeddingModel = Body(..., description="The embedding model used"),
+    match_strength: MatchStrength = Body(MatchStrength.HIGH, description="The strength of the match"),
+    embeddings: Optional[List[float]] = Body(None, description="Embeddings for the prompt")  # New parameter
 ) -> List[FileSearchResponse]:
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
+    # Load existing commit embeddings from the specified file
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
-    closest_matches = matcher.find_closest_commits(prompt, match_strength)
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=openai_api_key)
+
+    # Check the HOST_MODE environment variable
+    host_mode = os.getenv("HOST_MODE", "local").lower()
+
+    if host_mode == "production":
+        # Use provided embeddings if available
+        if embeddings is not None:
+            # Embeddings passed by client, so matcher doesn't use it's api_key it was initialized with.
+            closest_matches = matcher.find_closest_commits_with_embedding(prompt, embeddings, match_strength)
+        else:
+            raise HTTPException(status_code=400, detail="Embeddings must be provided in production mode.")
+    else:
+        # In local mode, generate embeddings using the OpenAI API key
+        if not openai_api_key:
+            raise HTTPException(status_code=400, detail="OpenAI API key not found in environment variables.")
+
+        # Generate embeddings for the prompt
+        input_embedding = generate_embeddings(openai_api_key, prompt)
+        closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
