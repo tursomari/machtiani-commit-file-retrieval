@@ -5,6 +5,11 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from lib.utils.enums import MatchStrength
 from typing import List
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:
     def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
@@ -27,6 +32,7 @@ class CommitEmbeddingMatcher:
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
     def find_closest_commits(self, input_text: str, match_strength: MatchStrength) -> list:
+        logger.warning("Using the host's OpenAI API key for finding closest commits.")
         input_embedding = self.embedding_generator.embed_query(input_text)
         min_similarity = match_strength.get_min_similarity()
 
@@ -45,6 +51,7 @@ class CommitEmbeddingMatcher:
         return matches
 
     def find_closest_commits_with_embedding(self, input_text: str, input_embedding: List[float], match_strength: MatchStrength) -> list:
+        logger.warning("Using the client's OpenAI API key for finding closest commits.")
         min_similarity = match_strength.get_min_similarity()
 
         matches = []
