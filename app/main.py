@@ -117,31 +117,43 @@ def infer_file(
     match_strength: MatchStrength = Body(MatchStrength.HIGH, description="The strength of the match"),
     embeddings: Optional[List[float]] = Body(None, description="Embeddings for the prompt")  # New parameter
 ) -> List[FileSearchResponse]:
+    # If embeddings are not provided by the client and HOST_MODE is production,
+    # generate them on the server side using OpenAI's API. If embeddings are provided,
+    # they will be used directly. In local mode, the server always generates embeddings
+    # regardless of client input.
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     # Load existing commit embeddings from the specified file
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     openai_api_key = os.getenv("OPENAI_API_KEY")
+
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=openai_api_key)
 
     # Check the HOST_MODE environment variable
     host_mode = os.getenv("HOST_MODE", "local").lower()
 
-    if host_mode == "production":
+    # Determine whether to use provided embeddings or generate new ones
+    if embeddings is not None:
         # Use provided embeddings if available
+        closest_matches = matcher.find_closest_commits_with_embedding(prompt, embeddings, match_strength)
+    elif host_mode == "production":
+        # Generate embeddings using the OpenAI API only if in production mode and no embeddings are provided
+        if not openai_api_key:
+            raise HTTPException(status_code=400, detail="OpenAI API key not found in environment variables.")
+
+        # Passed in embeddings, if exists as free bonus from client.
         if embeddings is not None:
-            # Embeddings passed by client, so matcher doesn't use it's api_key it was initialized with.
             closest_matches = matcher.find_closest_commits_with_embedding(prompt, embeddings, match_strength)
         else:
-            raise HTTPException(status_code=400, detail="Embeddings must be provided in production mode.")
+            closest_matches = matcher.find_closest_commits(prompt, match_strength)
+
     else:
         # In local mode, generate embeddings using the OpenAI API key
         if not openai_api_key:
             raise HTTPException(status_code=400, detail="OpenAI API key not found in environment variables.")
 
-        # Generate embeddings for the prompt
-        input_embedding = generate_embeddings(openai_api_key, prompt)
+        # Also generate embeddings for the prompt
         closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
