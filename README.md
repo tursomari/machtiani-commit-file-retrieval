@@ -31,14 +31,15 @@ From the homepage, you can choose to:
 
 2. **Add Repository (`add-repository.html`)**:
    - Fill in the form with the code host URL, project name, and your OpenAI API key.
-   - Submit to add the repository; you'll receive feedback on success or errors.
+   - Submit to add the repository; you'll receive feedback on success or errors. This action also loads and indexes commits from the newly added repository.
 
 3. **Get Repository Info (`pull-repo-data-info.html`)**:
    - Select a project to fetch its information.
    - Submit the form to display the project's details on a new page.
 
-4. **Submit Changes**:
+4. **Fetch and Checkout Branch**:
    - To fetch and check out a specific branch, fill in the required fields (code host URL, project name, branch name, API key) and submit.
+   - This action will also load and index the commits for the specified branch, keeping your local index updated.
    - You'll be notified of the operation's success or failure.
 
 ### Important Note for Handling New Commits
