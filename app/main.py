@@ -40,7 +40,7 @@ async def get_project_info(project: str = Query(..., description="The name of th
 
 #@app.on_event("startup")
 @app.post("/load/")
-async def load(
+def load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
 
@@ -77,7 +77,12 @@ async def load(
 
 @app.post("/add-repository/")
 def handle_add_repository(data: AddRepositoryRequest):
-    return add_repository(data)
+    result_add_repo = add_repository(data)
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    load_request = {"api_key": openai_api_key} if openai_api_key else {}
+    logger.info(f"load_request: {load_request}")
+    load(load_request)
+    return result_add_repo
 
 @app.post("/fetch-and-checkout/")
 def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
@@ -101,8 +106,13 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
         api_key
     )
 
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    load_request = {"api_key": openai_api_key} if openai_api_key else {}
+    logger.info(f"load_request: {load_request}")
+    load(load_request)
+
     return {
-        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}'",
+        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name} and updated index.'",
         "branch_name": data.branch_name,
         "project_name": data.project_name
     }
