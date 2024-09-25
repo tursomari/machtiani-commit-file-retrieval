@@ -27,12 +27,15 @@ logger.info("Application is starting up...")
 app = FastAPI()
 
 @app.get("/get-project-info/")
-async def get_project_info(project: str = Query(..., description="The name of the project")):
+async def get_project_info(
+    project: str = Query(..., description="The name of the project"),
+    api_key: str = Query(..., description="OpenAI API key")
+):
     """
     Get project information including the remote URL and the current git branch.
     """
     try:
-        result = get_repo_info(project)
+        result = get_repo_info(project, api_key)
         return result
     except Exception as e:
         logger.error(f"Failed to get project info for '{project}': {e}")
@@ -76,20 +79,24 @@ def load(
         #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
 
 @app.post("/add-repository/")
-def handle_add_repository(data: AddRepositoryRequest):
+def handle_add_repository(
+    data: AddRepositoryRequest,
+):
     result_add_repo = add_repository(data)
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    load_request = {"api_key": openai_api_key} if openai_api_key else {}
+    load_request = {"api_key": data.api_key}
     logger.info(f"load_request: {load_request}")
     load(load_request)
     return result_add_repo
 
 @app.post("/fetch-and-checkout/")
-def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
+def handle_fetch_and_checkout_branch(
+    data: FetchAndCheckoutBranchRequest,
+):
     codehost_url = data.codehost_url
     project_name = data.project_name
     branch_name = data.branch_name
     api_key = data.api_key
+
 
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
@@ -106,8 +113,8 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
         api_key
     )
 
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    load_request = {"api_key": openai_api_key} if openai_api_key else {}
+    api_key = api_key.get_secret_value() if api_key else None
+    load_request = {"api_key": api_key}
     logger.info(f"load_request: {load_request}")
     load(load_request)
 
@@ -117,7 +124,6 @@ def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
         "project_name": data.project_name
     }
 
-
 @app.post("/infer-file/", response_model=List[FileSearchResponse])
 def infer_file(
     prompt: str = Body(..., description="The prompt to search for"),
@@ -125,46 +131,16 @@ def infer_file(
     mode: SearchMode = Body(..., description="Search mode: pure-chat, commit, or super"),
     model: EmbeddingModel = Body(..., description="The embedding model used"),
     match_strength: MatchStrength = Body(MatchStrength.HIGH, description="The strength of the match"),
-    embeddings: Optional[List[float]] = Body(None, description="Embeddings for the prompt")  # New parameter
+    api_key: str = Body(..., description="OpenAI API key")
 ) -> List[FileSearchResponse]:
-    # If embeddings are not provided by the client and HOST_MODE is production,
-    # generate them on the server side using OpenAI's API. If embeddings are provided,
-    # they will be used directly. In local mode, the server always generates embeddings
-    # regardless of client input.
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     # Load existing commit embeddings from the specified file
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-    openai_api_key = os.getenv("OPENAI_API_KEY")
+    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
 
-    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=openai_api_key)
-
-    # Check the HOST_MODE environment variable
-    host_mode = os.getenv("HOST_MODE", "local").lower()
-
-    # Determine whether to use provided embeddings or generate new ones
-    if embeddings is not None:
-        # Use provided embeddings if available
-        closest_matches = matcher.find_closest_commits_with_embedding(prompt, embeddings, match_strength)
-    elif host_mode == "production":
-        # Generate embeddings using the OpenAI API only if in production mode and no embeddings are provided
-        if not openai_api_key:
-            raise HTTPException(status_code=400, detail="OpenAI API key not found in environment variables.")
-
-        # Passed in embeddings, if exists as free bonus from client.
-        if embeddings is not None:
-            closest_matches = matcher.find_closest_commits_with_embedding(prompt, embeddings, match_strength)
-        else:
-            closest_matches = matcher.find_closest_commits(prompt, match_strength)
-
-    else:
-        # In local mode, generate embeddings using the OpenAI API key
-        if not openai_api_key:
-            raise HTTPException(status_code=400, detail="OpenAI API key not found in environment variables.")
-
-        # Also generate embeddings for the prompt
-        closest_matches = matcher.find_closest_commits(prompt, match_strength)
+    closest_matches = matcher.find_closest_commits(prompt, match_strength)
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")

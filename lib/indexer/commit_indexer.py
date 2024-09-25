@@ -13,24 +13,19 @@ class CommitEmbeddingGenerator:
         :param existing_embeddings: A JSON object containing existing embeddings (defaults to an empty dictionary).
         :param model: The OpenAI model to use for generating embeddings.
         """
-
         # Set up logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-        load_dotenv()
         self.commit_logs = commit_logs
         self.model = model
 
-        if api_key:
-            # Set up your OpenAI API key
-            self.openai_api_key = api_key
-            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.model)
+        # Set up your OpenAI API key
+        self.openai_api_key = api_key
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.model)
 
-            # Use the provided existing embeddings or start with an empty dictionary
-            self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
-        else:
-            raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
+        # Use the provided existing embeddings or start with an empty dictionary
+        self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
 
     def _filter_new_commits(self):
         """Filter out commits that already have embeddings."""

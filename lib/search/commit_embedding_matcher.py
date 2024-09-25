@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:
     def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
-        load_dotenv()  # Load environment variables from a .env file
-
         # Set up your OpenAI API key
         if api_key:
             self.openai_api_key = api_key
