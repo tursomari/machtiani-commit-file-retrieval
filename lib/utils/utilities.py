@@ -58,6 +58,7 @@ def validate_github_auth_url(github_url: str) -> bool:
     Validate the GitHub URL format.
 
     The expected format is: https://<github-api-key>@github.com/<user>/<project>/
+    The trailing slash is optional.
 
     Parameters:
         github_url (str): The GitHub URL to validate.
@@ -65,7 +66,7 @@ def validate_github_auth_url(github_url: str) -> bool:
     Returns:
         bool: True if the URL is valid, False otherwise.
     """
-    pattern = r"^https://ghp_[a-zA-Z0-9]+@github\.com/[^/]+/[^/]+/$"
+    pattern = r"^https://ghp_[a-zA-Z0-9]+@github\.com/[^/]+/[^/]+/?$"  # Trailing slash is optional
     match = re.match(pattern, github_url)
 
     if match:

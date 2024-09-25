@@ -78,6 +78,7 @@ def add_repository(data: AddRepositoryRequest):
     project_name = data.project_name
     vcs_type = data.vcs_type
     api_key = data.api_key
+    openai_api_key = data.openai_api_key  # Get the OpenAI API key
 
     if vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
@@ -89,10 +90,12 @@ def add_repository(data: AddRepositoryRequest):
     # Clone the repository using the module, into the 'git' directory
     clone_repository(codehost_url, destination_path, project_name, api_key)
 
+    # Return the openai_api_key with the response for further usage
     return {
         "message": f"{vcs_type} repository added successfully",
         "full_path": f"{destination_path}/{project_name}/repo/git",
-        "api_key_provided": bool(api_key)
+        "api_key_provided": bool(api_key),
+        "openai_api_key_provided": bool(openai_api_key)
     }
 
 def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None):

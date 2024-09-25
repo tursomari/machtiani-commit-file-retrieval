@@ -46,47 +46,42 @@ async def get_project_info(
 def load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
-
-    api_key = load_request.get("api_key")
-    # List all projects
+    openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
     projects = DataDir.list_projects()
 
-    # Iterate over each project and call get_path for each directory type
     for project in projects:
-        # Should pull latest git changes
         git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
         logger.info(f"{project}'s git repo path: {git_project_path}")
 
-        # Generate new commit logs
         commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
         commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
         logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
         commits_logs_json = read_json_file(commits_logs_file_path)
         parser = GitCommitParser(commits_logs_json, project)
-        depth = 1000  # Maximum depth or level of commits to retrieve (should get from config).
-        parser.add_commits_to_log(git_project_path, depth)  # Add new commits to the beginning of the log
-        write_json_file(parser.commits, commits_logs_file_path)  # Write updated logs back to the JSON file
+        depth = 1000
+        parser.add_commits_to_log(git_project_path, depth)
+        write_json_file(parser.commits, commits_logs_file_path)
 
-        # Embed commit logs (if any new ones)
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
         commits_logs_json = read_json_file(commits_logs_file_path)
         existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
-        generator = CommitEmbeddingGenerator(commits_logs_json, api_key, existing_commits_embeddings_json)
+        generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
         updated_commits_embeddings_json = generator.generate_embeddings()
-        write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)  # Write updated logs back to the JSON file
-
-        #logger.info(f"Directory path for commit embeddings of '{project}': {DataDir.COMMITS_EMBEDDINGS.get_path(project)}")
+        write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)
 
 @app.post("/add-repository/")
 def handle_add_repository(
     data: AddRepositoryRequest,
 ):
+    openai_api_key = data.openai_api_key
+
     result_add_repo = add_repository(data)
-    load_request = {"api_key": data.api_key}
+    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
+    load_request = {"openai_api_key": openai_api_key}
     logger.info(f"load_request: {load_request}")
     load(load_request)
-    return result_add_repo
+
 
 @app.post("/fetch-and-checkout/")
 def handle_fetch_and_checkout_branch(

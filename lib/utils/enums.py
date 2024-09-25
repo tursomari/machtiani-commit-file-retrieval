@@ -47,8 +47,15 @@ class AddRepositoryRequest(BaseModel):
     project_name: str
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
+    openai_api_key: Optional[SecretStr] = None  # Add OpenAI API key
 
     @validator('api_key')
+    def validate_api_key(cls, v):
+        if v and not v.get_secret_value().strip():
+            raise ValueError("API key cannot be empty if provided")
+        return v
+
+    @validator('openai_api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
