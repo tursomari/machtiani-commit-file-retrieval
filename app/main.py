@@ -96,6 +96,7 @@ def handle_fetch_and_checkout_branch(
     project_name = data.project_name
     branch_name = data.branch_name
     api_key = data.api_key
+    openai_api_key = data.openai_api_key
 
 
     if data.vcs_type != VCSType.git:
@@ -113,8 +114,8 @@ def handle_fetch_and_checkout_branch(
         api_key
     )
 
-    api_key = api_key.get_secret_value() if api_key else None
-    load_request = {"api_key": api_key}
+    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
+    load_request = {"openai_api_key": openai_api_key}
     logger.info(f"load_request: {load_request}")
     load(load_request)
 
