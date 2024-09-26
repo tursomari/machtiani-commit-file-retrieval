@@ -69,12 +69,6 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None
 
-    @validator('api_key')
-    def validate_api_key(cls, v):
-        if v and not v.get_secret_value().strip():
-            raise ValueError("API key cannot be empty if provided")
-        return v
-
     @validator('openai_api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():

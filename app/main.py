@@ -103,6 +103,8 @@ def handle_fetch_and_checkout_branch(
     # Get the destination path
     destination_path = DataDir.REPO.get_path(project_name)
 
+    logger.info(f"Calling fetching and checkout api_key {api_key}")
+    logger.info(f"Calling fetching and checkout api_key type {type(api_key)}")
     # Fetch and checkout the branch using the module function
     fetch_and_checkout_branch(
         codehost_url,

@@ -72,7 +72,6 @@ def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name:
         logger.error(f"Failed to clone the repository: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clone the repository: {str(e)}")
 
-
 def add_repository(data: AddRepositoryRequest):
     codehost_url = data.codehost_url
     project_name = data.project_name
@@ -116,19 +115,23 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
 
         # Handle authentication for fetching and pulling
         url_str = str(codehost_url)
-        if api_key:
+
+        # Extract the value from api_key if provided and check if it's not None or empty
+        api_key_value = api_key.get_secret_value() if api_key and api_key.get_secret_value() else None
+
+        if api_key_value:
             # Construct the authentication URL with the token, as done in clone_repository
             url_parts = url_str.split("://")
-            auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
+            auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
             if not validate_github_auth_url(auth_url):
-                logger.info(f"{auth_url} is an invalid authorized url")
+                logger.debug(f"{auth_url} is an invalid authorized url")
                 raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
 
             # Set the authenticated URL for the remote
             repo.remotes.origin.set_url(auth_url)
             logger.debug(f"Auth URL set for fetch and pull: {auth_url}")
         else:
-            # Ensure we set the original URL if no API key is provided
+            # Ensure we set the original URL if no valid API key is provided
             repo.remotes.origin.set_url(url_str)
 
         # Fetch the latest changes from the remote
@@ -144,6 +147,10 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         repo.remotes.origin.pull(branch_name)
 
         logger.info(f"Checked out and updated to the latest commit on branch {branch_name} in {full_path}")
+
+    except Exception as e:
+        logger.error(f"Error during fetch and checkout process: {e}")
+        raise
 
     except GitCommandError as e:
         logger.error(f"Failed to fetch and checkout branch: {str(e)}")
