@@ -95,3 +95,7 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -
             logger.error(f"Error reading file {full_path}: {e}")
 
     return file_contents
+
+def count_tokens(text: str) -> int:
+    # Simple estimation: 1 token is approximately 4 characters (including spaces)
+    return len(text) // 4 + 1

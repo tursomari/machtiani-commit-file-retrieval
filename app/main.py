@@ -6,7 +6,7 @@ from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file, url_to_folder_name
-from app.utils import DataDir, retrieve_file_contents
+from app.utils import DataDir, retrieve_file_contents, count_tokens
 from typing import Optional, List, Dict
 from lib.utils.enums import (
     SearchMode,
@@ -246,3 +246,27 @@ def get_file_paths(
 def health_check():
     return {"status": "healthy"}
 
+
+@app.post("/load/token-count")
+def count_tokens_load(
+    load_request: dict = Body(..., description="Request body containing text."),
+):
+    text = load_request.get("text", "")
+    token_count = count_tokens(text)
+    return {"token_count": token_count}
+
+@app.post("/add-repository/token-count")
+def count_tokens_add_repository(
+    load_request: dict = Body(..., description="Request body containing text."),
+):
+    text = load_request.get("text", "")
+    token_count = count_tokens(text)
+    return {"token_count": token_count}
+
+@app.post("/fetch-and-checkout/token-count")
+def count_tokens_fetch_and_checkout(
+    load_request: dict = Body(..., description="Request body containing text."),
+):
+    text = load_request.get("text", "")
+    token_count = count_tokens(text)
+    return {"token_count": token_count}
