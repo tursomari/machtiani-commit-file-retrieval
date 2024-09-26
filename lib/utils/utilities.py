@@ -75,3 +75,29 @@ def validate_github_auth_url(github_url: str) -> bool:
     else:
         logger.error(f"Invalid GitHub URL: {github_url}")
         return False
+
+def url_to_folder_name(repo_url: str) -> str:
+    # Normalize the repository URL by stripping unwanted characters
+    repo_url = repo_url.rstrip('/')
+
+    # Extract the domain, user, and repo name
+    match = re.match(r"https?://(www\.)?(github\.com)/([^/]+)/([^/]+)", repo_url)
+    if not match:
+        raise ValueError("Invalid GitHub URL")
+
+    domain = match.group(2)  # Ensure we only capture 'github.com'
+    user = match.group(3)
+    repo_name = match.group(4)
+
+    # Remove the ".git" suffix if present in the repository name
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+
+    # Combine domain, user, and repo into a folder name
+    folder_name = f"{domain}_{user}_{repo_name}"
+
+    # Replace any non-alphanumeric characters (except hyphens and underscores) with underscores
+    folder_name = re.sub(r'[^\w\-]', '_', folder_name)
+
+    return folder_name
+

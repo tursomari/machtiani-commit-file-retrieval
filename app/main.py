@@ -5,7 +5,7 @@ from lib.vcs.repo_manager import clone_repository, add_repository, fetch_and_che
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
-from lib.utils.utilities import read_json_file, write_json_file
+from lib.utils.utilities import read_json_file, write_json_file, url_to_folder_name
 from app.utils import DataDir, retrieve_file_contents
 from typing import Optional, List, Dict
 from lib.utils.enums import (
@@ -76,6 +76,8 @@ def handle_add_repository(
 ):
     openai_api_key = data.openai_api_key
 
+    data.project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key}
@@ -88,7 +90,8 @@ def handle_fetch_and_checkout_branch(
     data: FetchAndCheckoutBranchRequest,
 ):
     codehost_url = data.codehost_url
-    project_name = data.project_name
+    # data.project_name should be same as codehost_url
+    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
     branch_name = data.branch_name
     api_key = data.api_key
     openai_api_key = data.openai_api_key
@@ -98,7 +101,7 @@ def handle_fetch_and_checkout_branch(
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
 
     # Get the destination path
-    destination_path = DataDir.REPO.get_path(data.project_name)
+    destination_path = DataDir.REPO.get_path(project_name)
 
     # Fetch and checkout the branch using the module function
     fetch_and_checkout_branch(
@@ -132,6 +135,8 @@ def infer_file(
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
+    logger.info(f"project name: {project}")
+    project = url_to_folder_name(project)  # Use the URL to create the folder name
     # Load existing commit embeddings from the specified file
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
@@ -177,6 +182,8 @@ def get_file_contents(
     :param file_paths: A list of FilePathEntry objects representing the files to retrieve content for.
     :return: A dictionary mapping file paths to their contents and a list of successfully retrieved file paths.
     """
+
+    project_name = url_to_folder_name(project_name)  # Use the URL to create the folder name
     if not project_name.strip():
         raise HTTPException(status_code=400, detail="Project name cannot be empty.")
 
