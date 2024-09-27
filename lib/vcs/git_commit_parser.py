@@ -18,7 +18,7 @@ class GitCommitParser:
         else:
             logger.warning("Provided json_data is not a list; initializing with an empty list.")
             self.commits = []  # Ensure it's a list
-
+        self.new_commits = []
         # Get the first OID from the initialized JSON and assign it to self.stop_oid
         if self.commits:
             self.stop_oid = self.commits[0]['oid']
@@ -81,6 +81,7 @@ class GitCommitParser:
         Adds the result of `get_commits_up_to_depth_or_oid` to the beginning of the commits log JSON object.
         """
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
+        self.new_commits = new_commits
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
     def is_file_deleted(self, file_path, commit_oid):

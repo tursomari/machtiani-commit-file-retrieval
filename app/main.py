@@ -60,6 +60,10 @@ def load(
         parser = GitCommitParser(commits_logs_json, project)
         depth = 1000
         parser.add_commits_to_log(git_project_path, depth)
+
+        # Create a string by converting this json [] into a string.
+        new_commits_string = parser.new_commits
+
         write_json_file(parser.commits, commits_logs_file_path)
 
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
@@ -81,9 +85,10 @@ def handle_add_repository(
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key}
+    token_count = count_tokens_load(load_request)
+    logger.info(f"token count: {token_count}")
     logger.info(f"load_request: {load_request}")
     load(load_request)
-
 
 @app.post("/fetch-and-checkout/")
 def handle_fetch_and_checkout_branch(
@@ -116,6 +121,7 @@ def handle_fetch_and_checkout_branch(
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key}
+    count_tokens_load(load_request)
     logger.info(f"load_request: {load_request}")
     load(load_request)
 
@@ -251,22 +257,97 @@ def health_check():
 def count_tokens_load(
     load_request: dict = Body(..., description="Request body containing text."),
 ):
-    text = load_request.get("text", "")
-    token_count = count_tokens(text)
+    openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
+    projects = DataDir.list_projects()
+
+    all_new_commits = []  # Initialize an empty list to hold all new commits
+
+    for project in projects:
+        git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
+        logger.info(f"{project}'s git repo path: {git_project_path}")
+
+        commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+        commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+        logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+        commits_logs_json = read_json_file(commits_logs_file_path)
+        parser = GitCommitParser(commits_logs_json, project)
+        depth = 1000
+        parser.add_commits_to_log(git_project_path, depth)
+
+        # Create a string by converting this json [] into a string.
+        new_commits_string = parser.new_commits
+
+        write_json_file(parser.commits, commits_logs_file_path)
+
+        commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+        logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
+        commits_logs_json = read_json_file(commits_logs_file_path)
+        existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+        generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
+        new_commits = generator._filter_new_commits()
+        logger.info(f"new commits:\n{new_commits}")
+
+        # Append the new commits to the cumulative list
+        all_new_commits.extend(new_commits)
+
+    # After the loop exits, convert the aggregated list to a string and calculate tokens
+    new_commits_string = str(all_new_commits)
+    token_count = count_tokens(new_commits_string)
+
+    # Print or log the final new commits and token count
+    logger.info(f"Aggregated new commits across all projects:\n{new_commits_string}")
+    logger.info(f"Total token count: {token_count}")
+
     return {"token_count": token_count}
 
 @app.post("/add-repository/token-count")
 def count_tokens_add_repository(
-    load_request: dict = Body(..., description="Request body containing text."),
+    data: AddRepositoryRequest,
 ):
-    text = load_request.get("text", "")
-    token_count = count_tokens(text)
-    return {"token_count": token_count}
+    openai_api_key = data.openai_api_key
+
+    data.project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+
+    result_add_repo = add_repository(data)
+    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
+    load_request = {"openai_api_key": openai_api_key}
+    token_count = count_tokens_load(load_request)
+    logger.info(f"token count: {token_count}")
+
+    return token_count
 
 @app.post("/fetch-and-checkout/token-count")
 def count_tokens_fetch_and_checkout(
-    load_request: dict = Body(..., description="Request body containing text."),
+    data: FetchAndCheckoutBranchRequest,
 ):
-    text = load_request.get("text", "")
-    token_count = count_tokens(text)
-    return {"token_count": token_count}
+    codehost_url = data.codehost_url
+    # data.project_name should be same as codehost_url
+    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    branch_name = data.branch_name
+    api_key = data.api_key
+    openai_api_key = data.openai_api_key
+
+
+    if data.vcs_type != VCSType.git:
+        raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
+
+    # Get the destination path
+    destination_path = DataDir.REPO.get_path(project_name)
+
+    logger.info(f"Calling fetching and checkout api_key {api_key}")
+    logger.info(f"Calling fetching and checkout api_key type {type(api_key)}")
+    # Fetch and checkout the branch using the module function
+    fetch_and_checkout_branch(
+        codehost_url,
+        destination_path,
+        project_name,
+        branch_name,
+        api_key
+    )
+
+    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
+    load_request = {"openai_api_key": openai_api_key}
+    token_count = count_tokens_load(load_request)
+    logger.info(f"token count: {token_count}")
+
+    return token_count
