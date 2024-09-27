@@ -47,32 +47,31 @@ def load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
     openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
-    projects = DataDir.list_projects()
+    project = load_request.get("project_name")
 
-    for project in projects:
-        git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
-        logger.info(f"{project}'s git repo path: {git_project_path}")
+    git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
+    logger.info(f"{project}'s git repo path: {git_project_path}")
 
-        commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
-        commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
-        logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
-        commits_logs_json = read_json_file(commits_logs_file_path)
-        parser = GitCommitParser(commits_logs_json, project)
-        depth = 1000
-        parser.add_commits_to_log(git_project_path, depth)
+    commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+    commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+    logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+    commits_logs_json = read_json_file(commits_logs_file_path)
+    parser = GitCommitParser(commits_logs_json, project)
+    depth = 1000
+    parser.add_commits_to_log(git_project_path, depth)
 
-        # Create a string by converting this json [] into a string.
-        new_commits_string = parser.new_commits
+    # Create a string by converting this json [] into a string.
+    new_commits_string = parser.new_commits
 
-        write_json_file(parser.commits, commits_logs_file_path)
+    write_json_file(parser.commits, commits_logs_file_path)
 
-        commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-        logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
-        commits_logs_json = read_json_file(commits_logs_file_path)
-        existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
-        generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
-        updated_commits_embeddings_json = generator.generate_embeddings()
-        write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)
+    commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+    logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
+    commits_logs_json = read_json_file(commits_logs_file_path)
+    existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+    generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
+    updated_commits_embeddings_json = generator.generate_embeddings()
+    write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)
 
 @app.post("/add-repository/")
 def handle_add_repository(
@@ -84,7 +83,7 @@ def handle_add_repository(
 
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key}
+    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
     logger.info(f"load_request: {load_request}")
@@ -120,7 +119,7 @@ def handle_fetch_and_checkout_branch(
     )
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key}
+    load_request = {"openai_api_key": openai_api_key, "project_name": project_name}
     count_tokens_load(load_request)
     logger.info(f"load_request: {load_request}")
     load(load_request)
@@ -255,40 +254,40 @@ def health_check():
 
 @app.post("/load/token-count")
 def count_tokens_load(
-    load_request: dict = Body(..., description="Request body containing text."),
+    load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
     openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
+    project = load_request.get("project_name")
     projects = DataDir.list_projects()
 
     all_new_commits = []  # Initialize an empty list to hold all new commits
 
-    for project in projects:
-        git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
-        logger.info(f"{project}'s git repo path: {git_project_path}")
+    git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
+    logger.info(f"{project}'s git repo path: {git_project_path}")
 
-        commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
-        commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
-        logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
-        commits_logs_json = read_json_file(commits_logs_file_path)
-        parser = GitCommitParser(commits_logs_json, project)
-        depth = 1000
-        parser.add_commits_to_log(git_project_path, depth)
+    commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+    commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+    logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+    commits_logs_json = read_json_file(commits_logs_file_path)
+    parser = GitCommitParser(commits_logs_json, project)
+    depth = 1000
+    parser.add_commits_to_log(git_project_path, depth)
 
-        # Create a string by converting this json [] into a string.
-        new_commits_string = parser.new_commits
+    # Create a string by converting this json [] into a string.
+    new_commits_string = parser.new_commits
 
-        write_json_file(parser.commits, commits_logs_file_path)
+    write_json_file(parser.commits, commits_logs_file_path)
 
-        commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-        logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
-        commits_logs_json = read_json_file(commits_logs_file_path)
-        existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
-        generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
-        new_commits = generator._filter_new_commits()
-        logger.info(f"new commits:\n{new_commits}")
+    commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+    logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
+    commits_logs_json = read_json_file(commits_logs_file_path)
+    existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+    generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
+    new_commits = generator._filter_new_commits()
+    logger.info(f"new commits:\n{new_commits}")
 
-        # Append the new commits to the cumulative list
-        all_new_commits.extend(new_commits)
+    # Append the new commits to the cumulative list
+    all_new_commits.extend(new_commits)
 
     # After the loop exits, convert the aggregated list to a string and calculate tokens
     new_commits_string = str(all_new_commits)
@@ -310,7 +309,7 @@ def count_tokens_add_repository(
 
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key}
+    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
     delete_repository(data.project_name)
@@ -347,7 +346,7 @@ def count_tokens_fetch_and_checkout(
     )
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key}
+    load_request = {"openai_api_key": openai_api_key, "project_name": project_name}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
 
