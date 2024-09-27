@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
-from lib.vcs.repo_manager import clone_repository, add_repository, fetch_and_checkout_branch, get_repo_info
+from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository,fetch_and_checkout_branch, get_repo_info
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
@@ -313,6 +313,7 @@ def count_tokens_add_repository(
     load_request = {"openai_api_key": openai_api_key}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
+    delete_repository(data.project_name)
 
     return token_count
 

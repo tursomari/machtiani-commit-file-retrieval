@@ -61,6 +61,10 @@ class AddRepositoryRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
+
+class DeleteRepositoryRequest(BaseModel):
+    project_name: str
+
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str

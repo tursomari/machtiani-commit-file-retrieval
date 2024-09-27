@@ -2,6 +2,7 @@ from git import Repo, GitCommandError
 from app.utils import DataDir
 from lib.utils.enums import (
     AddRepositoryRequest,
+    DeleteRepositoryRequest,
     VCSType,
 )
 from fastapi import FastAPI, Query, HTTPException, Body
@@ -10,6 +11,7 @@ from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union
 from fastapi import HTTPException
 import os
+import shutil
 import subprocess
 from urllib.parse import urlparse
 import logging
@@ -96,6 +98,26 @@ def add_repository(data: AddRepositoryRequest):
         "api_key_provided": bool(api_key),
         "openai_api_key_provided": bool(openai_api_key)
     }
+
+def delete_repository(project_name: str):
+    """
+    Deletes the specified repository and cleans up associated files.
+
+    :param project_name: The name of the project to delete.
+    :raises ValueError: If the project does not exist.
+    """
+    repo_path = DataDir.REPO.get_path(project_name)
+
+    if not os.path.exists(repo_path):
+        raise ValueError(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+
+    try:
+        # Remove the entire project directory and its contents
+        shutil.rmtree(repo_path)  # This will delete the directory and all its contents
+        logger.info(f"Successfully deleted repository for project '{project_name}'.")
+    except OSError as e:
+        logger.error(f"Error deleting repository for project '{project_name}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
 
 def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None):
     full_path = os.path.join(destination_path, "git")
