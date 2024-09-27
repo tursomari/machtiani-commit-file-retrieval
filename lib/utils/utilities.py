@@ -99,5 +99,7 @@ def url_to_folder_name(repo_url: str) -> str:
     # Replace any non-alphanumeric characters (except hyphens and underscores) with underscores
     folder_name = re.sub(r'[^\w\-]', '_', folder_name)
 
+    folder_name = folder_name.lower()
+
     return folder_name
 
