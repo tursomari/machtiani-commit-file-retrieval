@@ -352,3 +352,27 @@ def count_tokens_fetch_and_checkout(
     logger.info(f"token count: {token_count}")
 
     return token_count
+
+@app.post("/generate-response/token-count")
+def count_tokens_generate_response(
+    prompt: str = Body(..., description="The prompt to search for"),
+    project: str = Body(..., description="The project to search"),
+    mode: str = Body(..., description="Search mode: chat, commit, or super"),
+    model: str = Body(..., description="The embedding model used"),
+    match_strength: str = Body(..., description="The strength of the match"),
+):
+    """
+    Count tokens for a given prompt to be used in generating a response.
+
+    :param prompt: The prompt for which to count tokens.
+    :param api_key: The OpenAI API key.
+
+    :return: A JSON response with the token count.
+    """
+
+    # Count tokens using the existing count_tokens utility function
+    token_count = count_tokens(prompt)
+
+    logger.info(f"Token count for prompt: {token_count}")
+
+    return {"token_count": token_count}
