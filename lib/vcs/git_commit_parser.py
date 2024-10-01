@@ -46,11 +46,15 @@ class GitCommitParser:
             for diff in commit.diff(commit.parents[0] if commit.parents else None):
                 files.append(diff.a_path)
 
-            return {
-                "oid": commit.hexsha,
-                "message": message,
-                "files": files
-            }
+            # Only return commit info if there are file changes
+            if files:  # Check if the files list is not empty
+                return {
+                    "oid": commit.hexsha,
+                    "message": message,
+                    "files": files
+                }
+            else:
+                return None  # No file changes, skip this commit
 
         except Exception as e:
             logger.error(f"Error processing commit at depth {depth}: {e}")
@@ -68,6 +72,7 @@ class GitCommitParser:
                     logger.info(f"Added OID {commit_info['oid']}")
                     commits.append(commit_info)
                 else:
+                    logger.info(f"No file changes for commit at depth {i}, skipping...")
                     break  # Stop if we've reached an invalid commit or error occurs
 
             return commits
