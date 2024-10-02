@@ -46,6 +46,7 @@ class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
     vcs_type: VCSType = VCSType.git  # Default to "git"
+    ignore_files: list
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None  # Add OpenAI API key
 
@@ -69,6 +70,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
     branch_name: str
+    ignore_files: list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None

@@ -1,13 +1,11 @@
 import os
-import json
 import logging
-from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
 class FileSummaryEmbeddingGenerator:
-    def __init__(self, commit_logs, api_key: str, git_project_path: str, existing_embeddings=None, embed_model="text-embedding-3-large", summary_model="gpt-4o-mini"):
+    def __init__(self, commit_logs, api_key: str, git_project_path: str, ignore_files: list = None, existing_embeddings=None, embed_model="text-embedding-3-large", summary_model="gpt-4o-mini"):
         """
         Initialize the FileSummaryEmbeddingGenerator with commit logs, an optional existing embeddings JSON object, and the git project path.
 
@@ -15,6 +13,7 @@ class FileSummaryEmbeddingGenerator:
         :param api_key: OpenAI API key.
         :param existing_embeddings: A JSON object containing existing embeddings (defaults to an empty dictionary).
         :param git_project_path: Path to the Git project directory.
+        :param ignore_files: List of files to ignore during embedding generation.
         :param embed_model: The OpenAI model to use for generating embeddings.
         :param summary_model: The OpenAI model to use for generating summaries.
         """
@@ -25,6 +24,7 @@ class FileSummaryEmbeddingGenerator:
         self.embed_model = embed_model
         self.summary_model = summary_model
         self.git_project_path = git_project_path  # Store the git project path
+        self.ignore_files = ignore_files if ignore_files is not None else []
 
         # Set up your OpenAI API key
         self.openai_api_key = api_key
@@ -33,6 +33,12 @@ class FileSummaryEmbeddingGenerator:
         # Use the provided existing embeddings or start with an empty dictionary
         self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_embeddings)} existing embeddings.")
+
+        # Log the ignored files on initialization
+        if self.ignore_files:
+            self.logger.info(f"Ignored files on initialization: {', '.join(self.ignore_files)}")
+        else:
+            self.logger.info("No files are set to be ignored.")
 
     def _get_file_content(self, file_path):
         """Retrieve the content of the file at the given path."""
@@ -43,7 +49,6 @@ class FileSummaryEmbeddingGenerator:
         except Exception as e:
             self.logger.error(f"Error reading file {full_file_path}: {e}")
             return None
-
 
     def send_prompt_to_openai(self, prompt_text: str) -> str:
         """
@@ -76,16 +81,21 @@ class FileSummaryEmbeddingGenerator:
             return None
 
     def _filter_new_files(self):
-        """Filter out files that already have embeddings."""
+        """Filter out files that already have embeddings and those on the ignore list."""
         new_files = {}
         for commit in self.commit_logs:
             for file in commit.get('files', []):
+                # Skip files in the ignore list
+                if file in self.ignore_files:
+                    self.logger.info(f"File '{file}' is ignored based on the ignore list.")
+                    continue
+
                 # Check if the file already has an embedding
                 if file not in self.existing_embeddings:
                     new_files[file] = commit['oid']  # Store the commit OID for reference
                 else:
                     self.logger.info(f"File '{file}' already has an embedding.")
-        self.logger.info(f"Found {len(new_files)} new files to embed.")
+        self.logger.info(f"Found {len(new_files)} new files to embed (excluding ignored files).")
         return new_files
 
     def generate_embeddings(self):
@@ -116,3 +126,4 @@ class FileSummaryEmbeddingGenerator:
 
         self.logger.info(f"Generated embeddings for {len(new_files)} new files.")
         return self.existing_embeddings
+

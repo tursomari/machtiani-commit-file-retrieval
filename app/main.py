@@ -78,6 +78,7 @@ def load(
 ):
     openai_api_key = load_request.get("openai_api_key")
     project = load_request.get("project_name")
+    ignore_files = load_request.get("ignore_files")
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     logger.info(f"{project}'s git repo path: {git_project_path}")
@@ -110,7 +111,7 @@ def load(
     existing_files_embeddings_json = read_json_file(files_embeddings_file_path)
 
     # Use the same commit logs for file summaries
-    file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, git_project_path, existing_files_embeddings_json)
+    file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, git_project_path, ignore_files, existing_files_embeddings_json)
     updated_files_embeddings_json = file_summary_generator.generate_embeddings()
     write_json_file(updated_files_embeddings_json, files_embeddings_file_path)
 
@@ -124,7 +125,7 @@ def handle_add_repository(
 
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name}
+    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
     logger.info(f"load_request: {load_request}")
@@ -160,7 +161,7 @@ def handle_fetch_and_checkout_branch(
     )
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": project_name}
+    load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
     count_tokens_load(load_request)
     logger.info(f"load_request: {load_request}")
     load(load_request)
@@ -372,7 +373,7 @@ def count_tokens_add_repository(
 
     result_add_repo = add_repository(data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name}
+    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
     delete_repository(data.project_name)
@@ -409,7 +410,7 @@ def count_tokens_fetch_and_checkout(
     )
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": project_name}
+    load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
     token_count = count_tokens_load(load_request)
     logger.info(f"token count: {token_count}")
 
