@@ -1,10 +1,12 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
-from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository,fetch_and_checkout_branch, get_repo_info
+from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
+from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator  # Import the new module
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
+from lib.search.file_embedding_matcher import FileEmbeddingMatcher  # New matcher for files
 from lib.utils.utilities import read_json_file, write_json_file, url_to_folder_name
 from app.utils import DataDir, retrieve_file_contents, count_tokens
 from typing import Optional, List, Dict
@@ -41,12 +43,40 @@ async def get_project_info(
         logger.error(f"Failed to get project info for '{project}': {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-#@app.on_event("startup")
+@app.get("/get-file-summary/")
+def get_file_summary(
+    file_path: str = Query(..., description="The path of the file to retrieve the summary for"),
+    project_name: str = Query(..., description="The name of the project")
+):
+    """
+    Retrieve the summary for a specified file path.
+
+    :param file_path: The path of the file to retrieve the summary for.
+    :param project_name: The name of the project.
+    :return: The summary of the specified file.
+    """
+    # Normalize the project name to create the correct path
+    project_name = url_to_folder_name(project_name)
+
+    # Construct the path to the file summaries JSON
+    file_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
+
+    # Read the existing file summaries
+    file_summaries = read_json_file(file_summaries_file_path)
+
+    # Retrieve the summary for the specified file path
+    summary = file_summaries.get(file_path)
+
+    if summary is None:
+        raise HTTPException(status_code=404, detail=f"No summary found for file path: {file_path}")
+
+    return {"file_path": file_path, "summary": summary["summary"]}
+
 @app.post("/load/")
 def load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
-    openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
+    openai_api_key = load_request.get("openai_api_key")
     project = load_request.get("project_name")
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
@@ -65,6 +95,7 @@ def load(
 
     write_json_file(parser.commits, commits_logs_file_path)
 
+    # Generate Commit Embeddings
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
     commits_logs_json = read_json_file(commits_logs_file_path)
@@ -72,6 +103,16 @@ def load(
     generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
     updated_commits_embeddings_json = generator.generate_embeddings()
     write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)
+
+    # Generate File Summaries and Embeddings
+    files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
+    logger.info(f"{project}'s embedded files logs file path: {files_embeddings_file_path}")
+    existing_files_embeddings_json = read_json_file(files_embeddings_file_path)
+
+    # Use the same commit logs for file summaries
+    file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, existing_files_embeddings_json)
+    updated_files_embeddings_json = file_summary_generator.generate_embeddings()
+    write_json_file(updated_files_embeddings_json, files_embeddings_file_path)
 
 @app.post("/add-repository/")
 def handle_add_repository(
@@ -143,36 +184,58 @@ def infer_file(
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     logger.info(f"project name: {project}")
-    project = url_to_folder_name(project)  # Use the URL to create the folder name
-    # Load existing commit embeddings from the specified file
+    project = url_to_folder_name(project)  # Normalize project name
+
+    # Load existing commit embeddings
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
 
-    closest_matches = matcher.find_closest_commits(prompt, match_strength)
-
+    # Initialize the parser to read commit logs
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
     commits_logs_json = read_json_file(commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
 
+    # Find closest commit matches
+    closest_commit_matches = matcher.find_closest_commits(prompt, match_strength)
+
+    # Load existing file embeddings
+    files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
+    file_matcher = FileEmbeddingMatcher(embeddings_file=files_embeddings_file_path, api_key=api_key)
+
+    # Find closest file matches
+    closest_file_matches = file_matcher.find_closest_files(prompt, match_strength)
+
     responses = []
-    for match in closest_matches:
+
+    # Process commit matches
+    for match in closest_commit_matches:
         file_paths = parser.get_files_from_commits(match["oid"])
-        closest_file_matches: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
+        closest_file_paths: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
 
         response = FileSearchResponse(
             oid=match["oid"],
             similarity=match["similarity"],
-            file_paths=closest_file_matches,
+            file_paths=closest_file_paths,
             embedding_model=model.value,
             mode=mode.value,
         )
 
-        if not closest_file_matches:
-            logger.info(f"No valid file paths found for commit {match['oid']}.")
-            continue  # Skip this response if no valid files
+        if closest_file_paths:
+            responses.append(response)
+        else:
+            logger.info(f"No valid file paths found for commit {match['oid']}. Skipping this response.")
 
+    # Process file summary matches
+    for match in closest_file_matches:
+        response = FileSearchResponse(
+            oid="",  # Assuming file matches do not have an OID
+            similarity=match["similarity"],
+            file_paths=[FilePathEntry(path=match["path"])],
+            embedding_model=model.value,
+            mode=mode.value,
+        )
         responses.append(response)
 
     return responses
