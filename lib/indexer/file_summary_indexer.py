@@ -7,12 +7,14 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 
 class FileSummaryEmbeddingGenerator:
-    def __init__(self, commit_logs, api_key: str, existing_embeddings=None, embed_model="text-embedding-3-large", summary_model="gpt-4o-mini"):
+    def __init__(self, commit_logs, api_key: str, git_project_path: str, existing_embeddings=None, embed_model="text-embedding-3-large", summary_model="gpt-4o-mini"):
         """
-        Initialize the FileSummaryEmbeddingGenerator with commit logs and an optional existing embeddings JSON object.
+        Initialize the FileSummaryEmbeddingGenerator with commit logs, an optional existing embeddings JSON object, and the git project path.
 
         :param commit_logs: List of commit objects, each with an 'oid' and 'files' key.
+        :param api_key: OpenAI API key.
         :param existing_embeddings: A JSON object containing existing embeddings (defaults to an empty dictionary).
+        :param git_project_path: Path to the Git project directory.
         :param embed_model: The OpenAI model to use for generating embeddings.
         :param summary_model: The OpenAI model to use for generating summaries.
         """
@@ -22,6 +24,7 @@ class FileSummaryEmbeddingGenerator:
         self.commit_logs = commit_logs
         self.embed_model = embed_model
         self.summary_model = summary_model
+        self.git_project_path = git_project_path  # Store the git project path
 
         # Set up your OpenAI API key
         self.openai_api_key = api_key
@@ -33,12 +36,14 @@ class FileSummaryEmbeddingGenerator:
 
     def _get_file_content(self, file_path):
         """Retrieve the content of the file at the given path."""
+        full_file_path = os.path.join(self.git_project_path, file_path)  # Join with git_project_path
         try:
-            with open(file_path, 'r') as file:
+            with open(full_file_path, 'r') as file:
                 return file.read()
         except Exception as e:
-            self.logger.error(f"Error reading file {file_path}: {e}")
+            self.logger.error(f"Error reading file {full_file_path}: {e}")
             return None
+
 
     def send_prompt_to_openai(self, prompt_text: str) -> str:
         """
@@ -95,7 +100,8 @@ class FileSummaryEmbeddingGenerator:
 
         # Loop through each new file
         for file in new_files.keys():
-            if os.path.exists(file):  # Check if the file exists
+            full_file_path = os.path.join(self.git_project_path, file)  # Join with git_project_path
+            if os.path.exists(full_file_path):  # Check if the file exists
                 content = self._get_file_content(file)
                 if content:
                     summary = self._summarize_content(file, content)

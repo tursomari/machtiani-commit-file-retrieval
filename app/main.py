@@ -110,7 +110,7 @@ def load(
     existing_files_embeddings_json = read_json_file(files_embeddings_file_path)
 
     # Use the same commit logs for file summaries
-    file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, existing_files_embeddings_json)
+    file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, git_project_path, existing_files_embeddings_json)
     updated_files_embeddings_json = file_summary_generator.generate_embeddings()
     write_json_file(updated_files_embeddings_json, files_embeddings_file_path)
 
