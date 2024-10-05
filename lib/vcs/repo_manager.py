@@ -20,9 +20,17 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_repo_info(project_name: str):
+async def async_exists(path: str) -> bool:
+    """Asynchronously check if a path exists."""
+    try:
+        async with aiofiles.open(path, mode='r'):
+            return True
+    except FileNotFoundError:
+        return False
+
+async def get_repo_info_async(project_name: str):
     """
-    Retrieve the remote URL and current branch of the repository for a given project.
+    Asynchronously retrieve the remote URL and current branch of the repository for a given project.
 
     :param project_name: The name of the project.
     :return: A dictionary with remote URL and current branch.
@@ -30,7 +38,8 @@ def get_repo_info(project_name: str):
     repo_path = DataDir.REPO.get_path(project_name)
     git_path = os.path.join(repo_path, "git")
 
-    if not os.path.exists(git_path):
+    # Check if the git_path exists asynchronously
+    if not await async_exists(git_path):
         raise FileNotFoundError(f"Repository for project '{project_name}' does not exist at path: {git_path}")
 
     repo = Repo(git_path)

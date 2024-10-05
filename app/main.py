@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
 import asyncio
-from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info
+from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator  # Import the new module
@@ -38,7 +38,7 @@ async def get_project_info(
     Get project information including the remote URL and the current git branch.
     """
     try:
-        result = get_repo_info(project, api_key)
+        result = await get_repo_info_async(project, api_key)  # Update to async call
         return result
     except Exception as e:
         logger.error(f"Failed to get project info for '{project}': {e}")
