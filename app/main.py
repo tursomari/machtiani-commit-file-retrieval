@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
+import asyncio
 from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
@@ -44,33 +45,44 @@ async def get_project_info(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/get-file-summary/")
-def get_file_summary(
-    file_path: str = Query(..., description="The path of the file to retrieve the summary for"),
+async def get_file_summary(
+    file_paths: List[str] = Query(..., description="List of file paths to retrieve summaries for"),
     project_name: str = Query(..., description="The name of the project")
 ):
     """
-    Retrieve the summary for a specified file path.
+    Retrieve summaries for specified file paths.
 
-    :param file_path: The path of the file to retrieve the summary for.
+    :param file_paths: A list of file paths to retrieve summaries for.
     :param project_name: The name of the project.
-    :return: The summary of the specified file.
+    :return: A list of summaries for the specified files.
     """
-    # Normalize the project name to create the correct path
     project_name = url_to_folder_name(project_name)
-
-    # Construct the path to the file summaries JSON
     file_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
 
     # Read the existing file summaries
     file_summaries = read_json_file(file_summaries_file_path)
 
-    # Retrieve the summary for the specified file path
-    summary = file_summaries.get(file_path)
+    async def fetch_summary(file_path):
+        summary = file_summaries.get(file_path)
+        if summary is None:
+            logger.warning(f"No summary found for file path: {file_path}")
+            return None  # Return None if not found
+        return {"file_path": file_path, "summary": summary["summary"]}
 
-    if summary is None:
-        raise HTTPException(status_code=404, detail=f"No summary found for file path: {file_path}")
+    # Run fetch_summary for all file_paths concurrently
+    tasks = [fetch_summary(file_path) for file_path in file_paths]
+    results = await asyncio.gather(*tasks)
 
-    return {"file_path": file_path, "summary": summary["summary"]}
+    # Prepare the output, filtering out None results
+    summaries = [result for result in results if result is not None]
+
+    # Add warnings for any missing summaries
+    if len(summaries) < len(file_paths):
+        missing_files = [file_path for file_path, result in zip(file_paths, results) if result is None]
+        for file_path in missing_files:
+            logger.warning(f"No summary found for file path: {file_path}")
+
+    return summaries  # Return only the list of summaries
 
 @app.post("/load/")
 def load(
