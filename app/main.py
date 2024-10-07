@@ -2,12 +2,13 @@ import os
 from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError
 import asyncio
+from concurrent.futures import ProcessPoolExecutor
 from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
-from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator  # Import the new module
+from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
-from lib.search.file_embedding_matcher import FileEmbeddingMatcher  # New matcher for files
+from lib.search.file_embedding_matcher import FileEmbeddingMatcher
 from lib.utils.utilities import read_json_file, write_json_file, url_to_folder_name
 from app.utils import DataDir, retrieve_file_contents, count_tokens
 from typing import Optional, List, Dict
@@ -23,22 +24,29 @@ from lib.utils.enums import (
     FetchAndCheckoutBranchRequest
 )
 import logging
+
 # Use the logger instead of print
 logger = logging.getLogger("uvicorn")
 logger.info("Application is starting up...")
 
 app = FastAPI()
+executor = ProcessPoolExecutor(max_workers=10)
+
+def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
+    summary = file_summaries.get(file_path)
+    if summary is None:
+        logger.warning(f"No summary found for file path: {file_path}")
+        return None
+    return {"file_path": file_path, "summary": summary["summary"]}
 
 @app.get("/get-project-info/")
 async def get_project_info(
     project: str = Query(..., description="The name of the project"),
     api_key: str = Query(..., description="OpenAI API key")
 ):
-    """
-    Get project information including the remote URL and the current git branch.
-    """
+    """ Get project information including the remote URL and the current git branch. """
     try:
-        result = await get_repo_info_async(project, api_key)  # Update to async call
+        result = await get_repo_info_async(project, api_key)
         return result
     except Exception as e:
         logger.error(f"Failed to get project info for '{project}': {e}")
@@ -49,43 +57,30 @@ async def get_file_summary(
     file_paths: List[str] = Query(..., description="List of file paths to retrieve summaries for"),
     project_name: str = Query(..., description="The name of the project")
 ):
-    """
-    Retrieve summaries for specified file paths.
-
-    :param file_paths: A list of file paths to retrieve summaries for.
-    :param project_name: The name of the project.
-    :return: A list of summaries for the specified files.
-    """
+    """ Retrieve summaries for specified file paths. """
     project_name = url_to_folder_name(project_name)
     file_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
 
-    # Read the existing file summaries
-    file_summaries = read_json_file(file_summaries_file_path)
+    # Read the existing file summaries asynchronously
+    file_summaries = await asyncio.to_thread(read_json_file, file_summaries_file_path)
 
-    async def fetch_summary(file_path):
-        summary = file_summaries.get(file_path)
-        if summary is None:
-            logger.warning(f"No summary found for file path: {file_path}")
-            return None  # Return None if not found
-        return {"file_path": file_path, "summary": summary["summary"]}
-
-    # Run fetch_summary for all file_paths concurrently
-    tasks = [fetch_summary(file_path) for file_path in file_paths]
+    # Run fetch_summary for all file_paths concurrently using ProcessPoolExecutor
+    loop = asyncio.get_event_loop()
+    tasks = [loop.run_in_executor(executor, fetch_summary, file_path, file_summaries) for file_path in file_paths]
     results = await asyncio.gather(*tasks)
 
     # Prepare the output, filtering out None results
     summaries = [result for result in results if result is not None]
 
-    # Add warnings for any missing summaries
     if len(summaries) < len(file_paths):
         missing_files = [file_path for file_path, result in zip(file_paths, results) if result is None]
         for file_path in missing_files:
             logger.warning(f"No summary found for file path: {file_path}")
 
-    return summaries  # Return only the list of summaries
+    return summaries
 
 @app.post("/load/")
-def load(
+async def load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
     openai_api_key = load_request.get("openai_api_key")
@@ -98,133 +93,128 @@ def load(
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
-    commits_logs_json = read_json_file(commits_logs_file_path)
+
+    async def read_commits_logs():
+        return await asyncio.to_thread(read_json_file, commits_logs_file_path)
+
+    commits_logs_json = await read_commits_logs()
+
     parser = GitCommitParser(commits_logs_json, project)
     depth = 1000
-    parser.add_commits_to_log(git_project_path, depth)
+    await parser.add_commits_to_log(git_project_path, depth)  # Await async method
 
-    # Create a string by converting this json [] into a string.
     new_commits_string = parser.new_commits
 
-    write_json_file(parser.commits, commits_logs_file_path)
+    await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
 
     # Generate Commit Embeddings
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
-    commits_logs_json = read_json_file(commits_logs_file_path)
-    existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+
+    commits_logs_json = await read_commits_logs()
+    existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
+
     generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
-    updated_commits_embeddings_json = generator.generate_embeddings()
-    write_json_file(updated_commits_embeddings_json, commits_embeddings_file_path)
+    updated_commits_embeddings_json = await asyncio.to_thread(generator.generate_embeddings)
+    await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
 
     # Generate File Summaries and Embeddings
     files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
     logger.info(f"{project}'s embedded files logs file path: {files_embeddings_file_path}")
-    existing_files_embeddings_json = read_json_file(files_embeddings_file_path)
 
-    # Use the same commit logs for file summaries
+    existing_files_embeddings_json = await asyncio.to_thread(read_json_file, files_embeddings_file_path)
+
     file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, git_project_path, ignore_files, existing_files_embeddings_json)
-    updated_files_embeddings_json = file_summary_generator.generate_embeddings()
-    write_json_file(updated_files_embeddings_json, files_embeddings_file_path)
+
+    updated_files_embeddings_json = await asyncio.to_thread(file_summary_generator.generate_embeddings)
+    await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
 
 @app.post("/add-repository/")
-def handle_add_repository(
+async def handle_add_repository(
     data: AddRepositoryRequest,
 ):
     openai_api_key = data.openai_api_key
 
-    data.project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    data.project_name = url_to_folder_name(data.project_name)
 
-    result_add_repo = add_repository(data)
+    result_add_repo = await asyncio.to_thread(add_repository, data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
-    token_count = count_tokens_load(load_request)
+    token_count = await count_tokens_load(load_request)  # Await async method
     logger.info(f"token count: {token_count}")
     logger.info(f"load_request: {load_request}")
-    load(load_request)
+    await load(load_request)  # Await async method
 
 @app.post("/fetch-and-checkout/")
-def handle_fetch_and_checkout_branch(
+async def handle_fetch_and_checkout_branch(
     data: FetchAndCheckoutBranchRequest,
 ):
     codehost_url = data.codehost_url
-    # data.project_name should be same as codehost_url
-    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    project_name = url_to_folder_name(data.project_name)
     branch_name = data.branch_name
     api_key = data.api_key
     openai_api_key = data.openai_api_key
 
-
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
 
-    # Get the destination path
     destination_path = DataDir.REPO.get_path(project_name)
 
     logger.info(f"Calling fetching and checkout api_key {api_key}")
-    logger.info(f"Calling fetching and checkout api_key type {type(api_key)}")
-    # Fetch and checkout the branch using the module function
-    fetch_and_checkout_branch(
-        codehost_url,
-        destination_path,
-        project_name,
-        branch_name,
-        api_key
-    )
+    await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, branch_name, api_key)
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
-    count_tokens_load(load_request)
-    logger.info(f"load_request: {load_request}")
-    load(load_request)
+    token_count = await count_tokens_load(load_request)  # Await async method
+    logger.info(f"token count: {token_count}")
+
+    await load(load_request)  # Await async method
 
     return {
-        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name} and updated index.'",
+        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
         "branch_name": data.branch_name,
         "project_name": data.project_name
     }
 
 @app.post("/infer-file/", response_model=List[FileSearchResponse])
-def infer_file(
+async def infer_file(
     prompt: str = Body(..., description="The prompt to search for"),
     project: str = Body(..., description="The project to search"),
     mode: SearchMode = Body(..., description="Search mode: pure-chat, commit, or super"),
     model: EmbeddingModel = Body(..., description="The embedding model used"),
-    match_strength: MatchStrength = Body(MatchStrength.HIGH, description="The strength of the match"),
+    match_strength: MatchStrength = Body(..., description="The strength of the match"),
     api_key: str = Body(..., description="OpenAI API key")
 ) -> List[FileSearchResponse]:
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     logger.info(f"project name: {project}")
-    project = url_to_folder_name(project)  # Normalize project name
+    project = url_to_folder_name(project)
 
-    # Load existing commit embeddings
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
 
-    # Initialize the parser to read commit logs
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
-    commits_logs_json = read_json_file(commits_logs_file_path)
+
+    commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
 
-    # Find closest commit matches
     closest_commit_matches = matcher.find_closest_commits(prompt, match_strength)
 
-    # Load existing file embeddings
     files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
     file_matcher = FileEmbeddingMatcher(embeddings_file=files_embeddings_file_path, api_key=api_key)
 
-    # Find closest file matches
     closest_file_matches = file_matcher.find_closest_files(prompt, match_strength)
 
     responses = []
 
-    # Process commit matches
+    loop = asyncio.get_event_loop()
+
+    # Process fetching file paths for commit matches
     for match in closest_commit_matches:
-        file_paths = parser.get_files_from_commits(match["oid"])
+        file_paths = await loop.run_in_executor(executor, parser.get_files_from_commits, match["oid"])  # Use executor
         closest_file_paths: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
 
         response = FileSearchResponse(
@@ -240,7 +230,6 @@ def infer_file(
         else:
             logger.info(f"No valid file paths found for commit {match['oid']}. Skipping this response.")
 
-    # Process file summary matches
     for match in closest_file_matches:
         response = FileSearchResponse(
             oid="",  # Assuming file matches do not have an OID
@@ -254,42 +243,30 @@ def infer_file(
     return responses
 
 @app.post("/retrieve-file-contents/", response_model=FileContentResponse)
-def get_file_contents(
+async def get_file_contents(
     project_name: str = Query(..., description="The name of the project"),
     file_paths: List[FilePathEntry] = Body(..., description="A list of file paths to retrieve content for")
 ) -> FileContentResponse:
-    """
-    Retrieve the content of files specified by file paths within a given project.
-
-    :param project_name: The name of the project to search in.
-    :param file_paths: A list of FilePathEntry objects representing the files to retrieve content for.
-    :return: A dictionary mapping file paths to their contents and a list of successfully retrieved file paths.
-    """
-
-    project_name = url_to_folder_name(project_name)  # Use the URL to create the folder name
+    """ Retrieve the content of files specified by file paths within a given project. """
+    project_name = url_to_folder_name(project_name)
     if not project_name.strip():
         raise HTTPException(status_code=400, detail="Project name cannot be empty.")
 
     if not file_paths:
         raise HTTPException(status_code=400, detail="File paths cannot be empty.")
 
-    # Log the incoming file paths for debugging
     logger.info(f"Received file paths: {file_paths}")
 
     retrieved_file_paths = []
     contents = {}
 
     try:
-        # Explicitly validate each file path entry
         for entry in file_paths:
             logger.info(f"Validating file path entry: {entry.path}")
-            # Pydantic validation can be triggered explicitly
             entry = FilePathEntry(**entry.dict())
 
-        # Use the retrieve_file_contents function to get the contents of the specified files
-        file_contents = retrieve_file_contents(project_name, file_paths)
+        file_contents = await asyncio.to_thread(retrieve_file_contents, project_name, file_paths)
 
-        # Collect the successfully retrieved file paths
         for path in file_contents.keys():
             retrieved_file_paths.append(path)
 
@@ -303,9 +280,9 @@ def get_file_contents(
     return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
 
 @app.get("/file-paths/", response_model=FileSearchResponse)
-def get_file_paths(
+async def get_file_paths(
     prompt: str = Query(..., description="The prompt to search for"),
-    mode: SearchMode = Query(..., description="Search mode: pure-chat, commit, or super"),  # Updated here
+    mode: SearchMode = Query(..., description="Search mode: pure-chat, commit, or super"),
     model: EmbeddingModel = Query(..., description="The embedding model used")
 ) -> FileSearchResponse:
     if not prompt.strip():
@@ -318,25 +295,23 @@ def get_file_paths(
     ]
 
     return FileSearchResponse(
-
         embedding_model=model,
         mode=mode,
     )
 
 @app.get("/health")
-def health_check():
+async def health_check():
     return {"status": "healthy"}
 
-
 @app.post("/load/token-count")
-def count_tokens_load(
+async def count_tokens_load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
-    openai_api_key = load_request.get("openai_api_key")  # Change to openai_api_key
+    openai_api_key = load_request.get("openai_api_key")
     project = load_request.get("project_name")
     projects = DataDir.list_projects()
 
-    all_new_commits = []  # Initialize an empty list to hold all new commits
+    all_new_commits = []
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     logger.info(f"{project}'s git repo path: {git_project_path}")
@@ -344,110 +319,95 @@ def count_tokens_load(
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
-    commits_logs_json = read_json_file(commits_logs_file_path)
+
+    commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
     depth = 1000
-    parser.add_commits_to_log(git_project_path, depth)
+    await parser.add_commits_to_log(git_project_path, depth)  # Await async method
 
-    # Create a string by converting this json [] into a string.
     new_commits_string = parser.new_commits
 
-    write_json_file(parser.commits, commits_logs_file_path)
+    await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
-    commits_logs_json = read_json_file(commits_logs_file_path)
-    existing_commits_embeddings_json = read_json_file(commits_embeddings_file_path)
+
+    commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
+    existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
     generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
-    new_commits = generator._filter_new_commits()
+
+    new_commits = await asyncio.to_thread(generator._filter_new_commits)
     logger.info(f"new commits:\n{new_commits}")
 
-    # Append the new commits to the cumulative list
     all_new_commits.extend(new_commits)
 
-    # After the loop exits, convert the aggregated list to a string and calculate tokens
     new_commits_string = str(all_new_commits)
     token_count = count_tokens(new_commits_string)
 
-    # Print or log the final new commits and token count
     logger.info(f"Aggregated new commits across all projects:\n{new_commits_string}")
     logger.info(f"Total token count: {token_count}")
 
     return {"token_count": token_count}
 
 @app.post("/add-repository/token-count")
-def count_tokens_add_repository(
+async def count_tokens_add_repository(
     data: AddRepositoryRequest,
 ):
     openai_api_key = data.openai_api_key
 
-    data.project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    data.project_name = url_to_folder_name(data.project_name)
 
-    result_add_repo = add_repository(data)
+    result_add_repo = await asyncio.to_thread(add_repository, data)
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
-    token_count = count_tokens_load(load_request)
+    token_count = await count_tokens_load(load_request)  # Await async method
     logger.info(f"token count: {token_count}")
-    delete_repository(data.project_name)
+    await asyncio.to_thread(delete_repository, data.project_name)
 
     return token_count
 
 @app.post("/fetch-and-checkout/token-count")
-def count_tokens_fetch_and_checkout(
+async def count_tokens_fetch_and_checkout(
     data: FetchAndCheckoutBranchRequest,
 ):
     codehost_url = data.codehost_url
-    # data.project_name should be same as codehost_url
-    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    project_name = url_to_folder_name(data.project_name)
     branch_name = data.branch_name
     api_key = data.api_key
     openai_api_key = data.openai_api_key
 
-
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
 
-    # Get the destination path
     destination_path = DataDir.REPO.get_path(project_name)
 
     logger.info(f"Calling fetching and checkout api_key {api_key}")
-    logger.info(f"Calling fetching and checkout api_key type {type(api_key)}")
-    # Fetch and checkout the branch using the module function
-    fetch_and_checkout_branch(
-        codehost_url,
-        destination_path,
-        project_name,
-        branch_name,
-        api_key
-    )
+    await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, branch_name, api_key)
 
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
-    token_count = count_tokens_load(load_request)
+    token_count = await count_tokens_load(load_request)  # Await async method
     logger.info(f"token count: {token_count}")
 
     return token_count
 
 @app.post("/generate-response/token-count")
-def count_tokens_generate_response(
+async def count_tokens_generate_response(
     prompt: str = Body(..., description="The prompt to search for"),
     project: str = Body(..., description="The project to search"),
     mode: str = Body(..., description="Search mode: chat, commit, or super"),
     model: str = Body(..., description="The embedding model used"),
     match_strength: str = Body(..., description="The strength of the match"),
 ):
-    """
-    Count tokens for a given prompt to be used in generating a response.
-
-    :param prompt: The prompt for which to count tokens.
-    :param api_key: The OpenAI API key.
-
-    :return: A JSON response with the token count.
-    """
-
-    # Count tokens using the existing count_tokens utility function
+    """ Count tokens for a given prompt to be used in generating a response. """
     token_count = count_tokens(prompt)
 
     logger.info(f"Token count for prompt: {token_count}")
 
     return {"token_count": token_count}
+
+@app.on_event("shutdown")
+def shutdown():
+    """ Shutdown the executor when the application terminates. """
+    logger.info("Shutting down the executor.")
+    executor.shutdown(wait=True)
