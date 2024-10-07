@@ -203,12 +203,14 @@ async def infer_file(
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
 
-    closest_commit_matches = matcher.find_closest_commits(prompt, match_strength)
+    # Call the async method
+    closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength)
 
     files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
     file_matcher = FileEmbeddingMatcher(embeddings_file=files_embeddings_file_path, api_key=api_key)
 
-    closest_file_matches = file_matcher.find_closest_files(prompt, match_strength)
+    # Call the async method
+    closest_file_matches = await file_matcher.find_closest_files(prompt, match_strength)
 
     responses = []
 
