@@ -60,7 +60,7 @@ class GitCommitParser:
             logger.error(f"Error processing commit at depth {depth}: {e}")
             return None
 
-    def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
+    async def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
         try:
             repo = git.Repo(repo_path)
             commits = []
@@ -81,11 +81,11 @@ class GitCommitParser:
             logger.error(f"Error accessing the repository: {e}")
             return []
 
-    def add_commits_to_log(self, repo_path, max_depth):
+    async def add_commits_to_log(self, repo_path, max_depth):
         """
         Adds the result of `get_commits_up_to_depth_or_oid` to the beginning of the commits log JSON object.
         """
-        new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
+        new_commits = await self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.new_commits = new_commits
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 

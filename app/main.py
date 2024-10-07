@@ -101,8 +101,9 @@ async def load(
 
     parser = GitCommitParser(commits_logs_json, project)
     depth = 1000
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, parser.add_commits_to_log, git_project_path, depth)
+    logger.info("Adding commits to log...")
+    await parser.add_commits_to_log(git_project_path, depth)
+    logger.info("Finished adding commits to log.")
 
     new_commits_string = parser.new_commits
 
@@ -323,9 +324,9 @@ async def count_tokens_load(
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
+
     depth = 1000
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(executor, parser.add_commits_to_log, git_project_path, depth)
+    await parser.add_commits_to_log(git_project_path, depth)
 
     new_commits_string = parser.new_commits
 
