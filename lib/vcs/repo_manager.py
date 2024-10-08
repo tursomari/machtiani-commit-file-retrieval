@@ -135,6 +135,7 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         # If the repository is not already cloned, clone it first
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}, cloning now...")
+            clone_repository(codehost_url, destination_path, project_name, api_key)
 
         # Open the repository
         repo = Repo(full_path)
@@ -151,7 +152,7 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         api_key_value = api_key.get_secret_value() if api_key and api_key.get_secret_value() else None
 
         if api_key_value:
-            # Construct the authentication URL with the token, as done in clone_repository
+            # Construct the authentication URL with the token
             url_parts = url_str.split("://")
             auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
             if not validate_github_auth_url(auth_url):
@@ -178,6 +179,13 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         repo.remotes.origin.pull(branch_name)
 
         logger.info(f"Checked out and updated to the latest commit on branch {branch_name} in {full_path}")
+
+        # Test push to verify if the user has push access (without actual changes)
+        try:
+            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
+            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
+        except GitCommandError as e:
+            logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
 
     except Exception as e:
         logger.error(f"Error during fetch and checkout process: {e}")
