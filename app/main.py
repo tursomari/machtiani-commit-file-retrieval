@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
-from pydantic import ValidationError
+from pydantic import ValidationError, SecretStr
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async
@@ -38,6 +38,32 @@ async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Opti
         logger.warning(f"No summary found for file path: {file_path}")
         return None
     return {"file_path": file_path, "summary": summary["summary"]}
+
+
+@app.post("/test-pull-access/")
+async def test_pull_access(
+    project_name: str = Query(..., description="The name of the project"),
+    codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication")
+):
+    """ Test pull access by attempting to fetch the default branch. """
+    try:
+        _project_name = url_to_folder_name(project_name)
+        destination_path = DataDir.REPO.get_path(_project_name)
+        repo_info = await get_repo_info_async(project_name)
+        logger.info(f"repo_info:]n{repo_info}")
+
+        # Fetch the default branch
+        default_branch = repo_info["current_branch"]
+        codehost_url = repo_info["remote_url"]
+
+        # Try fetching the default branch
+        logger.info(f"fetch_and_checkout_branch: {fetch_and_checkout_branch}\ncodehost_url: {codehost_url}\ndestination_path: {destination_path}\nproject_name: {project_name}\ndefault_branch: {default_branch}\ncodehost_api_key: {codehost_api_key}")
+        await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, default_branch, codehost_api_key)
+
+        return {"pull_access": True}
+    except Exception as e:
+        logger.error(f"Failed to fetch the default branch for '{project_name}': {e}")
+        return {"pull_access": False}
 
 @app.get("/get-project-info/")
 async def get_project_info(
