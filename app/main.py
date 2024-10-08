@@ -32,7 +32,7 @@ logger.info("Application is starting up...")
 app = FastAPI()
 executor = ProcessPoolExecutor(max_workers=10)
 
-def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
+async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
     summary = file_summaries.get(file_path)
     if summary is None:
         logger.warning(f"No summary found for file path: {file_path}")
@@ -64,9 +64,8 @@ async def get_file_summary(
     # Read the existing file summaries asynchronously
     file_summaries = await asyncio.to_thread(read_json_file, file_summaries_file_path)
 
-    # Run fetch_summary for all file_paths concurrently using ProcessPoolExecutor
-    loop = asyncio.get_event_loop()
-    tasks = [loop.run_in_executor(executor, fetch_summary, file_path, file_summaries) for file_path in file_paths]
+    # Create a list of async tasks for fetching summaries
+    tasks = [fetch_summary(file_path, file_summaries) for file_path in file_paths]
     results = await asyncio.gather(*tasks)
 
     # Prepare the output, filtering out None results
