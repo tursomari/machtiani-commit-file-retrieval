@@ -110,11 +110,16 @@ def add_repository(data: AddRepositoryRequest):
         "openai_api_key_provided": bool(openai_api_key)
     }
 
-def delete_store(project_name: str):
+def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None):
     """
     Deletes the specified store and cleans up associated files after checking for push access.
 
+    :param codehost_url: The URL of the code host (e.g., GitHub).
     :param project_name: The name of the project to delete.
+    :param ignore_files: List of files to ignore during operations.
+    :param vcs_type: The type of version control system (default: git).
+    :param api_key: Optional GitHub API key for authentication.
+    :param openai_api_key: Optional OpenAI API key for additional operations.
     :raises ValueError: If the project does not exist or if push access is denied.
     """
     store_path = DataDir.STORE.get_path(project_name)
@@ -135,15 +140,8 @@ def delete_store(project_name: str):
 
     logger.info(f"current_branch: {current_branch}")
 
-    # Test push to verify if the user has push access (without actual changes)
-    try:
-        repo.remotes.origin.push(current_branch)  # Attempt to push without any new commits
-        logger.info(f"Push access confirmed for branch '{current_branch}' (no changes)")
-    except GitCommandError as e:
-        raise ValueError(f"User does not have push access to the branch '{current_branch}'. Aborted.")
-    #logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
-    #if not check_push_access(repo, current_branch):
-    #    raise ValueError(f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
+    if not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
+        raise ValueError(f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
 
     try:
         # Remove the entire project directory and its contents
@@ -275,14 +273,13 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
         logger.error(f"An error occurred: {str(e)}")
         raise
 
-def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None) -> bool:
+def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None) -> bool:
     """
-    Check if the user has pull access to the specified branch.
+    Check if the user has pull access to the current branch of the specified repository.
 
     :param codehost_url: The URL of the code host (e.g., GitHub).
     :param destination_path: The path where the repository is located.
     :param project_name: The name of the project.
-    :param branch_name: The name of the branch to check for pull access.
     :param api_key: Optional GitHub API key for authentication.
     :return: True if pull access is granted, False otherwise.
     """
@@ -298,14 +295,18 @@ def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name
         repo = Repo(full_path)
         logger.info(f"Opened repository at {full_path}")
 
+        # Get the current active branch
+        current_branch = repo.active_branch.name
+        logger.info(f"Current active branch: {current_branch}")
+
         # Check pull access without API key first
         repo.remotes.origin.set_url(url_str)
         logger.debug(f"URL set for pull: {url_str}")
 
         # Test fetch to verify if the user has pull access
         try:
-            repo.remotes.origin.fetch(branch_name)  # Attempt to fetch the branch
-            logger.info(f"Pull access confirmed for branch '{branch_name}' without API key")
+            repo.remotes.origin.fetch(current_branch)  # Attempt to fetch the current branch
+            logger.info(f"Pull access confirmed for branch '{current_branch}' without API key")
             return True
         except GitCommandError as e:
             logger.warning(f"Fetch failed without API key, trying with API key: {str(e)}")
@@ -327,14 +328,14 @@ def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name
 
                     # Attempt to fetch again with the authenticated URL
                     try:
-                        repo.remotes.origin.fetch(branch_name)
-                        logger.info(f"Pull access confirmed for branch '{branch_name}' with API key")
+                        repo.remotes.origin.fetch(current_branch)
+                        logger.info(f"Pull access confirmed for branch '{current_branch}' with API key")
                         return True
                     except GitCommandError as e:
                         logger.warning(f"Fetch failed with API key, user may not have pull access: {str(e)}")
                         return False
 
-            logger.info("User does not have pull access to the branch.")
+            logger.info("User does not have pull access to the current branch.")
             return False
 
     except Exception as e:

@@ -65,6 +65,11 @@ class AddRepositoryRequest(BaseModel):
 
 class DeleteStoreRequest(BaseModel):
     project_name: str
+    codehost_url: HttpUrl
+    ignore_files: List[str]
+    vcs_type: VCSType
+    api_key: Optional[SecretStr] = None
+    openai_api_key: Optional[SecretStr] = None
 
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
@@ -81,5 +86,3 @@ class FetchAndCheckoutBranchRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
-class DeleteRepositoryRequest(BaseModel):
-    project_name: str

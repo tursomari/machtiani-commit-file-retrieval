@@ -386,16 +386,38 @@ async def count_tokens_add_repository(
 ):
     openai_api_key = data.openai_api_key
 
+    # Normalize the project name
     data.project_name = url_to_folder_name(data.project_name)
 
+    # Add the repository
     result_add_repo = await asyncio.to_thread(add_repository, data)
-    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
-    token_count = await count_tokens_load(load_request)  # Await async method
-    logger.info(f"token count: {token_count}")
-    await asyncio.to_thread(delete_store, data.project_name)
 
-    return token_count
+    # Extract the OpenAI API key value
+    openai_api_key_value = openai_api_key.get_secret_value() if openai_api_key else None
+
+    # Prepare the load request for counting tokens
+    load_request = {
+        "openai_api_key": openai_api_key_value,
+        "project_name": data.project_name,
+        "ignore_files": data.ignore_files
+    }
+
+    # Count tokens
+    token_count = await count_tokens_load(load_request)
+    logger.info(f"Token count: {token_count}")
+
+    # Call delete_store with the necessary parameters
+    # Correctly call the synchronous function within asyncio.to_thread
+    await asyncio.to_thread(
+        delete_store,
+        codehost_url=data.codehost_url,
+        project_name=data.project_name,
+        ignore_files=data.ignore_files,
+        vcs_type=data.vcs_type,
+        api_key=data.api_key,
+        openai_api_key=openai_api_key,
+    )
+    return {"token_count": token_count}
 
 @app.post("/fetch-and-checkout/token-count")
 async def count_tokens_fetch_and_checkout(
@@ -438,13 +460,26 @@ async def count_tokens_generate_response(
     return {"token_count": token_count}
 
 @app.post("/delete-store/")
-def handle_delete_store(
+async def handle_delete_store(
     data: DeleteStoreRequest,
 ):
     project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+    codehost_url = data.codehost_url
+    ignore_files = data.ignore_files
+    vcs_type = data.vcs_type
+    api_key = data.api_key
+    openai_api_key = data.openai_api_key
 
     try:
-        delete_store(project_name)
+        await asyncio.to_thread(
+            delete_store,
+            codehost_url=data.codehost_url,
+            project_name=data.project_name,
+            ignore_files=data.ignore_files,
+            vcs_type=data.vcs_type,
+            api_key=data.api_key,
+            openai_api_key=openai_api_key,
+        )
         return {"message": f"Store '{data.project_name}' deleted successfully."}
     except ValueError as e:
         logger.error(f"Failed to delete store '{data.project_name}': {e}")
