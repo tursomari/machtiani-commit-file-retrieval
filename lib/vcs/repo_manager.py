@@ -274,3 +274,69 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise
+
+def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None) -> bool:
+    """
+    Check if the user has pull access to the specified branch.
+
+    :param codehost_url: The URL of the code host (e.g., GitHub).
+    :param destination_path: The path where the repository is located.
+    :param project_name: The name of the project.
+    :param branch_name: The name of the branch to check for pull access.
+    :param api_key: Optional GitHub API key for authentication.
+    :return: True if pull access is granted, False otherwise.
+    """
+    full_path = os.path.join(destination_path, "git")
+    url_str = str(codehost_url)
+
+    try:
+        if not os.path.exists(full_path):
+            logger.info(f"Repository not found at {full_path}")
+            return False
+
+        # Open the repository
+        repo = Repo(full_path)
+        logger.info(f"Opened repository at {full_path}")
+
+        # Check pull access without API key first
+        repo.remotes.origin.set_url(url_str)
+        logger.debug(f"URL set for pull: {url_str}")
+
+        # Test fetch to verify if the user has pull access
+        try:
+            repo.remotes.origin.fetch(branch_name)  # Attempt to fetch the branch
+            logger.info(f"Pull access confirmed for branch '{branch_name}' without API key")
+            return True
+        except GitCommandError as e:
+            logger.warning(f"Fetch failed without API key, trying with API key: {str(e)}")
+
+            # If there's an API key, try fetching with the authenticated URL
+            if api_key:
+                api_key_value = api_key.get_secret_value()
+                if api_key_value:
+                    # Construct the authentication URL with the token
+                    url_parts = url_str.split("://")
+                    auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
+                    if not validate_github_auth_url(auth_url):
+                        logger.debug(f"{auth_url} is an invalid authorized URL")
+                        raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
+
+                    # Set the authenticated URL for the remote
+                    repo.remotes.origin.set_url(auth_url)
+                    logger.debug(f"Auth URL set for pull: {auth_url}")
+
+                    # Attempt to fetch again with the authenticated URL
+                    try:
+                        repo.remotes.origin.fetch(branch_name)
+                        logger.info(f"Pull access confirmed for branch '{branch_name}' with API key")
+                        return True
+                    except GitCommandError as e:
+                        logger.warning(f"Fetch failed with API key, user may not have pull access: {str(e)}")
+                        return False
+
+            logger.info("User does not have pull access to the branch.")
+            return False
+
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        raise
