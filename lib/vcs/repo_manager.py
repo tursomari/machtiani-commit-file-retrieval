@@ -2,7 +2,7 @@ from git import Repo, GitCommandError
 from app.utils import DataDir
 from lib.utils.enums import (
     AddRepositoryRequest,
-    DeleteRepositoryRequest,
+    DeleteStoreRequest,
     VCSType,
 )
 from fastapi import FastAPI, Query, HTTPException, Body

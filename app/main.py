@@ -3,7 +3,15 @@ from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError, SecretStr
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
-from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async, delete_store
+from lib.vcs.repo_manager import (
+    clone_repository,
+    add_repository,
+    delete_repository,
+    fetch_and_checkout_branch,
+    get_repo_info_async,
+    delete_store,
+    check_pull_access
+)
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
@@ -46,24 +54,21 @@ async def test_pull_access(
     project_name: str = Query(..., description="The name of the project"),
     codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication")
 ):
-    """ Test pull access by attempting to fetch the default branch. """
+    """ Test pull access by checking if the user can pull from the repository. """
     try:
         _project_name = url_to_folder_name(project_name)
         destination_path = DataDir.REPO.get_path(_project_name)
+
+        # Get repository info asynchronously
         repo_info = await get_repo_info_async(project_name)
-        logger.info(f"repo_info:]n{repo_info}")
+        logger.info(f"repo_info:\n{repo_info}")
 
-        # Fetch the default branch
-        default_branch = repo_info["current_branch"]
-        codehost_url = repo_info["remote_url"]
+        # Check pull access
+        has_pull_access = await asyncio.to_thread(check_pull_access, repo_info["remote_url"], destination_path, project_name, codehost_api_key)
 
-        # Try fetching the default branch
-        logger.info(f"fetch_and_checkout_branch: {fetch_and_checkout_branch}\ncodehost_url: {codehost_url}\ndestination_path: {destination_path}\nproject_name: {project_name}\ndefault_branch: {default_branch}\ncodehost_api_key: {codehost_api_key}")
-        await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, default_branch, codehost_api_key)
-
-        return {"pull_access": True}
+        return {"pull_access": has_pull_access}
     except Exception as e:
-        logger.error(f"Failed to fetch the default branch for '{project_name}': {e}")
+        logger.error(f"Failed to check pull access for '{project_name}': {e}")
         return {"pull_access": False}
 
 @app.get("/get-project-info/")
