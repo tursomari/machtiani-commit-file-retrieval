@@ -112,16 +112,38 @@ def add_repository(data: AddRepositoryRequest):
 
 def delete_store(project_name: str):
     """
-    Deletes the specified store and cleans up associated files.
+    Deletes the specified store and cleans up associated files after checking for push access.
 
     :param project_name: The name of the project to delete.
-    :raises ValueError: If the project does not exist.
+    :raises ValueError: If the project does not exist or if push access is denied.
     """
     store_path = DataDir.STORE.get_path(project_name)
     logger.info(f"path to delete: {store_path}")
 
     if not os.path.exists(store_path):
         raise ValueError(f"Store for project '{project_name}' does not exist at path: {store_path}")
+
+    # Check for push access before deletion
+    repo_path = DataDir.REPO.get_path(project_name)
+    if not os.path.exists(repo_path):
+        raise ValueError(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+
+    git_path = os.path.join(repo_path, "git")
+
+    repo = Repo(git_path)
+    current_branch = repo.active_branch.name
+
+    logger.info(f"current_branch: {current_branch}")
+
+    # Test push to verify if the user has push access (without actual changes)
+    try:
+        repo.remotes.origin.push(current_branch)  # Attempt to push without any new commits
+        logger.info(f"Push access confirmed for branch '{current_branch}' (no changes)")
+    except GitCommandError as e:
+        raise ValueError(f"User does not have push access to the branch '{current_branch}'. Aborted.")
+    #logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
+    #if not check_push_access(repo, current_branch):
+    #    raise ValueError(f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
 
     try:
         # Remove the entire project directory and its contents
@@ -143,36 +165,22 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         repo = Repo(full_path)
         logger.info(f"Opened repository at {full_path}")
 
-        # Add the directory as a safe directory
+        if not check_push_access(codehost_url, destination_path, project_name, branch_name, api_key):
+            raise ValueError(f"User does not have push access to the branch '{branch_name}'. Fetch and checkout aborted.")
+
+        # Pull the latest changes for the branch
+        logger.info(f"Pulling latest changes for branch '{branch_name}'")
+        repo.remotes.origin.pull(branch_name)
+
+        # Add the directory as a safe directory for Git operations
         logger.info(f"Adding {full_path} as a safe directory for Git operations")
         repo.git.config('--global', '--add', 'safe.directory', full_path)
-
-        # Handle authentication for fetching and pulling
-        url_str = str(codehost_url)
-
-        # Extract the value from api_key if provided and check if it's not None or empty
-        api_key_value = api_key.get_secret_value() if api_key and api_key.get_secret_value() else None
-
-        if api_key_value:
-            # Construct the authentication URL with the token
-            url_parts = url_str.split("://")
-            auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
-            if not validate_github_auth_url(auth_url):
-                logger.debug(f"{auth_url} is an invalid authorized url")
-                raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
-
-            # Set the authenticated URL for the remote
-            repo.remotes.origin.set_url(auth_url)
-            logger.debug(f"Auth URL set for fetch and pull: {auth_url}")
-        else:
-            # Ensure we set the original URL if no valid API key is provided
-            repo.remotes.origin.set_url(url_str)
 
         # Fetch the latest changes from the remote
         logger.info(f"Fetching latest changes from remote for repository at {full_path}")
         repo.remotes.origin.fetch()
 
-        # Check if the local branch is diverged from the remote branch
+        # Check if the local branch has diverged from the remote branch
         local_branch = repo.head.reference
         remote_branch = repo.remotes.origin.refs[branch_name]
 
@@ -187,29 +195,9 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         logger.info(f"Checking out branch '{branch_name}'")
         repo.git.checkout(branch_name)
 
-        # Pull the latest changes for the branch
-        logger.info(f"Pulling latest changes for branch '{branch_name}'")
-        repo.remotes.origin.pull(branch_name)
-
-        logger.info(f"Checked out and updated to the latest commit on branch {branch_name} in {full_path}")
-
-        # Test push to verify if the user has push access (without actual changes)
-        try:
-            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
-            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
-        except GitCommandError as e:
-            logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
-
-    except Exception as e:
-        logger.error(f"Error during fetch and checkout process: {e}")
-        raise
-
-    except GitCommandError as e:
-        logger.error(f"Failed to fetch and checkout branch: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch and checkout branch: {str(e)}")
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        raise
 
 def delete_repository(project_name: str):
     """
@@ -230,3 +218,59 @@ def delete_repository(project_name: str):
     except OSError as e:
         logger.error(f"Error deleting repository for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
+
+def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None) -> bool:
+    """
+    Check if the user has push access to the specified branch.
+
+    :param repo: The Git repository object.
+    :param branch_name: The name of the branch to check.
+    :return: True if push access is granted, False otherwise.
+    """
+
+    full_path = os.path.join(destination_path, "git")
+    url_str = str(codehost_url)
+
+    try:
+        if not os.path.exists(full_path):
+            logger.info(f"Repository not found at {full_path}")
+
+        # Open the repository
+        repo = Repo(full_path)
+        logger.info(f"Opened repository at {full_path}")
+
+        # Extract the value from api_key if provided and check if it's not None or empty
+        api_key_value = api_key.get_secret_value() if api_key and api_key.get_secret_value() else None
+
+        if api_key_value:
+            # Construct the authentication URL with the token
+            url_parts = url_str.split("://")
+            auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
+            if not validate_github_auth_url(auth_url):
+                logger.debug(f"{auth_url} is an invalid authorized URL")
+                raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
+
+            # Set the authenticated URL for the remote
+            repo.remotes.origin.set_url(auth_url)
+            logger.debug(f"Auth URL set for push, fetch, and pull: {auth_url}")
+        else:
+            raise ValueError(f"User must provide an API key with push access to the branch '{branch_name}'. Aborted.")
+
+        # Test push to verify if the user has push access (without actual changes)
+        try:
+            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
+            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
+            return True
+        except GitCommandError as e:
+            logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
+            return False
+        try:
+            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
+            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
+            return True
+        except GitCommandError as e:
+            logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
+            return False
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        raise

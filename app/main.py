@@ -445,9 +445,12 @@ def handle_delete_store(
 
     try:
         delete_store(project_name)
-        return {"message": f"Repository '{data.project_name}' deleted successfully."}
+        return {"message": f"Store '{data.project_name}' deleted successfully."}
+    except ValueError as e:
+        logger.error(f"Failed to delete store '{data.project_name}': {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to delete repository '{data.project_name}': {e}")
+        logger.error(f"Failed to delete store '{data.project_name}': {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.on_event("shutdown")
