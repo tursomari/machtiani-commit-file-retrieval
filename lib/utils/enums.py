@@ -63,7 +63,7 @@ class AddRepositoryRequest(BaseModel):
         return v
 
 
-class DeleteRepositoryRequest(BaseModel):
+class DeleteStoreRequest(BaseModel):
     project_name: str
 
 class FetchAndCheckoutBranchRequest(BaseModel):
@@ -80,3 +80,6 @@ class FetchAndCheckoutBranchRequest(BaseModel):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
         return v
+
+class DeleteRepositoryRequest(BaseModel):
+    project_name: str

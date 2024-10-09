@@ -3,7 +3,7 @@ from fastapi import FastAPI, Query, HTTPException, Body
 from pydantic import ValidationError, SecretStr
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
-from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async
+from lib.vcs.repo_manager import clone_repository, add_repository, delete_repository, fetch_and_checkout_branch, get_repo_info_async, delete_store
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
@@ -21,7 +21,8 @@ from lib.utils.enums import (
     FileContentResponse,
     VCSType,
     AddRepositoryRequest,
-    FetchAndCheckoutBranchRequest
+    FetchAndCheckoutBranchRequest,
+    DeleteStoreRequest
 )
 import logging
 
@@ -392,7 +393,7 @@ async def count_tokens_add_repository(
     load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
     token_count = await count_tokens_load(load_request)  # Await async method
     logger.info(f"token count: {token_count}")
-    await asyncio.to_thread(delete_repository, data.project_name)
+    await asyncio.to_thread(delete_store, data.project_name)
 
     return token_count
 
@@ -435,6 +436,19 @@ async def count_tokens_generate_response(
     logger.info(f"Token count for prompt: {token_count}")
 
     return {"token_count": token_count}
+
+@app.post("/delete-store/")
+def handle_delete_store(
+    data: DeleteStoreRequest,
+):
+    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
+
+    try:
+        delete_store(project_name)
+        return {"message": f"Repository '{data.project_name}' deleted successfully."}
+    except Exception as e:
+        logger.error(f"Failed to delete repository '{data.project_name}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.on_event("shutdown")
 def shutdown():

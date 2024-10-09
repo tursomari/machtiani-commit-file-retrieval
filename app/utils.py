@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 BASE_PATH = "/data/users/repositories/"
 
 class DataDir(Enum):
+    STORE = "store"
     REPO = "repo"
     COMMITS_EMBEDDINGS = "commits/embeddings"
     COMMITS_LOGS = "commits/logs"
@@ -21,16 +22,17 @@ class DataDir(Enum):
 
     def get_path(self, project_name: str, dir_type: 'DataDir' = None) -> str:
         """
-        Gets the full path for a specific project based on the directory type.
-        If dir_type is provided, it returns the path for that specific directory type.
+        Gets the full path for a specific project based on the current directory type.
+
+        If the directory type is STORE, it returns only the base path joined with the project name.
+        For other directory types, it appends the specific directory value to the project path.
 
         :param project_name: The name of the project.
-        :param dir_type: The specific directory type from the DataDir enum.
         :return: The full path to the requested directory.
         """
-        if dir_type is None:
-            dir_type = self
-        return os.path.join(BASE_PATH, project_name, dir_type.value)
+        if self == DataDir.STORE:
+            return os.path.join(BASE_PATH, project_name)
+        return os.path.join(BASE_PATH, project_name, self.value)
 
     @staticmethod
     def create_all(project_name: str):

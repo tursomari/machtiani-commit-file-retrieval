@@ -110,25 +110,26 @@ def add_repository(data: AddRepositoryRequest):
         "openai_api_key_provided": bool(openai_api_key)
     }
 
-def delete_repository(project_name: str):
+def delete_store(project_name: str):
     """
-    Deletes the specified repository and cleans up associated files.
+    Deletes the specified store and cleans up associated files.
 
     :param project_name: The name of the project to delete.
     :raises ValueError: If the project does not exist.
     """
-    repo_path = DataDir.REPO.get_path(project_name)
+    store_path = DataDir.STORE.get_path(project_name)
+    logger.info(f"path to delete: {store_path}")
 
-    if not os.path.exists(repo_path):
-        raise ValueError(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+    if not os.path.exists(store_path):
+        raise ValueError(f"Store for project '{project_name}' does not exist at path: {store_path}")
 
     try:
         # Remove the entire project directory and its contents
-        shutil.rmtree(repo_path)  # This will delete the directory and all its contents
-        logger.info(f"Successfully deleted repository for project '{project_name}'.")
+        shutil.rmtree(store_path)  # This will delete the directory and all its contents
+        logger.info(f"Successfully deleted store for project '{project_name}'.")
     except OSError as e:
-        logger.error(f"Error deleting repository for project '{project_name}': {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
+        logger.error(f"Error deleting store for project '{project_name}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
 
 def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None):
     full_path = os.path.join(destination_path, "git")
@@ -136,8 +137,7 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
     try:
         # If the repository is not already cloned, clone it first
         if not os.path.exists(full_path):
-            logger.info(f"Repository not found at {full_path}, cloning now...")
-            clone_repository(codehost_url, destination_path, project_name, api_key)
+            logger.info(f"Repository not found at {full_path}")
 
         # Open the repository
         repo = Repo(full_path)
@@ -210,3 +210,23 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+def delete_repository(project_name: str):
+    """
+    Deletes the specified repository and cleans up associated files.
+
+    :param project_name: The name of the project to delete.
+    :raises ValueError: If the project does not exist.
+    """
+    repo_path = DataDir.REPO.get_path(project_name)
+
+    if not os.path.exists(repo_path):
+        raise ValueError(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+
+    try:
+        # Remove the entire project directory
+        os.rmdir(repo_path)  # This will only work if the directory is empty
+        logger.info(f"Successfully deleted repository for project '{project_name}'.")
+    except OSError as e:
+        logger.error(f"Error deleting repository for project '{project_name}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
