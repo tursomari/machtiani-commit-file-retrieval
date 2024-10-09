@@ -172,6 +172,17 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         logger.info(f"Fetching latest changes from remote for repository at {full_path}")
         repo.remotes.origin.fetch()
 
+        # Check if the local branch is diverged from the remote branch
+        local_branch = repo.head.reference
+        remote_branch = repo.remotes.origin.refs[branch_name]
+
+        # Compare the local and remote branches
+        if local_branch.commit != remote_branch.commit:
+            logger.warning(f"Local branch '{branch_name}' has diverged from remote. Performing hard reset.")
+            # Perform a hard reset to the remote branch state
+            repo.git.reset('--hard', f'origin/{branch_name}')
+            logger.info(f"Successfully reset local branch '{branch_name}' to match remote.")
+
         # Checkout the specified branch
         logger.info(f"Checking out branch '{branch_name}'")
         repo.git.checkout(branch_name)
