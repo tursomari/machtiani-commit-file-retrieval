@@ -122,6 +122,9 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     :param openai_api_key: Optional OpenAI API key for additional operations.
     :raises ValueError: If the project does not exist or if push access is denied.
     """
+
+    project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
+
     store_path = DataDir.STORE.get_path(project_name)
     logger.info(f"path to delete: {store_path}")
 

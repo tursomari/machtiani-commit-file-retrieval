@@ -468,13 +468,6 @@ async def count_tokens_generate_response(
 async def handle_delete_store(
     data: DeleteStoreRequest,
 ):
-    project_name = url_to_folder_name(data.project_name)  # Use the URL to create the folder name
-    codehost_url = data.codehost_url
-    ignore_files = data.ignore_files
-    vcs_type = data.vcs_type
-    api_key = data.api_key
-    openai_api_key = data.openai_api_key
-
     try:
         await asyncio.to_thread(
             delete_store,
@@ -483,7 +476,7 @@ async def handle_delete_store(
             ignore_files=data.ignore_files,
             vcs_type=data.vcs_type,
             api_key=data.api_key,
-            openai_api_key=openai_api_key,
+            openai_api_key=data.openai_api_key,
         )
         return {"message": f"Store '{data.project_name}' deleted successfully."}
     except ValueError as e:
