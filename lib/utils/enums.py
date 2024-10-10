@@ -46,9 +46,9 @@ class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
     vcs_type: VCSType = VCSType.git  # Default to "git"
-    ignore_files: list
+    ignore_files: List[str] = []  # Default to an empty list
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None  # Add OpenAI API key
+    openai_api_key: Optional[SecretStr] = None
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -62,11 +62,10 @@ class AddRepositoryRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
-
 class DeleteStoreRequest(BaseModel):
     project_name: str
     codehost_url: HttpUrl
-    ignore_files: List[str]
+    ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None
@@ -75,7 +74,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
     branch_name: str
-    ignore_files: list
+    ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None

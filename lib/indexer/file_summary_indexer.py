@@ -6,35 +6,21 @@ from langchain_openai import ChatOpenAI
 
 class FileSummaryEmbeddingGenerator:
     def __init__(self, commit_logs, api_key: str, git_project_path: str, ignore_files: list = None, existing_embeddings=None, embed_model="text-embedding-3-large", summary_model="gpt-4o-mini"):
-        """
-        Initialize the FileSummaryEmbeddingGenerator with commit logs, an optional existing embeddings JSON object, and the git project path.
-
-        :param commit_logs: List of commit objects, each with an 'oid' and 'files' key.
-        :param api_key: OpenAI API key.
-        :param existing_embeddings: A JSON object containing existing embeddings (defaults to an empty dictionary).
-        :param git_project_path: Path to the Git project directory.
-        :param ignore_files: List of files to ignore during embedding generation.
-        :param embed_model: The OpenAI model to use for generating embeddings.
-        :param summary_model: The OpenAI model to use for generating summaries.
-        """
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
         self.commit_logs = commit_logs
         self.embed_model = embed_model
         self.summary_model = summary_model
-        self.git_project_path = git_project_path  # Store the git project path
-        self.ignore_files = ignore_files if ignore_files is not None else []
+        self.git_project_path = git_project_path
+        self.ignore_files = ignore_files if ignore_files is not None else []  # Default to empty list
 
-        # Set up your OpenAI API key
         self.openai_api_key = api_key
         self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.embed_model)
 
-        # Use the provided existing embeddings or start with an empty dictionary
         self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_embeddings)} existing embeddings.")
 
-        # Log the ignored files on initialization
         if self.ignore_files:
             self.logger.info(f"Ignored files on initialization: {', '.join(self.ignore_files)}")
         else:
