@@ -422,7 +422,9 @@ async def count_tokens_add_repository(
         api_key=data.api_key,
         openai_api_key=openai_api_key,
     )
-    return {"token_count": token_count}
+
+    # count_tokens_load `return {"token_count": token_count}` already.
+    return token_count
 
 @app.post("/fetch-and-checkout/token-count")
 async def count_tokens_fetch_and_checkout(
@@ -445,8 +447,9 @@ async def count_tokens_fetch_and_checkout(
     openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
     token_count = await count_tokens_load(load_request)  # Await async method
-    logger.info(f"token count: {token_count}")
 
+
+    # count_tokens_load `return {"token_count": token_count}` already.
     return token_count
 
 @app.post("/generate-response/token-count")
