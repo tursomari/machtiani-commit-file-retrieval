@@ -169,14 +169,6 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         if not check_push_access(codehost_url, destination_path, project_name, branch_name, api_key):
             raise ValueError(f"User does not have push access to the branch '{branch_name}'. Fetch and checkout aborted.")
 
-        # Pull the latest changes for the branch
-        logger.info(f"Pulling latest changes for branch '{branch_name}'")
-        repo.remotes.origin.pull(branch_name)
-
-        # Add the directory as a safe directory for Git operations
-        logger.info(f"Adding {full_path} as a safe directory for Git operations")
-        repo.git.config('--global', '--add', 'safe.directory', full_path)
-
         # Fetch the latest changes from the remote
         logger.info(f"Fetching latest changes from remote for repository at {full_path}")
         repo.remotes.origin.fetch()
@@ -191,6 +183,14 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
             # Perform a hard reset to the remote branch state
             repo.git.reset('--hard', f'origin/{branch_name}')
             logger.info(f"Successfully reset local branch '{branch_name}' to match remote.")
+
+        # Pull the latest changes for the branch
+        logger.info(f"Pulling latest changes for branch '{branch_name}'")
+        repo.remotes.origin.pull(branch_name)
+
+        # Add the directory as a safe directory for Git operations
+        logger.info(f"Adding {full_path} as a safe directory for Git operations")
+        repo.git.config('--global', '--add', 'safe.directory', full_path)
 
         # Checkout the specified branch
         logger.info(f"Checking out branch '{branch_name}'")
