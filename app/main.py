@@ -359,7 +359,7 @@ async def count_tokens_load(
     parser = GitCommitParser(commits_logs_json, project)
 
     depth = 1000
-    await parser.add_commits_to_log(git_project_path, depth)
+    await asyncio.to_thread(parser.add_commits_to_log, git_project_path, depth)
 
     new_commits_string = parser.new_commits
 
