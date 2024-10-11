@@ -220,10 +220,23 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             branch_name,
             data.api_key
         )
+
+        # Prepare the load request for counting tokens
+        load_request = {
+            "openai_api_key": data.openai_api_key.get_secret_value() if data.openai_api_key else None,
+            "project_name": project_name,
+            "ignore_files": data.ignore_files
+        }
+
+        # Count the tokens
+        token_count_response = await count_tokens_load(load_request)
+        token_count = token_count_response["token_count"]
+
         return {
             "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
             "branch_name": data.branch_name,
-            "project_name": data.project_name
+            "project_name": data.project_name,
+            "token_count": token_count  # Include the token count in the response
         }
     finally:
         await release_lock(lock_file_path)
