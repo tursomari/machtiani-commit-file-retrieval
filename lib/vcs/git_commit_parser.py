@@ -28,7 +28,7 @@ class GitCommitParser:
         self.git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
         self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
 
-    def get_commit_info_at_depth(self, repo, depth):
+    async def get_commit_info_at_depth(self, repo, depth):
         try:
             # Get the total number of commits in the repository
             total_commits = repo.git.rev_list('--count', 'HEAD')
@@ -65,7 +65,7 @@ class GitCommitParser:
             repo = git.Repo(repo_path)
             commits = []
             for i in range(max_depth):
-                commit_info = self.get_commit_info_at_depth(repo, i)
+                commit_info = await self.get_commit_info_at_depth(repo, i)
                 if commit_info:
                     if commit_info['oid'] == self.stop_oid:
                         break  # Stop just before processing the specified OID
