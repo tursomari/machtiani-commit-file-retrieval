@@ -1,7 +1,10 @@
 import re
 from urllib.parse import urlparse
 import json
+import os
+import asyncio
 import logging
+from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
 
@@ -103,3 +106,20 @@ def url_to_folder_name(repo_url: str) -> str:
 
     return folder_name
 
+async def is_locked(lock_file_path: str) -> bool:
+    """Check if the lock file exists."""
+    return await asyncio.to_thread(os.path.exists, lock_file_path)
+
+async def acquire_lock(lock_file_path: str):
+    """Acquire a lock by creating the lock file."""
+    # Open the lock file to acquire the lock
+    await asyncio.to_thread(open, lock_file_path, 'w')
+
+async def release_lock(lock_file_path: str):
+    """Release a lock by removing the lock file."""
+    if os.path.exists(lock_file_path):
+        await asyncio.to_thread(os.remove, lock_file_path)
+
+def get_lock_file_path(project_name: str) -> str:
+    """Get the path for the lock file based on the project name."""
+    return os.path.join(DataDir.STORE.get_path(project_name), "repo.lock")

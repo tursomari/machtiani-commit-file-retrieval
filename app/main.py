@@ -17,7 +17,15 @@ from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.search.file_embedding_matcher import FileEmbeddingMatcher
-from lib.utils.utilities import read_json_file, write_json_file, url_to_folder_name
+from lib.utils.utilities import (
+    read_json_file,
+    write_json_file,
+    url_to_folder_name,
+    get_lock_file_path,
+    is_locked,
+    acquire_lock,
+    release_lock
+)
 from app.utils import DataDir, retrieve_file_contents, count_tokens
 from typing import Optional, List, Dict
 from lib.utils.enums import (
@@ -163,51 +171,62 @@ async def load(
     await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
 
 @app.post("/add-repository/")
-async def handle_add_repository(
-    data: AddRepositoryRequest,
-):
-    openai_api_key = data.openai_api_key
-
+async def handle_add_repository(data: AddRepositoryRequest):
+    # Normalize the project name
     data.project_name = url_to_folder_name(data.project_name)
 
-    result_add_repo = await asyncio.to_thread(add_repository, data)
-    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": data.project_name, "ignore_files": data.ignore_files}
-    token_count = await count_tokens_load(load_request)  # Await async method
-    logger.info(f"token count: {token_count}")
-    logger.info(f"load_request: {load_request}")
-    await load(load_request)  # Await async method
+    # Obtain the OpenAI API key value
+    openai_api_key_value = data.openai_api_key.get_secret_value() if data.openai_api_key else None
 
-@app.post("/fetch-and-checkout/")
-async def handle_fetch_and_checkout_branch(
-    data: FetchAndCheckoutBranchRequest,
-):
-    codehost_url = data.codehost_url
-    project_name = url_to_folder_name(data.project_name)
-    branch_name = data.branch_name
-    api_key = data.api_key
-    openai_api_key = data.openai_api_key
+    # Add the repository and retrieve the response
+    response = await asyncio.to_thread(add_repository, data)
 
-    if data.vcs_type != VCSType.git:
-        raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
+    # Prepare the load request
+    load_request = {
+        "openai_api_key": openai_api_key_value,
+        "project_name": data.project_name,
+        "ignore_files": data.ignore_files
+    }
 
-    destination_path = DataDir.REPO.get_path(project_name)
-
-    logger.info(f"Calling fetching and checkout api_key {api_key}")
-    await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, branch_name, api_key)
-
-    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
-    token_count = await count_tokens_load(load_request)  # Await async method
-    logger.info(f"token count: {token_count}")
-
-    await load(load_request)  # Await async method
+    # Calling the load function to generate embeddings
+    await load(load_request)
 
     return {
-        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
-        "branch_name": data.branch_name,
-        "project_name": data.project_name
+        "message": response["message"],
+        "full_path": response["full_path"],
+        "api_key_provided": response["api_key_provided"],
+        "openai_api_key_provided": response["openai_api_key_provided"]
     }
+
+@app.post("/fetch-and-checkout")
+async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
+    project_name = url_to_folder_name(data.project_name)  # Normalize the project name
+    branch_name = data.branch_name
+    lock_file_path = get_lock_file_path(project_name)
+
+    # Check if the operation is locked
+    if await is_locked(lock_file_path):
+        raise HTTPException(status_code=423, detail=f"Operation is locked for project '{project_name}'. Please try again later.")
+
+    await acquire_lock(lock_file_path)
+
+    try:
+        # Call the repository manager to fetch and checkout the branch
+        await asyncio.to_thread(
+            fetch_and_checkout_branch,
+            data.codehost_url,
+            DataDir.REPO.get_path(project_name),
+            project_name,
+            branch_name,
+            data.api_key
+        )
+        return {
+            "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
+            "branch_name": data.branch_name,
+            "project_name": data.project_name
+        }
+    finally:
+        await release_lock(lock_file_path)
 
 @app.post("/infer-file/", response_model=List[FileSearchResponse])
 async def infer_file(
