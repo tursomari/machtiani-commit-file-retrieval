@@ -391,7 +391,8 @@ async def count_tokens_load(
     parser = GitCommitParser(commits_logs_json, project)
 
     depth = 1000
-    await asyncio.to_thread(parser.add_commits_to_log, git_project_path, depth)
+    #await asyncio.to_thread(parser.add_commits_to_log, git_project_path, depth)
+    await parser.add_commits_to_log(git_project_path, depth)
 
     new_commits_string = parser.new_commits
 
@@ -407,9 +408,13 @@ async def count_tokens_load(
     new_commits = await asyncio.to_thread(generator._filter_new_commits)
     logger.info(f"new commits:\n{new_commits}")
 
-    all_new_commits.extend(new_commits)
+    # Ensure you have the correct new commits to count tokens
+    if not new_commits:
+        logger.info("No new commits to count tokens for.")
+        return {"token_count": 0}
 
-    new_commits_string = str(all_new_commits)
+    new_commits_messages = [commit['message'] for commit in new_commits]
+    new_commits_string = '\n'.join(new_commits_messages)  # Create a string from messages
     token_count = count_tokens(new_commits_string)
 
     logger.info(f"Aggregated new commits across all projects:\n{new_commits_string}")
