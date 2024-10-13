@@ -146,6 +146,13 @@ async def load(
 
     new_commits_string = parser.new_commits
 
+    # Log the contents of parser.commits to verify new commits are added
+    logger.info(f"New commits added: {parser.commits}")
+
+    await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
+
+    new_commits_string = parser.new_commits
+
     await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
 
     # Generate Commit Embeddings
@@ -188,8 +195,7 @@ async def handle_add_repository(data: AddRepositoryRequest):
         "ignore_files": data.ignore_files
     }
 
-    # Calling the load function to generate embeddings
-    await load(load_request)
+    await load(load_request)  # Await async method
 
     return {
         "message": response["message"],
@@ -228,15 +234,13 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             "ignore_files": data.ignore_files
         }
 
-        # Count the tokens
-        token_count_response = await count_tokens_load(load_request)
-        token_count = token_count_response["token_count"]
+        # Calling the load function to generate embeddings
+        await load(load_request)
 
         return {
             "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
             "branch_name": data.branch_name,
             "project_name": data.project_name,
-            "token_count": token_count  # Include the token count in the response
         }
     finally:
         await release_lock(lock_file_path)

@@ -89,6 +89,9 @@ class GitCommitParser:
         self.new_commits = new_commits
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
+        # Log the added new commits
+        logger.info(f"Added new commits: {self.new_commits}")
+
     def is_file_deleted(self, file_path, commit_oid):
         """
         Check if a file was deleted in the history of the given commit.
