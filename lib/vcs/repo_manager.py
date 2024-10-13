@@ -27,35 +27,34 @@ async def async_exists(path: str) -> bool:
     return await loop.run_in_executor(None, os.path.exists, path)
 
 async def get_repo_info_async(project_name: str):
-    """
-    Asynchronously retrieve the remote URL and current branch of the repository for a given project.
-
-    :param project_name: The name of the project.
-    :return: A dictionary with remote URL and current branch.
-    """
     _project_name = url_to_folder_name(project_name)
     repo_path = DataDir.REPO.get_path(_project_name)
     git_path = os.path.join(repo_path, "git")
 
     logger.info(f"get_repo_info_async\nproject_name : {project_name}\nrepo_path: {repo_path}\ngit_path: {git_path}")
-    # Check if the git_path exists asynchronously
+
     if not await async_exists(git_path):
         logger.info("Repository does not exist.")
         raise FileNotFoundError(f"Repository for project '{project_name}' does not exist at path: {git_path}")
 
     repo = Repo(git_path)
+
     # Get the remote URL
     remote_url_with_api_key = repo.remotes.origin.url
-    logger.info(f"remote_url_with_api_key {remote_url_with_api_key}")
+    logger.info(f"remote_url_with_api_key: {remote_url_with_api_key}")
     remote_url, api_key = parse_github_url(remote_url_with_api_key)
-    logger.info(f"remote_url {remote_url} api_key{api_key}")
+    logger.info(f"remote_url: {remote_url} api_key: {api_key}")
 
-    # Get the current branch
-    current_branch = repo.active_branch.name
+    # Check if the repository has an active branch
+    current_branch = None
+    try:
+        current_branch = repo.active_branch.name
+    except (AttributeError, TypeError):
+        logger.warning("No active branch found, repo might be in a detached HEAD state.")
 
     return {
         "remote_url": remote_url,
-        "current_branch": current_branch,
+        "current_branch": current_branch,  # This will be None if there's no active branch
         "api_key": api_key
     }
 
