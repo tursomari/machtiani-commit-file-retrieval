@@ -177,6 +177,7 @@ async def load(
     updated_files_embeddings_json = await asyncio.to_thread(file_summary_generator.generate_embeddings)
     await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
 
+@app.post("/add-repository")
 @app.post("/add-repository/")
 async def handle_add_repository(data: AddRepositoryRequest):
     # Normalize the project name
@@ -205,6 +206,7 @@ async def handle_add_repository(data: AddRepositoryRequest):
     }
 
 @app.post("/fetch-and-checkout")
+@app.post("/fetch-and-checkout/")
 async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     project_name = url_to_folder_name(data.project_name)  # Normalize the project name
     branch_name = data.branch_name
