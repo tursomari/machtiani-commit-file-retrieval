@@ -60,19 +60,17 @@ async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Opti
 @app.post("/test-pull-access/")
 async def test_pull_access(
     project_name: str = Query(..., description="The name of the project"),
-    codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication")
+    codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication"),
+    codehost_url: str = Query(..., description="Code host URL for the repository"),  # New parameter
+    
 ):
     """ Test pull access by checking if the user can pull from the repository. """
     try:
         _project_name = url_to_folder_name(project_name)
         destination_path = DataDir.REPO.get_path(_project_name)
 
-        # Get repository info asynchronously
-        repo_info = await get_repo_info_async(project_name)
-        logger.info(f"repo_info:\n{repo_info}")
-
         # Check pull access
-        has_pull_access = await asyncio.to_thread(check_pull_access, repo_info["remote_url"], destination_path, project_name, codehost_api_key)
+        has_pull_access = await asyncio.to_thread(check_pull_access, codehost_url, destination_path, project_name, codehost_api_key)
 
         return {"pull_access": has_pull_access}
     except Exception as e:
