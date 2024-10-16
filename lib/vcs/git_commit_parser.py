@@ -2,6 +2,7 @@ import git
 import json
 import os
 import logging
+import asyncio
 from app.utils import DataDir
 
 # Configure logging
@@ -28,55 +29,59 @@ class GitCommitParser:
         self.git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
         self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
 
-    async def get_commit_info_at_depth(self, repo, depth):
+    def get_commit_info_at_depth(self, repo, depth):
         try:
-            # Get the total number of commits in the repository
-            total_commits = repo.git.rev_list('--count', 'HEAD')
-            if depth >= int(total_commits):
-                return None  # Depth exceeds the number of commits, return None
+            total_commits = int(repo.git.rev_list('--count', 'HEAD'))
+            if depth >= total_commits:
+                return None
 
-            # Get the commit object at the given depth
             commit = repo.commit(f'HEAD~{depth}')
+            logger.info(f"Processing commit {commit.hexsha} at depth {depth}")
 
-            # Get the commit message
             message = commit.message.strip()
-
-            # Get the list of files changed in the commit
             files = []
-            for diff in commit.diff(commit.parents[0] if commit.parents else None):
+
+            if commit.parents:
+                diffs = commit.diff(commit.parents[0])
+            else:
+                NULL_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+                diffs = commit.diff(NULL_TREE)
+
+            for diff in diffs:
                 files.append(diff.a_path)
 
-            # Only return commit info if there are file changes
-            if files:  # Check if the files list is not empty
+            logger.info(f"Files changed in commit {commit.hexsha}: {files}")
+
+            if files:
                 return {
                     "oid": commit.hexsha,
                     "message": message,
                     "files": files
                 }
             else:
-                return None  # No file changes, skip this commit
+                logger.info(f"No file changes for commit {commit.hexsha}, skipping...")
+                return None
 
         except Exception as e:
             logger.error(f"Error processing commit at depth {depth}: {e}")
             return None
 
-    async def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
+
+    def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
         try:
             repo = git.Repo(repo_path)
             commits = []
             for i in range(max_depth):
-                commit_info = await self.get_commit_info_at_depth(repo, i)
+                commit_info = self.get_commit_info_at_depth(repo, i)
                 if commit_info:
                     if commit_info['oid'] == self.stop_oid:
-                        break  # Stop just before processing the specified OID
+                        break
                     logger.info(f"Added OID {commit_info['oid']}")
                     commits.append(commit_info)
                 else:
                     logger.info(f"No file changes for commit at depth {i}, skipping...")
-                    break  # Stop if we've reached an invalid commit or error occurs
-
+                    break
             return commits
-
         except Exception as e:
             logger.error(f"Error accessing the repository: {e}")
             return []
@@ -85,7 +90,7 @@ class GitCommitParser:
         """
         Adds the result of `get_commits_up_to_depth_or_oid` to the beginning of the commits log JSON object.
         """
-        new_commits = await self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
+        new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.new_commits = new_commits
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
 
