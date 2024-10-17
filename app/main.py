@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Query, HTTPException, Body
-from pydantic import ValidationError, SecretStr
+from pydantic import ValidationError, SecretStr, HttpUrl
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from lib.vcs.repo_manager import (
@@ -10,7 +10,9 @@ from lib.vcs.repo_manager import (
     fetch_and_checkout_branch,
     get_repo_info_async,
     delete_store,
-    check_pull_access
+    check_pull_access,
+    check_push_access,
+    check_lock_file_exists
 )
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
@@ -62,7 +64,7 @@ async def test_pull_access(
     project_name: str = Query(..., description="The name of the project"),
     codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication"),
     codehost_url: str = Query(..., description="Code host URL for the repository"),  # New parameter
-    
+
 ):
     """ Test pull access by checking if the user can pull from the repository. """
     try:
@@ -89,6 +91,27 @@ async def get_project_info(
     except Exception as e:
         logger.error(f"Failed to get project info for '{project}': {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/status")
+async def check_repo_lock(
+    codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
+    api_key: Optional[SecretStr] = Query(None, description="Optional API key for authentication")
+):
+    """ Check if the repo.lock file is present after verifying push access. """
+    project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
+
+    repo_info = await get_repo_info_async(str(codehost_url))
+    logger.info(f"check_repo_lock get repo info: {repo_info}")
+    # Check for push access
+    has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
+
+    if not has_push_access:
+        raise HTTPException(status_code=403, detail="User does not have push access to the repository.")
+
+    # Check if the repo.lock file exists
+    lock_file_exists = await check_lock_file_exists(codehost_url)
+
+    return {"lock_file_present": lock_file_exists}
 
 @app.get("/get-file-summary/")
 async def get_file_summary(

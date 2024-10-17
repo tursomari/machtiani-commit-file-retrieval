@@ -58,6 +58,13 @@ async def get_repo_info_async(project_name: str):
         "api_key": api_key
     }
 
+async def check_lock_file_exists(codehost_url: HttpUrl) -> bool:
+    """ Check if the repo.lock file exists for the specified project. """
+    # Convert the HttpUrl to a string
+    project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
+    lock_file_path = os.path.join(DataDir.REPO.get_path(project_name), "repo.lock")
+    return await async_exists(lock_file_path)
+
 def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None):
     full_path = os.path.join(destination_path, "git")
 
