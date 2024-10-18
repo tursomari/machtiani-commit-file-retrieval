@@ -234,9 +234,14 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     lock_file_path = get_lock_file_path(project_name)
 
     # Check if the operation is locked
-    if await is_locked(lock_file_path):
-        raise HTTPException(status_code=423, detail=f"Operation is locked for project '{project_name}'. Please try again later.")
+    locked, elapsed_time = await is_locked(lock_file_path)
+    if locked:
+        # Convert elapsed_time from seconds to hours and minutes
+        elapsed_hours = int(elapsed_time // 3600)
+        elapsed_minutes = int((elapsed_time % 3600) // 60)
+        raise HTTPException(status_code=423, detail=f"Operation is locked for project '{project_name}'. Please try again later. Lock has been active for {elapsed_hours} hours and {elapsed_minutes} minutes.")
 
+    # Proceed with acquiring the lock since it's either not locked or the lock is old
     await acquire_lock(lock_file_path)
 
     try:

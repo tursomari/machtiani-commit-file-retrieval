@@ -1,4 +1,5 @@
 import re
+import time
 from urllib.parse import urlparse
 import json
 import os
@@ -106,9 +107,21 @@ def url_to_folder_name(repo_url: str) -> str:
 
     return folder_name
 
-async def is_locked(lock_file_path: str) -> bool:
-    """Check if the lock file exists."""
-    return await asyncio.to_thread(os.path.exists, lock_file_path)
+async def is_locked(lock_file_path: str) -> tuple:
+    """Check if the lock file exists and return the creation time if it does."""
+    exists = await asyncio.to_thread(os.path.exists, lock_file_path)
+    if not exists:
+        return (False, None)
+
+    # Get the creation time of the lock file
+    creation_time = os.path.getctime(lock_file_path)
+    elapsed_time = time.time() - creation_time  # Calculate elapsed time in seconds
+
+    # Check if the elapsed time is greater than 2 hours
+    if elapsed_time > 7200:  # 7200 seconds = 2 hours
+        return (False, None)
+
+    return (True, elapsed_time)
 
 async def acquire_lock(lock_file_path: str):
     """Acquire a lock by creating the lock file."""
