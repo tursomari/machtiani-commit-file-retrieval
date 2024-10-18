@@ -4,10 +4,30 @@ from urllib.parse import urlparse
 import json
 import os
 import asyncio
+import subprocess
 import logging
 from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
+
+def add_safe_directory(git_project_path):
+    try:
+        # Get the user's home directory
+        home_dir = os.path.expanduser("~")
+
+        # Run the git config command in the user's home directory
+        result = subprocess.run(
+            ['git', 'config', '--global', '--add', 'safe.directory', git_project_path],
+            check=True,
+            cwd=home_dir,  # Set the current working directory to the user's home
+            stderr=subprocess.PIPE,  # Capture stderr for logging
+            stdout=subprocess.PIPE   # Capture stdout for logging (optional)
+        )
+        logger.info(f"Successfully added safe directory: {git_project_path}")
+    except subprocess.CalledProcessError as e:
+        # Log the error details
+        logger.error(f"Error adding safe directory: {e.stderr.decode().strip()}")
+        raise
 
 
 def read_json_file(file_path):

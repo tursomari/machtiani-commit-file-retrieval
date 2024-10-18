@@ -8,7 +8,12 @@ from lib.utils.enums import (
 from fastapi import FastAPI, Query, HTTPException, Body
 import os
 import asyncio  # Import asyncio
-from lib.utils.utilities import parse_github_url, validate_github_auth_url, url_to_folder_name
+from lib.utils.utilities import (
+    parse_github_url,
+    validate_github_auth_url,
+    url_to_folder_name,
+    add_safe_directory,
+)
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union
 from fastapi import HTTPException
@@ -231,7 +236,13 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
     full_path = os.path.join(destination_path, "git")
     url_str = str(codehost_url)
 
+    # Determine the repository path
+    git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
+
     try:
+        # Add the repo path as a safe directory
+        add_safe_directory(git_project_path)
+
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}")
 
@@ -288,7 +299,13 @@ def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name
     full_path = os.path.join(destination_path, "git")
     url_str = str(codehost_url)
 
+    # Determine the repository path
+    git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
+
     try:
+        # Add the repo path as a safe directory
+        add_safe_directory(git_project_path)
+
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}")
             return False
