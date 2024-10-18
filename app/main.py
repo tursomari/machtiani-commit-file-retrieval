@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Query, HTTPException, Body
+from fastapi import FastAPI, Query, HTTPException, Body, BackgroundTasks
 from pydantic import ValidationError, SecretStr, HttpUrl
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
@@ -205,7 +205,7 @@ async def load(
 
 @app.post("/add-repository")
 @app.post("/add-repository/")
-async def handle_add_repository(data: AddRepositoryRequest):
+async def handle_add_repository(data: AddRepositoryRequest, background_tasks: BackgroundTasks):
     # Normalize the project name
     data.project_name = url_to_folder_name(data.project_name)
 
@@ -222,7 +222,8 @@ async def handle_add_repository(data: AddRepositoryRequest):
         "ignore_files": data.ignore_files
     }
 
-    await load(load_request)  # Await async method
+    # Add the load function as a background task
+    background_tasks.add_task(load, load_request)
 
     return {
         "message": response["message"],
