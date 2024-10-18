@@ -12,7 +12,6 @@ from lib.vcs.repo_manager import (
     delete_store,
     check_pull_access,
     check_push_access,
-    check_lock_file_exists
 )
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
@@ -93,6 +92,7 @@ async def get_project_info(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/status")
+@app.get("/status")
 async def check_repo_lock(
     codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
     api_key: Optional[SecretStr] = Query(None, description="Optional API key for authentication")
@@ -102,16 +102,21 @@ async def check_repo_lock(
 
     repo_info = await get_repo_info_async(str(codehost_url))
     logger.info(f"check_repo_lock get repo info: {repo_info}")
+
     # Check for push access
     has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
 
     if not has_push_access:
         raise HTTPException(status_code=403, detail="User does not have push access to the repository.")
 
-    # Check if the repo.lock file exists
-    lock_file_exists = await check_lock_file_exists(codehost_url)
+    lock_file_path = get_lock_file_path(project_name)
 
-    return {"lock_file_present": lock_file_exists}
+    lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
+
+    return {
+        "lock_file_present": lock_file_exists,
+        "lock_time_duration": lock_time_duration
+    }
 
 @app.get("/get-file-summary/")
 async def get_file_summary(
@@ -234,11 +239,11 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     lock_file_path = get_lock_file_path(project_name)
 
     # Check if the operation is locked
-    locked, elapsed_time = await is_locked(lock_file_path)
-    if locked:
+    lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
+    if lock_file_exists:
         # Convert elapsed_time from seconds to hours and minutes
-        elapsed_hours = int(elapsed_time // 3600)
-        elapsed_minutes = int((elapsed_time % 3600) // 60)
+        elapsed_hours = int(lock_time_duration // 3600)
+        elapsed_minutes = int((lock_time_duration % 3600) // 60)
         raise HTTPException(status_code=423, detail=f"Operation is locked for project '{project_name}'. Please try again later. Lock has been active for {elapsed_hours} hours and {elapsed_minutes} minutes.")
 
     # Proceed with acquiring the lock since it's either not locked or the lock is old
