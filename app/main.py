@@ -454,21 +454,28 @@ async def count_tokens_load(
     new_commits_messages = [commit['message'] for commit in new_commits]
     new_commits_string = '\n'.join(new_commits_messages)  # Create a string from messages
 
+    total_embedding_tokens = count_tokens(new_commits_string)
+
     # Retrieve files changed in new commits for additional token counting
-    total_token_count = 0
-    token_counts = parser.count_tokens_in_files(new_commits, project)
-    for file_path, count in token_counts.items():
-        total_token_count += count
+    total_inference_tokens = 0
+    inference_token_count = parser.count_tokens_in_files(new_commits, project)
+    for file_path, count in inference_token_count.items():
+        total_inference_tokens += count
 
     # Check if total token count exceeds the limit
     max_token_count = 3_000_000
-    if total_token_count > max_token_count:
+    if total_inference_tokens > max_token_count:
         raise HTTPException(
             status_code=400,
-            detail=f"Operation would be {total_token_count} input token, exceeded maximum usage of {max_token_count}."
+            detail=f"Operation would be {total_inference_tokens} input token, exceeded maximum usage of {max_token_count}."
         )
 
-    return {"token_count": total_token_count}
+    logger.info(f"Total embedding tokens: {total_embedding_tokens}, Total inference tokens: {total_inference_tokens}")
+
+    return {
+        "embedding_tokens": total_embedding_tokens,
+        "inference_tokens": total_inference_tokens
+    }
 
 @app.post("/add-repository/token-count")
 async def count_tokens_add_repository(
@@ -550,7 +557,10 @@ async def count_tokens_generate_response(
 
     logger.info(f"Token count for prompt: {token_count}")
 
-    return {"token_count": token_count}
+    return {
+        "embedding_tokens": 0,
+        "inference_tokens": token_count
+    }
 
 @app.post("/delete-store/")
 async def handle_delete_store(
