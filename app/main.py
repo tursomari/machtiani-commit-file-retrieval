@@ -460,7 +460,13 @@ async def count_tokens_load(
     for file_path, count in token_counts.items():
         total_token_count += count
 
-    logger.info(f"Total token count including commit messages and file contents: {total_token_count}")
+    # Check if total token count exceeds the limit
+    max_token_count = 3_000_000
+    if total_token_count > max_token_count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Operation would be {total_token_count} input token, exceeded maximum usage of {max_token_count}."
+        )
 
     return {"token_count": total_token_count}
 
