@@ -23,8 +23,18 @@ class CommitEmbeddingMatcher:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
 
     def load_embeddings(self, filepath: str) -> dict:
-        with open(filepath, 'r') as f:
-            return json.load(f)
+        try:
+            with open(filepath, 'r') as f:
+                return json.load(f)
+        except FileNotFoundError:
+            logger.error(f"Embeddings file not found: {filepath}")
+            raise
+        except json.JSONDecodeError:
+            logger.error(f"Error decoding JSON from embeddings file: {filepath}")
+            raise
+        except Exception as e:
+            logger.error(f"An unexpected error occurred while loading embeddings: {e}")
+            raise
 
     def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))

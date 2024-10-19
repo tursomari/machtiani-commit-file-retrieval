@@ -81,18 +81,23 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -
 
     for entry in file_paths:
         full_path = os.path.join(repo_path, "git", entry.path)
-        try:
-            # Check if the file is a text file
-            if not is_text_file(full_path):
-                logger.warning(f"Skipping non-text file: {full_path}")
-                continue  # Skip non-text files
 
+        logger.debug(f"Checking file: {full_path}")
+
+        # Check if the file is a text file
+        if not is_text_file(full_path):
+            logger.warning(f"Skipping non-text file: {full_path}")
+            continue  # Skip non-text files
+
+        if not os.path.isfile(full_path):
+            logger.error(f"File not found: {full_path}")
+            continue  # Skip if the file does not exist
+
+        try:
             with open(full_path, 'r') as file:
                 content = file.read()
                 file_contents[entry.path] = content
                 logger.debug(f"Retrieved content from file: {full_path}")
-        except FileNotFoundError:
-            logger.error(f"File not found: {full_path}")
         except IOError as e:
             logger.error(f"Error reading file {full_path}: {e}")
 

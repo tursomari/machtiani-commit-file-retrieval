@@ -453,12 +453,16 @@ async def count_tokens_load(
 
     new_commits_messages = [commit['message'] for commit in new_commits]
     new_commits_string = '\n'.join(new_commits_messages)  # Create a string from messages
-    token_count = count_tokens(new_commits_string)
 
-    logger.info(f"Aggregated new commits across all projects:\n{new_commits_string}")
-    logger.info(f"Total token count: {token_count}")
+    # Retrieve files changed in new commits for additional token counting
+    total_token_count = 0
+    token_counts = parser.count_tokens_in_files(new_commits, project)
+    for file_path, count in token_counts.items():
+        total_token_count += count
 
-    return {"token_count": token_count}
+    logger.info(f"Total token count including commit messages and file contents: {total_token_count}")
+
+    return {"token_count": total_token_count}
 
 @app.post("/add-repository/token-count")
 async def count_tokens_add_repository(

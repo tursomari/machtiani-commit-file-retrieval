@@ -3,7 +3,12 @@ import json
 import os
 import logging
 import asyncio
-from app.utils import DataDir
+from lib.utils.enums import FilePathEntry
+from app.utils import (
+    DataDir,
+    count_tokens,
+    retrieve_file_contents,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -87,13 +92,9 @@ class GitCommitParser:
             return []
 
     async def add_commits_to_log(self, repo_path, max_depth):
-        """
-        Adds the result of `get_commits_up_to_depth_or_oid` to the beginning of the commits log JSON object.
-        """
         new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
         self.new_commits = new_commits
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
-
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
 
@@ -133,3 +134,35 @@ class GitCommitParser:
                         logger.info(f"File {file} was deleted. Skipping.")
                 return existing_files
         return []
+
+    def count_tokens_in_files(self, new_commits, project_name: str):
+        """
+        Count tokens in all files changed in new commits.
+        :param new_commits: List of new commits.
+        :param project_name: The name of the project.
+        :return: A dictionary with file paths and their corresponding token counts.
+        """
+        token_counts = {}
+        repo_path = DataDir.REPO.get_path(project_name)
+
+        for commit in new_commits:
+            files = commit.get('files', [])
+            existing_files = []
+
+            for file_path in files:
+                full_path = os.path.join(repo_path, "git", file_path)
+                if os.path.isfile(full_path):
+                    existing_files.append(FilePathEntry(path=file_path))
+                else:
+                    logger.error(f"File does not exist: {full_path}")
+
+            # Retrieve the contents of existing files
+            file_contents = retrieve_file_contents(project_name, existing_files)
+
+            # Count tokens for each file content
+            for file_path, content in file_contents.items():
+                tokens = count_tokens(content)
+                token_counts[file_path] = tokens
+                logger.info(f"Counted {tokens} tokens in file: {file_path}")
+
+        return token_counts
