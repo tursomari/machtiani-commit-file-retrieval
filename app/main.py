@@ -92,7 +92,7 @@ async def get_project_info(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/status")
-@app.get("/status")
+@app.get("/status/")
 async def check_repo_lock(
     codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
     api_key: Optional[SecretStr] = Query(None, description="Optional API key for authentication")
