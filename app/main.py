@@ -349,8 +349,9 @@ async def infer_file(
 
 @app.post("/retrieve-file-contents/", response_model=FileContentResponse)
 async def get_file_contents(
-    project_name: str = Query(..., description="The name of the project"),
-    file_paths: List[FilePathEntry] = Body(..., description="A list of file paths to retrieve content for")
+    project_name: str = Body(..., description="The name of the project"),
+    file_paths: List[FilePathEntry] = Body(..., description="A list of file paths to retrieve content for"),
+    ignore_files: List[str] = Body(..., description="A list of files to ignore during retrieval")  # New parameter
 ) -> FileContentResponse:
     """ Retrieve the content of files specified by file paths within a given project. """
     project_name = url_to_folder_name(project_name)
@@ -370,7 +371,7 @@ async def get_file_contents(
             logger.info(f"Validating file path entry: {entry.path}")
             entry = FilePathEntry(**entry.dict())
 
-        file_contents = await asyncio.to_thread(retrieve_file_contents, project_name, file_paths)
+        file_contents = await asyncio.to_thread(retrieve_file_contents, project_name, file_paths, ignore_files)  # Pass ignore_files
 
         for path in file_contents.keys():
             retrieved_file_paths.append(path)
@@ -414,6 +415,7 @@ async def count_tokens_load(
 ):
     openai_api_key = load_request.get("openai_api_key")
     project = load_request.get("project_name")
+    ignore_files = load_request.get("ignore_files")
     projects = DataDir.list_projects()
 
     all_new_commits = []
@@ -458,7 +460,7 @@ async def count_tokens_load(
 
     # Retrieve files changed in new commits for additional token counting
     total_inference_tokens = 0
-    inference_token_count = parser.count_tokens_in_files(new_commits, project)
+    inference_token_count = parser.count_tokens_in_files(new_commits, project, ignore_files)
     for file_path, count in inference_token_count.items():
         total_inference_tokens += count
 

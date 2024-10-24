@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import asyncio
+from typing import List
 from lib.utils.enums import FilePathEntry
 from app.utils import (
     DataDir,
@@ -135,7 +136,7 @@ class GitCommitParser:
                 return existing_files
         return []
 
-    def count_tokens_in_files(self, new_commits, project_name: str):
+    def count_tokens_in_files(self, new_commits, project_name: str, ignore_files: List[str]):
         """
         Count tokens in all files changed in new commits.
         :param new_commits: List of new commits.
@@ -157,7 +158,7 @@ class GitCommitParser:
                     logger.error(f"File does not exist: {full_path}")
 
             # Retrieve the contents of existing files
-            file_contents = retrieve_file_contents(project_name, existing_files)
+            file_contents = retrieve_file_contents(project_name, existing_files, ignore_files)
 
             # Count tokens for each file content
             for file_path, content in file_contents.items():

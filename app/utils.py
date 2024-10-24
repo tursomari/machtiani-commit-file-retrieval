@@ -75,7 +75,7 @@ def is_text_file(filepath: str) -> bool:
     # Check if the mime type starts with 'text/'
     return mime_type.startswith('text/')
 
-def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -> Dict[str, str]:
+def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> Dict[str, str]:
     file_contents = {}
     repo_path = DataDir.REPO.get_path(project_name)
 
@@ -83,6 +83,11 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry]) -
         full_path = os.path.join(repo_path, "git", entry.path)
 
         logger.debug(f"Checking file: {full_path}")
+
+        # Skip files that are in the ignore list
+        if entry.path in ignore_files:
+            logger.warning(f"Skipping ignored file: {full_path}")
+            continue  # Skip ignored files
 
         # Check if the file is a text file
         if not is_text_file(full_path):
