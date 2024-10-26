@@ -3,6 +3,7 @@ from fastapi import FastAPI, Query, HTTPException, Body, BackgroundTasks
 from pydantic import ValidationError, SecretStr, HttpUrl
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
+import logging
 from lib.vcs.repo_manager import (
     clone_repository,
     add_repository,
@@ -41,7 +42,9 @@ from lib.utils.enums import (
     FetchAndCheckoutBranchRequest,
     DeleteStoreRequest
 )
-import logging
+from app.routes import (
+    test_pull_access,
+)
 
 # Use the logger instead of print
 logger = logging.getLogger("uvicorn")
@@ -50,6 +53,8 @@ logger.info("Application is starting up...")
 app = FastAPI()
 executor = ProcessPoolExecutor(max_workers=10)
 
+app.include_router(test_pull_access.router)
+
 async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
     summary = file_summaries.get(file_path)
     if summary is None:
@@ -57,26 +62,6 @@ async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Opti
         return None
     return {"file_path": file_path, "summary": summary["summary"]}
 
-
-@app.post("/test-pull-access/")
-async def test_pull_access(
-    project_name: str = Query(..., description="The name of the project"),
-    codehost_api_key: SecretStr = Query(..., description="Code host API key for authentication"),
-    codehost_url: str = Query(..., description="Code host URL for the repository"),  # New parameter
-
-):
-    """ Test pull access by checking if the user can pull from the repository. """
-    try:
-        _project_name = url_to_folder_name(project_name)
-        destination_path = DataDir.REPO.get_path(_project_name)
-
-        # Check pull access
-        has_pull_access = await asyncio.to_thread(check_pull_access, codehost_url, destination_path, project_name, codehost_api_key)
-
-        return {"pull_access": has_pull_access}
-    except Exception as e:
-        logger.error(f"Failed to check pull access for '{project_name}': {e}")
-        return {"pull_access": False}
 
 @app.get("/get-project-info/")
 async def get_project_info(
