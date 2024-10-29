@@ -46,6 +46,7 @@ from app.routes import (
     test_pull_access,
     get_project_info,
     check_repo_lock,
+    get_file_summary,
 )
 
 # Use the logger instead of print
@@ -57,40 +58,7 @@ executor = ProcessPoolExecutor(max_workers=10)
 
 app.include_router(test_pull_access.router)
 app.include_router(check_repo_lock.router)
-
-async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
-    summary = file_summaries.get(file_path)
-    if summary is None:
-        logger.warning(f"No summary found for file path: {file_path}")
-        return None
-    return {"file_path": file_path, "summary": summary["summary"]}
-
-
-@app.get("/get-file-summary/")
-async def get_file_summary(
-    file_paths: List[str] = Query(..., description="List of file paths to retrieve summaries for"),
-    project_name: str = Query(..., description="The name of the project")
-):
-    """ Retrieve summaries for specified file paths. """
-    project_name = url_to_folder_name(project_name)
-    file_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
-
-    # Read the existing file summaries asynchronously
-    file_summaries = await asyncio.to_thread(read_json_file, file_summaries_file_path)
-
-    # Create a list of async tasks for fetching summaries
-    tasks = [fetch_summary(file_path, file_summaries) for file_path in file_paths]
-    results = await asyncio.gather(*tasks)
-
-    # Prepare the output, filtering out None results
-    summaries = [result for result in results if result is not None]
-
-    if len(summaries) < len(file_paths):
-        missing_files = [file_path for file_path, result in zip(file_paths, results) if result is None]
-        for file_path in missing_files:
-            logger.warning(f"No summary found for file path: {file_path}")
-
-    return summaries
+app.include_router(get_file_summary.router)
 
 @app.post("/load/")
 async def load(
