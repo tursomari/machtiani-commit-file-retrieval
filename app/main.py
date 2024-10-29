@@ -45,6 +45,7 @@ from lib.utils.enums import (
 from app.routes import (
     test_pull_access,
     get_project_info,
+    check_repo_lock,
 )
 
 # Use the logger instead of print
@@ -55,6 +56,7 @@ app = FastAPI()
 executor = ProcessPoolExecutor(max_workers=10)
 
 app.include_router(test_pull_access.router)
+app.include_router(check_repo_lock.router)
 
 async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
     summary = file_summaries.get(file_path)
@@ -63,33 +65,6 @@ async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Opti
         return None
     return {"file_path": file_path, "summary": summary["summary"]}
 
-
-@app.get("/status")
-@app.get("/status/")
-async def check_repo_lock(
-    codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
-    api_key: Optional[SecretStr] = Query(None, description="Optional API key for authentication")
-):
-    """ Check if the repo.lock file is present after verifying push access. """
-    project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
-
-    repo_info = await get_repo_info_async(str(codehost_url))
-    logger.info(f"check_repo_lock get repo info: {repo_info}")
-
-    # Check for push access
-    has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
-
-    if not has_push_access:
-        raise HTTPException(status_code=403, detail="User does not have push access to the repository.")
-
-    lock_file_path = get_lock_file_path(project_name)
-
-    lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
-
-    return {
-        "lock_file_present": lock_file_exists,
-        "lock_time_duration": lock_time_duration
-    }
 
 @app.get("/get-file-summary/")
 async def get_file_summary(

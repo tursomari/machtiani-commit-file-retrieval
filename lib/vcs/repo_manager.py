@@ -44,12 +44,6 @@ async def get_repo_info_async(project_name: str):
 
     repo = Repo(git_path)
 
-    # Get the remote URL
-    remote_url_with_api_key = repo.remotes.origin.url
-    logger.info(f"remote_url_with_api_key: {remote_url_with_api_key}")
-    remote_url, api_key = parse_github_url(remote_url_with_api_key)
-    logger.info(f"remote_url: {remote_url} api_key: {api_key}")
-
     # Check if the repository has an active branch
     current_branch = None
     try:
@@ -58,9 +52,7 @@ async def get_repo_info_async(project_name: str):
         logger.warning("No active branch found, repo might be in a detached HEAD state.")
 
     return {
-        "remote_url": remote_url,
         "current_branch": current_branch,  # This will be None if there's no active branch
-        "api_key": api_key
     }
 
 def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None):
