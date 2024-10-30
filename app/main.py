@@ -49,6 +49,7 @@ from app.routes import (
     get_file_summary,
     load,
     add_repository as route_add_repository,
+    fetch_and_checkout
 )
 
 from app.routes.load import handle_load
@@ -65,40 +66,7 @@ app.include_router(check_repo_lock.router)
 app.include_router(get_file_summary.router)
 app.include_router(load.router)
 app.include_router(route_add_repository.router)
-
-@app.post("/fetch-and-checkout")
-@app.post("/fetch-and-checkout/")
-async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
-    print(f"codehost_url: {data.codehost_url}")
-    project_name = url_to_folder_name(str(data.codehost_url))  # Normalize the project name
-    branch_name = data.branch_name
-    lock_file_path = get_lock_file_path(project_name)
-
-    # Call the repository manager to fetch and checkout the branch
-    await asyncio.to_thread(
-        fetch_and_checkout_branch,
-        data.codehost_url,
-        DataDir.REPO.get_path(project_name),
-        project_name,
-        branch_name,
-        data.api_key
-    )
-
-    # Prepare the load request for counting tokens
-    load_request = {
-        "openai_api_key": data.openai_api_key.get_secret_value() if data.openai_api_key else None,
-        "project_name": project_name,
-        "ignore_files": data.ignore_files
-    }
-
-    # Calling the load function to generate embeddings
-    await handle_load(load_request)
-
-    return {
-        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
-        "branch_name": data.branch_name,
-        "project_name": data.project_name,
-    }
+app.include_router(fetch_and_checkout.router)
 
 @app.post("/infer-file/", response_model=List[FileSearchResponse])
 async def infer_file(
