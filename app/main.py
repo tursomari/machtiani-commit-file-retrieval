@@ -52,6 +52,7 @@ from app.routes import (
     fetch_and_checkout,
     infer_file,
     retrieve_file_contents,
+    file_paths,
 )
 
 from app.routes.load import handle_load
@@ -71,26 +72,7 @@ app.include_router(route_add_repository.router)
 app.include_router(fetch_and_checkout.router)
 app.include_router(infer_file.router)
 app.include_router(retrieve_file_contents.router)
-
-@app.get("/file-paths/", response_model=FileSearchResponse)
-async def get_file_paths(
-    prompt: str = Query(..., description="The prompt to search for"),
-    mode: SearchMode = Query(..., description="Search mode: pure-chat, commit, or super"),
-    model: EmbeddingModel = Query(..., description="The embedding model used")
-) -> FileSearchResponse:
-    if not prompt.strip():
-        raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
-
-    mock_file_paths = [
-        FilePathEntry(path="/path/to/file1.txt"),
-        FilePathEntry(path="/path/to/file2.txt"),
-        FilePathEntry(path="/path/to/file3.txt")
-    ]
-
-    return FileSearchResponse(
-        embedding_model=model,
-        mode=mode,
-    )
+app.include_router(file_paths.router)
 
 @app.get("/health")
 async def health_check():
