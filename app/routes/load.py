@@ -21,7 +21,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/load/")
-async def load(
+async def handle_load(
     load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
 ):
     openai_api_key = load_request.get("openai_api_key")
