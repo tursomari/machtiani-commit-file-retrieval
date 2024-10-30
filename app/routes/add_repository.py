@@ -11,6 +11,7 @@ from typing import Optional
 from lib.utils.enums import (
     AddRepositoryRequest,
 )
+from app.routes.load import handle_load
 from fastapi import APIRouter, HTTPException
 import logging
 
@@ -37,7 +38,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
     }
 
     # Add the load function as a background task
-    background_tasks.add_task(load, load_request)
+    background_tasks.add_task(handle_load, load_request)
 
     return {
         "message": response["message"],

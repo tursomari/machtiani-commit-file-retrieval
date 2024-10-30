@@ -48,6 +48,7 @@ from app.routes import (
     check_repo_lock,
     get_file_summary,
     load,
+    add_repository as route_add_repository,
 )
 
 from app.routes.load import handle_load
@@ -63,35 +64,7 @@ app.include_router(test_pull_access.router)
 app.include_router(check_repo_lock.router)
 app.include_router(get_file_summary.router)
 app.include_router(load.router)
-
-@app.post("/add-repository")
-@app.post("/add-repository/")
-async def handle_add_repository(data: AddRepositoryRequest, background_tasks: BackgroundTasks):
-    # Normalize the project name
-    data.project_name = url_to_folder_name(data.project_name)
-
-    # Obtain the OpenAI API key value
-    openai_api_key_value = data.openai_api_key.get_secret_value() if data.openai_api_key else None
-
-    # Add the repository and retrieve the response
-    response = await asyncio.to_thread(add_repository, data)
-
-    # Prepare the load request
-    load_request = {
-        "openai_api_key": openai_api_key_value,
-        "project_name": data.project_name,
-        "ignore_files": data.ignore_files
-    }
-
-    # Add the load function as a background task
-    background_tasks.add_task(handle_load, load_request)
-
-    return {
-        "message": response["message"],
-        "full_path": response["full_path"],
-        "api_key_provided": response["api_key_provided"],
-        "openai_api_key_provided": response["openai_api_key_provided"]
-    }
+app.include_router(route_add_repository.router)
 
 @app.post("/fetch-and-checkout")
 @app.post("/fetch-and-checkout/")
