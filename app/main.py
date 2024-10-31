@@ -54,6 +54,7 @@ from app.routes import (
     retrieve_file_contents,
     file_paths,
     count_tokens_load as route_count_tokens_load,
+    count_tokens_add_repository,
 )
 
 from app.routes.load import handle_load
@@ -76,51 +77,10 @@ app.include_router(infer_file.router)
 app.include_router(retrieve_file_contents.router)
 app.include_router(file_paths.router)
 app.include_router(route_count_tokens_load.router)
-
-@app.get("/health")
+app.include_router(count_tokens_add_repository.router)
+app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-@app.post("/add-repository/token-count")
-async def count_tokens_add_repository(
-    data: AddRepositoryRequest,
-):
-    openai_api_key = data.openai_api_key
-
-    # Normalize the project name
-    data.project_name = url_to_folder_name(data.project_name)
-
-    # Add the repository
-    result_add_repo = await asyncio.to_thread(add_repository, data)
-
-    # Extract the OpenAI API key value
-    openai_api_key_value = openai_api_key.get_secret_value() if openai_api_key else None
-
-    # Prepare the load request for counting tokens
-    load_request = {
-        "openai_api_key": openai_api_key_value,
-        "project_name": data.project_name,
-        "ignore_files": data.ignore_files
-    }
-
-    # Count tokens
-    token_count = await count_tokens_load(load_request)
-    logger.info(f"Token count: {token_count}")
-
-    # Call delete_store with the necessary parameters
-    # Correctly call the synchronous function within asyncio.to_thread
-    await asyncio.to_thread(
-        delete_store,
-        codehost_url=data.codehost_url,
-        project_name=data.project_name,
-        ignore_files=data.ignore_files,
-        vcs_type=data.vcs_type,
-        api_key=data.api_key,
-        openai_api_key=openai_api_key,
-    )
-
-    # count_tokens_load `return {"token_count": token_count}` already.
-    return token_count
 
 @app.post("/fetch-and-checkout/token-count")
 async def count_tokens_fetch_and_checkout(
