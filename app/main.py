@@ -57,6 +57,7 @@ from app.routes import (
     count_tokens_add_repository,
     count_tokens_fetch_and_checkout,
     count_tokens_generate_response,
+    delete_store,
 )
 
 from app.routes.load import handle_load
@@ -82,32 +83,11 @@ app.include_router(route_count_tokens_load.router)
 app.include_router(count_tokens_add_repository.router)
 app.include_router(count_tokens_fetch_and_checkout.router)
 app.include_router(count_tokens_generate_response.router)
+app.include_router(delete_store.router)
 
 app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-@app.post("/delete-store/")
-async def handle_delete_store(
-    data: DeleteStoreRequest,
-):
-    try:
-        await asyncio.to_thread(
-            delete_store,
-            codehost_url=data.codehost_url,
-            project_name=data.project_name,
-            ignore_files=data.ignore_files,
-            vcs_type=data.vcs_type,
-            api_key=data.api_key,
-            openai_api_key=data.openai_api_key,
-        )
-        return {"message": f"Store '{data.project_name}' deleted successfully."}
-    except ValueError as e:
-        logger.error(f"Failed to delete store '{data.project_name}': {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to delete store '{data.project_name}': {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.on_event("shutdown")
 def shutdown():
