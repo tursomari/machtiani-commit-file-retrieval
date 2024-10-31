@@ -55,6 +55,7 @@ from app.routes import (
     file_paths,
     count_tokens_load as route_count_tokens_load,
     count_tokens_add_repository,
+    count_tokens_fetch_and_checkout,
 )
 
 from app.routes.load import handle_load
@@ -78,35 +79,11 @@ app.include_router(retrieve_file_contents.router)
 app.include_router(file_paths.router)
 app.include_router(route_count_tokens_load.router)
 app.include_router(count_tokens_add_repository.router)
+app.include_router(count_tokens_fetch_and_checkout.router)
+
 app.get("/health")
 async def health_check():
     return {"status": "healthy"}
-
-@app.post("/fetch-and-checkout/token-count")
-async def count_tokens_fetch_and_checkout(
-    data: FetchAndCheckoutBranchRequest,
-):
-    codehost_url = data.codehost_url
-    project_name = url_to_folder_name(data.project_name)
-    branch_name = data.branch_name
-    api_key = data.api_key
-    openai_api_key = data.openai_api_key
-
-    if data.vcs_type != VCSType.git:
-        raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
-
-    destination_path = DataDir.REPO.get_path(project_name)
-
-    logger.info(f"Calling fetching and checkout api_key {api_key}")
-    await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, branch_name, api_key)
-
-    openai_api_key = openai_api_key.get_secret_value() if openai_api_key else None
-    load_request = {"openai_api_key": openai_api_key, "project_name": project_name, "ignore_files": data.ignore_files}
-    token_count = await count_tokens_load(load_request)  # Await async method
-
-
-    # count_tokens_load `return {"token_count": token_count}` already.
-    return token_count
 
 @app.post("/generate-response/token-count")
 async def count_tokens_generate_response(
