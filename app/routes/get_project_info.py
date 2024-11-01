@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException
-from lib.vcs.repo_manager import get_repo_info_async
+from app.services.get_project_info_service import fetch_project_info
 import logging
 
 router = APIRouter()
@@ -12,7 +12,7 @@ async def get_project_info(
 ):
     """ Get project information including the remote URL and the current git branch. """
     try:
-        result = await get_repo_info_async(project, api_key)
+        result = await fetch_project_info(project, api_key)
         return result
     except Exception as e:
         logger.error(f"Failed to get project info for '{project}': {e}")
