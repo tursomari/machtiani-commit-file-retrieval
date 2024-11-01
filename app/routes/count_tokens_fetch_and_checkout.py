@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/fetch-and-checkout/token-count")
 async def count_tokens_fetch_and_checkout(
-    data: FetchAndCheckoutBranchRequest,
+    data: FetchAndCheckoutBranchRequest
 ):
     try:
         token_count = await process_fetch_and_checkout(data)  # This now returns the token count directly
