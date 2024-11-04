@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import SecretStr
 from app.services.add_repository_service import process_add_repository
 from app.models.responses import AddRepositoryResponse, ErrorResponse
+from app.models.requests import AddRepositoryRequest
 from lib.utils.enums import AddRepositoryRequest
 from app.routes.load import handle_load
 
