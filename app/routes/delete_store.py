@@ -15,8 +15,7 @@ async def handle_delete_store(
     data: DeleteStoreRequest,
 ):
     try:
-        await delete_store_service(data)  # Use the service to delete the store
-        return {"message": f"Store '{data.project_name}' deleted successfully."}
+        return await delete_store_service(data)  # Use the service to delete the store
     except ValueError as e:
         logger.error(f"Failed to delete store '{data.project_name}': {e}")
         raise HTTPException(status_code=400, detail=str(e))

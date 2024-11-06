@@ -15,7 +15,7 @@ from lib.utils.utilities import (
     add_safe_directory,
 )
 from pydantic import HttpUrl, SecretStr
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 from fastapi import HTTPException
 import shutil
 import subprocess
@@ -106,7 +106,7 @@ def add_repository(data: AddRepositoryRequest):
         "openai_api_key_provided": bool(openai_api_key)
     }
 
-def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None):
+def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None) -> Dict[str, str]:
     """
     Deletes the specified store and cleans up associated files after checking for push access.
 
@@ -116,7 +116,7 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     :param vcs_type: The type of version control system (default: git).
     :param api_key: Optional GitHub API key for authentication.
     :param openai_api_key: Optional OpenAI API key for additional operations.
-    :raises ValueError: If the project does not exist or if push access is denied.
+    :return: A message indicating success or failure in deletion.
     """
 
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
@@ -125,12 +125,14 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     logger.info(f"path to delete: {store_path}")
 
     if not os.path.exists(store_path):
-        raise ValueError(f"Store for project '{project_name}' does not exist at path: {store_path}")
+        logger.info(f"Store for project '{project_name}' does not exist at path: {store_path}")
+        return {"message": f"Store for project '{project_name}' does not exist at path: {store_path}"}
 
     # Check for push access before deletion
     repo_path = DataDir.REPO.get_path(project_name)
     if not os.path.exists(repo_path):
-        raise ValueError(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+        logger.info(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+        return {"message": f"Repository for project '{project_name}' does not exist at path: {repo_path}"}
 
     git_path = os.path.join(repo_path, "git")
 
@@ -140,12 +142,13 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     logger.info(f"current_branch: {current_branch}")
 
     if not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
-        raise ValueError(f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
+        return {"message": f"User does not have push access to the branch '{current_branch}'. Deletion aborted."}
 
     try:
         # Remove the entire project directory and its contents
         shutil.rmtree(store_path)  # This will delete the directory and all its contents
         logger.info(f"Successfully deleted store for project '{project_name}'.")
+        return {"message": f"Store for project '{project_name}' deleted successfully."}
     except OSError as e:
         logger.error(f"Error deleting store for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
