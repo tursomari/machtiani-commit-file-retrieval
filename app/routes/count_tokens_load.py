@@ -3,17 +3,21 @@ import asyncio
 import logging
 from fastapi import APIRouter, HTTPException, Body
 from app.services.count_tokens_service import count_tokens_load as service_count_tokens_load
+from app.models.requests import LoadRequest
+from app.models.responses import LoadResponse
 
 # Initialize the router and logger
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/load/token-count")
-async def count_tokens_load(
-    load_request: dict = Body(..., description="Request body containing the OpenAI API key."),
-):
+@router.post("/load/token-count", response_model=LoadResponse)
+async def count_tokens_load(load_request: LoadRequest):
     try:
-        return await service_count_tokens_load(load_request)
+        embedding_tokens, inference_tokens = await service_count_tokens_load(load_request)
+        return LoadResponse(
+            embedding_tokens=embedding_tokens,
+            inference_tokens=inference_tokens
+        )
     except HTTPException as e:
         logger.error(f"HTTP Exception: {e.detail}")
         raise e

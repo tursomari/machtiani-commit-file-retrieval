@@ -5,6 +5,7 @@ from app.utils import DataDir
 from lib.utils.utilities import url_to_folder_name, get_lock_file_path
 from lib.vcs.repo_manager import fetch_and_checkout_branch
 from lib.utils.enums import FetchAndCheckoutBranchRequest
+from app.models.requests import LoadRequest  # Import the LoadRequest model
 from app.routes.load import handle_load
 from typing import Optional
 
@@ -30,11 +31,11 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     )
 
     # Prepare the load request for counting tokens
-    load_request = {
-        "openai_api_key": data.openai_api_key.get_secret_value() if data.openai_api_key else None,
-        "project_name": project_name,
-        "ignore_files": data.ignore_files
-    }
+    load_request = LoadRequest(  # Create an instance of LoadRequest
+        openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
+        project_name=project_name,
+        ignore_files=data.ignore_files
+    )
 
     # Calling the load function to generate embeddings
     await handle_load(load_request)

@@ -23,3 +23,8 @@ class AddRepositoryRequest(BaseModel):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
         return v
+
+class LoadRequest(BaseModel):
+    openai_api_key: Optional[str]  # Make it optional
+    project_name: str
+    ignore_files: Optional[List[str]] = None

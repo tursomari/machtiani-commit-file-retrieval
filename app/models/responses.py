@@ -12,3 +12,10 @@ class TokenCountResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+class LoadResponse(BaseModel):
+    embedding_tokens: int
+    inference_tokens: int
+
+class LoadErrorResponse(BaseModel):
+    detail: str

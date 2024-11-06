@@ -61,7 +61,6 @@ from app.routes import (
 )
 
 from app.routes.load import handle_load
-from app.routes.count_tokens_load import count_tokens_load
 
 # Use the logger instead of print
 logger = logging.getLogger("uvicorn")

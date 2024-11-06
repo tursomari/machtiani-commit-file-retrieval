@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+from app.models.requests import LoadRequest  # Import LoadRequest model
 from lib.vcs.git_commit_parser import GitCommitParser
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
@@ -16,10 +17,10 @@ from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
 
-async def load_project_data(load_request: dict):
-    openai_api_key = load_request.get("openai_api_key")
-    project = load_request.get("project_name")
-    ignore_files = load_request.get("ignore_files")
+async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
+    openai_api_key = load_request.openai_api_key
+    project = load_request.project_name
+    ignore_files = load_request.ignore_files or []
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)

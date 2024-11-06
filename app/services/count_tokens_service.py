@@ -7,6 +7,7 @@ from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.utils.utilities import url_to_folder_name, read_json_file, write_json_file
 from lib.utils.enums import VCSType, AddRepositoryRequest, FetchAndCheckoutBranchRequest
 from app.utils import count_tokens
+from app.models.requests import LoadRequest  # Import the LoadRequest model
 from fastapi import APIRouter, HTTPException
 from app.utils import DataDir
 from fastapi import HTTPException
@@ -14,6 +15,7 @@ from fastapi import HTTPException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
 
 async def process_repository_and_count_tokens(data: AddRepositoryRequest):
     # Normalize the project name
@@ -25,15 +27,14 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
     # Extract the OpenAI API key value
     openai_api_key_value = data.openai_api_key.get_secret_value() if data.openai_api_key else None
 
-    # Prepare the load request for counting tokens
-    load_request = {
-        "openai_api_key": openai_api_key_value,
-        "project_name": data.project_name,
-        "ignore_files": data.ignore_files
-    }
+    load_request = LoadRequest(
+        openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
+        project_name=data.project_name,
+        ignore_files=data.ignore_files
+    )
 
     # Count tokens
-    token_count = await count_tokens_load(load_request)
+    embedding_tokens, inference_token = await count_tokens_load(load_request)  # Pass the dictionary representation
 
     # Call delete_store with the necessary parameters
     await asyncio.to_thread(
@@ -46,12 +47,13 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         openai_api_key=data.openai_api_key,
     )
 
-    return token_count
+    return embedding_tokens, inference_token
 
-async def count_tokens_load(load_request: dict):
-    openai_api_key = load_request.get("openai_api_key")
-    project = load_request.get("project_name")
-    ignore_files = load_request.get("ignore_files")
+async def count_tokens_load(load_request: LoadRequest):  # Change parameter to LoadRequest
+    openai_api_key = load_request.openai_api_key  # Access openai_api_key directly
+    project = load_request.project_name  # Access project_name directly
+    ignore_files = load_request.ignore_files or []  # Access ignore_files directly
+
     projects = DataDir.list_projects()
 
     all_new_commits = []
@@ -86,7 +88,7 @@ async def count_tokens_load(load_request: dict):
     # Ensure you have the correct new commits to count tokens
     if not new_commits:
         logger.info("No new commits to count tokens for.")
-        return {"token_count": 0}
+        return 0, 0
 
     new_commits_messages = [commit['message'] for commit in new_commits]
     new_commits_string = '\n'.join(new_commits_messages)  # Create a string from messages
@@ -104,12 +106,9 @@ async def count_tokens_load(load_request: dict):
     if total_inference_tokens > max_token_count:
         raise HTTPException(
             status_code=400,
-            detail=f"Operation would be {total_inference_tokens} input token, exceeded maximum usage of {max_token_count}."
+            detail=f"Operation would be {total_inference_tokens} input tokens, exceeded maximum usage of {max_token_count}."
         )
 
     logger.info(f"Total embedding tokens: {total_embedding_tokens}, Total inference tokens: {total_inference_tokens}")
 
-    return {
-        "embedding_tokens": total_embedding_tokens,
-        "inference_tokens": total_inference_tokens
-    }
+    return total_embedding_tokens, total_inference_tokens
