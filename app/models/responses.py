@@ -46,3 +46,7 @@ class FetchAndCheckoutResponse(BaseModel):
     message: str
     branch_name: str
     project_name: str
+
+class FileSummaryResponse(BaseModel):
+    file_path: str
+    summary: str  # or any other relevant fields for the summary
