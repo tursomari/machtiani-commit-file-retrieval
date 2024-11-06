@@ -7,13 +7,14 @@ from lib.vcs.repo_manager import fetch_and_checkout_branch
 from lib.utils.enums import FetchAndCheckoutBranchRequest
 from app.models.requests import LoadRequest  # Import the LoadRequest model
 from app.routes.load import handle_load
+from app.models.responses import FetchAndCheckoutResponse  # Import the new response model
 from typing import Optional
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/fetch-and-checkout")
-@router.post("/fetch-and-checkout/")
+@router.post("/fetch-and-checkout", response_model=FetchAndCheckoutResponse)
+@router.post("/fetch-and-checkout/", response_model=FetchAndCheckoutResponse)
 async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     print(f"codehost_url: {data.codehost_url}")
     project_name = url_to_folder_name(str(data.codehost_url))  # Normalize the project name
@@ -38,10 +39,15 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
     )
 
     # Calling the load function to generate embeddings
-    await handle_load(load_request)
+    result_load = await handle_load(load_request)
 
-    return {
-        "message": f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
-        "branch_name": data.branch_name,
-        "project_name": data.project_name,
-    }
+    if result_load.get('status'):
+
+        return FetchAndCheckoutResponse(
+            message=f"Fetched and checked out branch '{data.branch_name}' for project '{data.project_name}' and updated index.",
+            branch_name=data.branch_name,
+            project_name=data.project_name,
+        )
+    else:
+        return result_load
+

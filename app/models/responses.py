@@ -1,5 +1,8 @@
 from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, HttpUrl, SecretStr, validator
+from enum import Enum
+from lib.utils.enums import VCSType
+from typing import Optional, List, Dict
 
 class AddRepositoryResponse(BaseModel):
     message: str
@@ -23,3 +26,23 @@ class LoadErrorResponse(BaseModel):
 class DeleteStoreResponse(BaseModel):
     success: bool
     message: str
+
+class FetchAndCheckoutBranchRequest(BaseModel):
+    codehost_url: HttpUrl
+    project_name: str
+    branch_name: str
+    ignore_files: List[str] = []  # Default to an empty list
+    vcs_type: VCSType = VCSType.git  # Default to "git"
+    api_key: Optional[SecretStr] = None
+    openai_api_key: Optional[SecretStr] = None
+
+    @validator('openai_api_key')
+    def validate_api_key(cls, v):
+        if v and not v.get_secret_value().strip():
+            raise ValueError("API key cannot be empty if provided")
+        return v
+
+class FetchAndCheckoutResponse(BaseModel):
+    message: str
+    branch_name: str
+    project_name: str

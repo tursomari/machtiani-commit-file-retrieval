@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 async def handle_load(load_request: LoadRequest):  # Use LoadRequest instead of dict
     try:
         await load_project_data(load_request)  # Pass LoadRequest instance
-        return {"message": "Load operation completed successfully."}
+        return {"status": True, "message": "Load operation completed successfully."}
     except RuntimeError as e:
         raise HTTPException(status_code=423, detail=str(e))
     except Exception as e:
