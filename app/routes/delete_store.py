@@ -4,13 +4,14 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.delete_store_service import delete_store_service  # Import the service
-from lib.utils.enums import DeleteStoreRequest  # Assuming DeleteStoreRequest is a Pydantic model
+from app.models.requests import DeleteStoreRequest
+from app.models.responses import DeleteStoreResponse
 
 # Initialize the router and logger
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/delete-store/")
+@router.post("/delete-store/", response_model=DeleteStoreResponse)  # Specify the response model
 async def handle_delete_store(
     data: DeleteStoreRequest,
 ):

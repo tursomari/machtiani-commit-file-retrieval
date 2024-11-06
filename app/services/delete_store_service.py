@@ -11,4 +11,5 @@ async def delete_store_service(data):
         api_key=data.api_key,
         openai_api_key=data.openai_api_key,
     )
-    return result
+
+    return result # of type DeleteStoreResponse

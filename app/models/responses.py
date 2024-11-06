@@ -19,3 +19,7 @@ class LoadResponse(BaseModel):
 
 class LoadErrorResponse(BaseModel):
     detail: str
+
+class DeleteStoreResponse(BaseModel):
+    success: bool
+    message: str

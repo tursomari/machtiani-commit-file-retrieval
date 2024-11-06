@@ -40,7 +40,6 @@ from lib.utils.enums import (
     VCSType,
     AddRepositoryRequest,
     FetchAndCheckoutBranchRequest,
-    DeleteStoreRequest
 )
 from app.routes import (
     test_pull_access,

@@ -2,7 +2,6 @@ from git import Repo, GitCommandError
 from app.utils import DataDir
 from lib.utils.enums import (
     AddRepositoryRequest,
-    DeleteStoreRequest,
     VCSType,
 )
 from fastapi import FastAPI, Query, HTTPException, Body
@@ -14,6 +13,7 @@ from lib.utils.utilities import (
     url_to_folder_name,
     add_safe_directory,
 )
+from app.models.responses import DeleteStoreResponse
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union, Dict
 from fastapi import HTTPException
@@ -126,29 +126,26 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
 
     if not os.path.exists(store_path):
         logger.info(f"Store for project '{project_name}' does not exist at path: {store_path}")
-        return {"message": f"Store for project '{project_name}' does not exist at path: {store_path}"}
+        return DeleteStoreResponse(success=False, message=f"Store for project '{project_name}' does not exist at path: {store_path}")
 
     # Check for push access before deletion
     repo_path = DataDir.REPO.get_path(project_name)
     if not os.path.exists(repo_path):
-        logger.info(f"Repository for project '{project_name}' does not exist at path: {repo_path}")
-        return {"message": f"Repository for project '{project_name}' does not exist at path: {repo_path}"}
+        return DeleteStoreResponse(success=False, message=f"Repository for project '{project_name}' does not exist at path: {repo_path}")
 
     git_path = os.path.join(repo_path, "git")
 
     repo = Repo(git_path)
     current_branch = repo.active_branch.name
 
-    logger.info(f"current_branch: {current_branch}")
-
     if not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
-        return {"message": f"User does not have push access to the branch '{current_branch}'. Deletion aborted."}
+        return DeleteStoreResponse(success=False, message=f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
 
     try:
         # Remove the entire project directory and its contents
         shutil.rmtree(store_path)  # This will delete the directory and all its contents
         logger.info(f"Successfully deleted store for project '{project_name}'.")
-        return {"message": f"Store for project '{project_name}' deleted successfully."}
+        return DeleteStoreResponse(success=True, message=f"Store for project '{project_name}' deleted successfully.")
     except OSError as e:
         logger.error(f"Error deleting store for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
