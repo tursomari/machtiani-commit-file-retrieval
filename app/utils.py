@@ -99,10 +99,13 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
             continue  # Skip if the file does not exist
 
         try:
-            with open(full_path, 'r') as file:
+            with open(full_path, 'r', encoding='utf-8') as file:  # Specify utf-8 encoding
                 content = file.read()
                 file_contents[entry.path] = content
                 logger.debug(f"Retrieved content from file: {full_path}")
+        except UnicodeDecodeError as e:
+            logger.warning(f"Skipping file due to codec error: {full_path} - {e}")
+            continue  # Skip files that raise codec errors
         except IOError as e:
             logger.error(f"Error reading file {full_path}: {e}")
 
