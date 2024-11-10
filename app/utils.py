@@ -89,15 +89,19 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
             logger.warning(f"Skipping ignored file: {full_path}")
             continue  # Skip ignored files
 
-        # Check if the file is a text file
-        if not is_text_file(full_path):
-            logger.warning(f"Skipping non-text file: {full_path}")
-            continue  # Skip non-text files
-
-        # Check if the file exists
+        # Check if the file exists before any further processing
         if not os.path.isfile(full_path):
             logger.error(f"File not found: {full_path}")
             continue  # Skip if the file does not exist
+
+        # Check if the file is a text file
+        try:
+            if not is_text_file(full_path):
+                logger.warning(f"Skipping non-text file: {full_path}")
+                continue  # Skip non-text files
+        except Exception as e:
+            logger.error(f"Error determining file type for {full_path}: {e}")
+            continue  # Skip files that cause errors in type checking
 
         try:
             with open(full_path, 'r', encoding='utf-8') as file:  # Specify utf-8 encoding
