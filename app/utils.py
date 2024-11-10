@@ -94,6 +94,7 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
             logger.warning(f"Skipping non-text file: {full_path}")
             continue  # Skip non-text files
 
+        # Check if the file exists
         if not os.path.isfile(full_path):
             logger.error(f"File not found: {full_path}")
             continue  # Skip if the file does not exist
@@ -108,6 +109,7 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
             continue  # Skip files that raise codec errors
         except IOError as e:
             logger.error(f"Error reading file {full_path}: {e}")
+            continue  # Continue to the next file on IOError
 
     return file_contents
 
