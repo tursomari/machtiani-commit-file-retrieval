@@ -6,6 +6,8 @@ import os
 import asyncio
 import subprocess
 import logging
+from pydantic import HttpUrl, SecretStr
+from typing import Optional
 from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
@@ -156,3 +158,28 @@ async def release_lock(lock_file_path: str):
 def get_lock_file_path(project_name: str) -> str:
     """Get the path for the lock file based on the project name."""
     return os.path.join(DataDir.STORE.get_path(project_name), "repo.lock")
+
+def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = None) -> str:
+    """
+    Constructs the remote URL, embedding the API key if provided.
+
+    Args:
+        codehost_url (HttpUrl): The base URL of the code host.
+        api_key (Optional[SecretStr]): The API key for authentication.
+
+    Returns:
+        str: The constructed remote URL.
+    """
+    url_str = str(codehost_url)
+
+    if api_key:
+        # Insert the API key into the URL for authentication
+        url_parts = url_str.split("://")
+        if len(url_parts) != 2:
+            raise ValueError("Invalid codehost URL format.")
+        auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
+        logger.debug("Constructed authenticated URL.")
+        return auth_url
+
+    logger.debug("Using unauthenticated URL.")
+    return url_str

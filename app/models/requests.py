@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, SecretStr, validator
+from pydantic import BaseModel, HttpUrl, SecretStr
 from enum import Enum
 from typing import Optional, List, Dict
 from lib.utils.enums import VCSType

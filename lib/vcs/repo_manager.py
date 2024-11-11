@@ -12,6 +12,7 @@ from lib.utils.utilities import (
     validate_github_auth_url,
     url_to_folder_name,
     add_safe_directory,
+    construct_remote_url,
 )
 from app.models.responses import DeleteStoreResponse
 from pydantic import HttpUrl, SecretStr
@@ -55,31 +56,46 @@ async def get_repo_info_async(project_name: str):
         "current_branch": current_branch,  # This will be None if there's no active branch
     }
 
-def clone_repository(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None):
+def clone_repository(
+    codehost_url: HttpUrl,
+    destination_path: str,
+    project_name: str,
+    api_key: Optional[SecretStr] = None
+):
+    """
+    Clones the repository from the code host to the specified destination path.
+
+    Args:
+        codehost_url (HttpUrl): The base URL of the code host.
+        destination_path (str): The local path where the repository will be cloned.
+        project_name (str): The name of the project/repository.
+        api_key (Optional[SecretStr]): The API key for authentication.
+
+    Raises:
+        HTTPException: If the cloning process fails.
+    """
     full_path = os.path.join(destination_path, "git")
 
     try:
-        # Convert the HttpUrl to a string
-        url_str = str(codehost_url)
+        # Construct the remote URL with or without the API key
+        remote_url = construct_remote_url(codehost_url, api_key)
 
-        if api_key:
-            # Construct the authentication URL with the token
-            url_parts = url_str.split("://")
-            auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
-
-            # Log the URL for debugging (remove this in production)
-            logger.debug(f"Auth URL: {auth_url}")
-
-            # Clone using the authenticated URL
-            Repo.clone_from(auth_url, full_path)
-        else:
-            Repo.clone_from(url_str, full_path)
-
+        # Clone using the constructed remote URL
+        Repo.clone_from(remote_url, full_path)
         logger.info(f"Repository cloned to {full_path}")
 
     except GitCommandError as e:
         logger.error(f"Failed to clone the repository: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to clone the repository: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clone the repository: {str(e)}"
+        )
+    except ValueError as ve:
+        logger.error(f"URL construction error: {str(ve)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid repository URL: {str(ve)}"
+        )
 
 def add_repository(data: AddRepositoryRequest):
     codehost_url = data.codehost_url
@@ -150,35 +166,58 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
         logger.error(f"Error deleting store for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
 
-def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None):
+def fetch_and_checkout_branch(
+    codehost_url: HttpUrl,
+    destination_path: str,
+    project_name: str,
+    branch_name: str,
+    api_key: Optional[SecretStr] = None
+):
+    """
+    Fetches the latest changes and checks out the specified branch.
+
+    Args:
+        codehost_url (HttpUrl): The base URL of the code host.
+        destination_path (str): The local path where the repository is located.
+        project_name (str): The name of the project/repository.
+        branch_name (str): The name of the branch to checkout.
+        api_key (Optional[SecretStr]): The API key for authentication.
+
+    Raises:
+        Exception: If any Git operation fails.
+    """
     full_path = os.path.join(destination_path, "git")
 
     try:
         # If the repository is not already cloned, clone it first
         if not os.path.exists(full_path):
-            logger.info(f"Repository not found at {full_path}")
+            logger.info(f"Repository not found at {full_path}.")
 
         # Open the repository
         repo = Repo(full_path)
         logger.info(f"Opened repository at {full_path}")
 
-        if not check_push_access(codehost_url, destination_path, project_name, branch_name, api_key):
-            raise ValueError(f"User does not have push access to the branch '{branch_name}'. Fetch and checkout aborted.")
+        # Always set the remote URL based on the presence of the API key
+        remote_url = construct_remote_url(codehost_url, api_key)
+        repo.remotes.origin.set_url(remote_url)
+        logger.info("Set remote URL based on the provided API key.")
 
         # Fetch the latest changes from the remote
         logger.info(f"Fetching latest changes from remote for repository at {full_path}")
         repo.remotes.origin.fetch()
 
-        # Check if the local branch has diverged from the remote branch
-        local_branch = repo.head.reference
-        remote_branch = repo.remotes.origin.refs[branch_name]
+        # Check if the local branch exists
+        if branch_name in repo.heads:
+            local_branch = repo.heads[branch_name]
+        else:
+            # Create the branch if it does not exist locally
+            logger.info(f"Branch '{branch_name}' does not exist locally. Creating and tracking it.")
+            local_branch = repo.create_head(branch_name, repo.remotes.origin.refs[branch_name])
+            local_branch.set_tracking_branch(repo.remotes.origin.refs[branch_name])
 
-        # Compare the local and remote branches
-        if local_branch.commit != remote_branch.commit:
-            logger.warning(f"Local branch '{branch_name}' has diverged from remote. Performing hard reset.")
-            # Perform a hard reset to the remote branch state
-            repo.git.reset('--hard', f'origin/{branch_name}')
-            logger.info(f"Successfully reset local branch '{branch_name}' to match remote.")
+        # Checkout the specified branch
+        logger.info(f"Checking out branch '{branch_name}'")
+        local_branch.checkout()
 
         # Pull the latest changes for the branch
         logger.info(f"Pulling latest changes for branch '{branch_name}'")
@@ -188,12 +227,14 @@ def fetch_and_checkout_branch(codehost_url: HttpUrl, destination_path: str, proj
         logger.info(f"Adding {full_path} as a safe directory for Git operations")
         repo.git.config('--global', '--add', 'safe.directory', full_path)
 
-        # Checkout the specified branch
-        logger.info(f"Checking out branch '{branch_name}'")
-        repo.git.checkout(branch_name)
-
+    except GitCommandError as e:
+        logger.error(f"Git command failed: {str(e)}")
+        raise
+    except ValueError as ve:
+        logger.error(f"Value error: {str(ve)}")
+        raise
     except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
+        logger.error(f"An unexpected error occurred: {str(e)}")
         raise
 
 def delete_repository(project_name: str):
