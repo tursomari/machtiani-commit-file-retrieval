@@ -25,11 +25,11 @@ async def check_repo_lock(
     repo_info = await get_repo_info_async(str(codehost_url))
     logger.info(f"check_repo_lock get repo info: {repo_info}")
 
-    # Check for push access
-    has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
+    ## Check for push access
+    #has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
 
-    if not has_push_access:
-        raise Exception("User does not have push access to the repository.")
+    #if not has_push_access:
+    #    raise Exception("User does not have push access to the repository.")
 
     lock_file_path = get_lock_file_path(project_name)
 
