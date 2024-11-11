@@ -1,14 +1,14 @@
 from lib.utils.utilities import url_to_folder_name
 from app.utils import DataDir
 import asyncio
-from pydantic import SecretStr
+from pydantic import SecretStr, HttpUrl
 from typing import Optional
 from lib.vcs.repo_manager import check_pull_access
 import logging
 
 logger = logging.getLogger(__name__)
 
-async def test_pull_access_service(project_name: str, codehost_api_key: Optional[SecretStr], codehost_url: str):
+async def test_pull_access_service(project_name: str, codehost_api_key: Optional[SecretStr], codehost_url: HttpUrl):
     """ Test pull access by checking if the user can pull from the repository. """
     try:
         _project_name = url_to_folder_name(project_name)

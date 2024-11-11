@@ -6,7 +6,8 @@ import os
 import asyncio
 import subprocess
 import logging
-from pydantic import HttpUrl, SecretStr
+from pydantic import SecretStr, HttpUrl
+from fastapi import HTTPException
 from typing import Optional
 from app.utils import DataDir
 
@@ -162,26 +163,33 @@ def get_lock_file_path(project_name: str) -> str:
 def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = None) -> str:
     """
     Constructs the remote URL, embedding the API key if provided.
-
     Args:
         codehost_url (HttpUrl): The base URL of the code host.
         api_key (Optional[SecretStr]): The API key for authentication.
-
     Returns:
         str: The constructed remote URL.
     """
     url_str = str(codehost_url)
-
     if api_key:
-        # Insert the API key into the URL for authentication
+        # Get the raw token value, should start with ghp_
+        key_value = api_key.get_secret_value()
+        logger.debug(f"API Key value: {key_value}")  # Debug the actual key value
+
         url_parts = url_str.split("://")
         if len(url_parts) != 2:
             raise ValueError("Invalid codehost URL format.")
-        auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
-        logger.debug("Constructed authenticated URL.")
+
+        if not key_value.startswith('ghp_'):
+            logger.error(f"Invalid API key format. Expected key starting with 'ghp_', got: {key_value}")
+            raise ValueError("Invalid GitHub API key format")
+
+        auth_url = f"{url_parts[0]}://{key_value}@{url_parts[1]}"
+        logger.debug(f"Constructed authenticated URL: {auth_url}")
+
         if not validate_github_auth_url(auth_url):
-            logger.debug(f"{auth_url} is an invalid authorized URL")
+            logger.error(f"Invalid GitHub URL: {auth_url}")
             raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
+
         return auth_url
 
     logger.debug("Using unauthenticated URL.")

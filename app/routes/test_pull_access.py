@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, HTTPException
 from app.services.test_pull_access_service import test_pull_access_service  # Import the service
-from pydantic import SecretStr
+from pydantic import SecretStr, HttpUrl
 from typing import Optional
 import logging
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 async def test_pull_access(
     project_name: str = Query(..., description="The name of the project"),
     codehost_api_key: Optional[SecretStr] = Query(None, description="Code host API key for authentication (optional)"),
-    codehost_url: str = Query(..., description="Code host URL for the repository"),
+    codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
 ):
     """ Test pull access by checking if the user can pull from the repository. """
     try:
