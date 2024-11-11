@@ -189,6 +189,9 @@ def fetch_and_checkout_branch(
     full_path = os.path.join(destination_path, "git")
 
     try:
+        # Add the repo path as a safe directory
+        add_safe_directory(full_path)
+
         # If the repository is not already cloned, clone it first
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}.")
