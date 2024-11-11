@@ -352,33 +352,23 @@ def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name
         except GitCommandError as e:
             logger.warning(f"Fetch failed without API key, trying with API key: {str(e)}")
 
-            # If there's an API key, try fetching with the authenticated URL
-            if api_key:
-                api_key_value = api_key.get_secret_value()
-                if api_key_value:
-                    # Construct the authentication URL with the token
-                    url_parts = url_str.split("://")
-                    auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
-                    if not validate_github_auth_url(auth_url):
-                        logger.debug(f"{auth_url} is an invalid authorized URL")
-                        raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
+            remote_url = construct_remote_url(codehost_url, api_key)
+            # Set the authenticated URL for the remote
+            repo.remotes.origin.set_url(remote_url)
+            logger.debug(f"URL set for push, fetch, and pull: {remote_url}")
+            # Attempt to fetch again with the authenticated URL
+            try:
+                repo.remotes.origin.fetch(current_branch)
+                logger.info(f"Pull access confirmed for branch '{current_branch}' with API key")
+                return True
+            except GitCommandError as e:
+                logger.warning(f"Fetch failed with API key, user may not have pull access: {str(e)}")
+                return False
 
-                    # Set the authenticated URL for the remote
-                    repo.remotes.origin.set_url(auth_url)
-                    logger.debug(f"Auth URL set for pull: {auth_url}")
-
-                    # Attempt to fetch again with the authenticated URL
-                    try:
-                        repo.remotes.origin.fetch(current_branch)
-                        logger.info(f"Pull access confirmed for branch '{current_branch}' with API key")
-                        return True
-                    except GitCommandError as e:
-                        logger.warning(f"Fetch failed with API key, user may not have pull access: {str(e)}")
-                        return False
-
-            logger.info("User does not have pull access to the current branch.")
-            return False
+        logger.info("User does not have pull access to the current branch.")
+        return False
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise
+
