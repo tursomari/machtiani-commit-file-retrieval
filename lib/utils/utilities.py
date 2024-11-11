@@ -179,6 +179,9 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
             raise ValueError("Invalid codehost URL format.")
         auth_url = f"{url_parts[0]}://{api_key.get_secret_value()}@{url_parts[1]}"
         logger.debug("Constructed authenticated URL.")
+        if not validate_github_auth_url(auth_url):
+            logger.debug(f"{auth_url} is an invalid authorized URL")
+            raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
         return auth_url
 
     logger.debug("Using unauthenticated URL.")

@@ -283,22 +283,11 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
         repo = Repo(full_path)
         logger.info(f"Opened repository at {full_path}")
 
-        # Extract the value from api_key if provided and check if it's not None or empty
-        api_key_value = api_key.get_secret_value() if api_key and api_key.get_secret_value() else None
+        remote_url = construct_remote_url(codehost_url, api_key)
 
-        if api_key_value:
-            # Construct the authentication URL with the token
-            url_parts = url_str.split("://")
-            auth_url = f"{url_parts[0]}://{api_key_value}@{url_parts[1]}"
-            if not validate_github_auth_url(auth_url):
-                logger.debug(f"{auth_url} is an invalid authorized URL")
-                raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
-
-            # Set the authenticated URL for the remote
-            repo.remotes.origin.set_url(auth_url)
-            logger.debug(f"Auth URL set for push, fetch, and pull: {auth_url}")
-        else:
-            raise ValueError(f"User must provide an API key with push access to the branch '{branch_name}'. Aborted.")
+        # Set the authenticated URL for the remote
+        repo.remotes.origin.set_url(remote_url)
+        logger.debug(f"URL set for push, fetch, and pull: {remote_url}")
 
         # Test push to verify if the user has push access (without actual changes)
         try:
