@@ -122,9 +122,10 @@ def add_repository(data: AddRepositoryRequest):
         "openai_api_key_provided": bool(openai_api_key)
     }
 
-def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None) -> Dict[str, str]:
+def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None, new_repo: bool = False) -> Dict[str, str]:
     """
-    Deletes the specified store and cleans up associated files after checking for push access.
+    Deletes the specified store and cleans up associated files after checking for push access,
+    unless `new_repo` is set to True.
 
     :param codehost_url: The URL of the code host (e.g., GitHub).
     :param project_name: The name of the project to delete.
@@ -132,9 +133,9 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     :param vcs_type: The type of version control system (default: git).
     :param api_key: Optional GitHub API key for authentication.
     :param openai_api_key: Optional OpenAI API key for additional operations.
+    :param new_repo: If True, skip checking push access before deletion (default: False).
     :return: A message indicating success or failure in deletion.
     """
-
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
 
     store_path = DataDir.STORE.get_path(project_name)
@@ -144,17 +145,17 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
         logger.info(f"Store for project '{project_name}' does not exist at path: {store_path}")
         return DeleteStoreResponse(success=False, message=f"Store for project '{project_name}' does not exist at path: {store_path}")
 
-    # Check for push access before deletion
+    # Check for push access before deletion if new_repo is False
     repo_path = DataDir.REPO.get_path(project_name)
     if not os.path.exists(repo_path):
         return DeleteStoreResponse(success=False, message=f"Repository for project '{project_name}' does not exist at path: {repo_path}")
 
     git_path = os.path.join(repo_path, "git")
-
     repo = Repo(git_path)
     current_branch = repo.active_branch.name
 
-    if not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
+    # Skip push access check if new_repo is True
+    if not new_repo and not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
         return DeleteStoreResponse(success=False, message=f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
 
     try:
@@ -165,6 +166,7 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     except OSError as e:
         logger.error(f"Error deleting store for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
+
 
 def fetch_and_checkout_branch(
     codehost_url: HttpUrl,

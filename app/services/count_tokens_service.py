@@ -45,6 +45,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         vcs_type=data.vcs_type,
         api_key=data.api_key,
         openai_api_key=data.openai_api_key,
+        new_repo=True,
     )
 
     return embedding_tokens, inference_token
