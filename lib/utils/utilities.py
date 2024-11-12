@@ -173,18 +173,16 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
     if api_key:
         # Get the raw token value, should start with ghp_
         key_value = api_key.get_secret_value()
-        logger.debug(f"API Key value: {key_value}")  # Debug the actual key value
 
         url_parts = url_str.split("://")
         if len(url_parts) != 2:
             raise ValueError("Invalid codehost URL format.")
 
         if not key_value.startswith('ghp_'):
-            logger.error(f"Invalid API key format. Expected key starting with 'ghp_', got: {key_value}")
+            logger.error(f"Invalid API key format. Expected key starting with 'ghp_', got something else")
             raise ValueError("Invalid GitHub API key format")
 
         auth_url = f"{url_parts[0]}://{key_value}@{url_parts[1]}"
-        logger.debug(f"Constructed authenticated URL: {auth_url}")
 
         if not validate_github_auth_url(auth_url):
             logger.error(f"Invalid GitHub URL: {auth_url}")

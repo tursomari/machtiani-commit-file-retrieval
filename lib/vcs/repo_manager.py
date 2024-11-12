@@ -358,7 +358,6 @@ def check_pull_access(codehost_url: HttpUrl, destination_path: str, project_name
             remote_url = construct_remote_url(codehost_url, api_key)
             # Set the authenticated URL for the remote
             repo.remotes.origin.set_url(remote_url)
-            logger.debug(f"URL set for push, fetch, and pull: {remote_url}")
             # Attempt to fetch again with the authenticated URL
             try:
                 repo.remotes.origin.fetch(current_branch)
