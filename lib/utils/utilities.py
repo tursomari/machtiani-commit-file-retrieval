@@ -107,18 +107,18 @@ def url_to_folder_name(repo_url: str) -> str:
     # Normalize the repository URL by stripping unwanted characters
     repo_url = repo_url.rstrip('/')
 
-    # Extract the domain, user, and repo name
-    match = re.match(r"https?://(www\.)?(github\.com)/([^/]+)/([^/]+)", repo_url)
+    # Remove only the ".git" suffix from the URL if it is present
+    if repo_url.endswith('.git'):
+        repo_url = repo_url[:-4]
+
+    # Extract the domain, user, and repo name after removing .git if necessary
+    match = re.match(r"https?://(www\.)?(github\.com)/([^/]+)/([^/]+)$", repo_url)
     if not match:
         raise ValueError("Invalid GitHub URL")
 
     domain = match.group(2)  # Ensure we only capture 'github.com'
     user = match.group(3)
     repo_name = match.group(4)
-
-    # Remove the ".git" suffix if present in the repository name
-    if repo_name.endswith('.git'):
-        repo_name = repo_name[:-4]
 
     # Combine domain, user, and repo into a folder name
     folder_name = f"{domain}_{user}_{repo_name}"
@@ -192,3 +192,10 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
 
     logger.debug("Using unauthenticated URL.")
     return url_str
+
+def repo_exists(project_name: str) -> bool:
+    """Check if the git repository for the specified project exists."""
+    git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
+    logger.info(f"git_project_path: {git_project_path}")
+    return os.path.exists(git_project_path)  # Use os.path.exists for synchronous check
+
