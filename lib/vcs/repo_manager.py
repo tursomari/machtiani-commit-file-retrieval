@@ -194,9 +194,10 @@ def fetch_and_checkout_branch(
         # Add the repo path as a safe directory
         add_safe_directory(full_path)
 
-        # If the repository is not already cloned, clone it first
+        # Check if the repository exists
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}.")
+            return
 
         # Open the repository
         repo = Repo(full_path)
@@ -214,11 +215,21 @@ def fetch_and_checkout_branch(
         # Check if the local branch exists
         if branch_name in repo.heads:
             local_branch = repo.heads[branch_name]
+            logger.info(f"Local branch '{branch_name}' found.")
         else:
             # Create the branch if it does not exist locally
             logger.info(f"Branch '{branch_name}' does not exist locally. Creating and tracking it.")
             local_branch = repo.create_head(branch_name, repo.remotes.origin.refs[branch_name])
             local_branch.set_tracking_branch(repo.remotes.origin.refs[branch_name])
+
+        # Check for divergence
+        local_commit = local_branch.commit
+        remote_commit = repo.remotes.origin.refs[branch_name].commit
+
+        if local_commit != remote_commit:
+            logger.info(f"Local branch '{branch_name}' is divergent from remote. Hard resetting to remote.")
+            repo.git.reset('--hard', 'origin/' + branch_name)
+            logger.info(f"Successfully hard reset local branch '{branch_name}' to match remote.")
 
         # Checkout the specified branch
         logger.info(f"Checking out branch '{branch_name}'")
