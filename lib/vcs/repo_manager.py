@@ -37,8 +37,6 @@ async def get_repo_info_async(project_name: str):
     repo_path = DataDir.REPO.get_path(_project_name)
     git_path = os.path.join(repo_path, "git")
 
-    logger.info(f"get_repo_info_async\nproject_name : {project_name}\nrepo_path: {repo_path}\ngit_path: {git_path}")
-
     if not await async_exists(git_path):
         logger.info("Repository does not exist.")
         raise FileNotFoundError(f"Repository for project '{project_name}' does not exist at path: {git_path}")
@@ -128,10 +126,8 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
 
     store_path = DataDir.STORE.get_path(project_name)
-    logger.info(f"path to delete: {store_path}")
 
     if not os.path.exists(store_path):
-        logger.info(f"Store for project '{project_name}' does not exist at path: {store_path}")
         return DeleteStoreResponse(success=False, message=f"Store for project '{project_name}' does not exist at path: {store_path}")
 
     # Check for push access before deletion if new_repo is False
@@ -150,7 +146,6 @@ def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, v
     try:
         # Remove the entire project directory and its contents
         shutil.rmtree(store_path)  # This will delete the directory and all its contents
-        logger.info(f"Successfully deleted store for project '{project_name}'.")
         return DeleteStoreResponse(success=True, message=f"Store for project '{project_name}' deleted successfully.")
     except OSError as e:
         logger.error(f"Error deleting store for project '{project_name}': {e}")
@@ -174,27 +169,20 @@ def fetch_and_checkout_branch(
             return
 
         repo = Repo(full_path)
-        logger.info(f"Opened repository at {full_path}")
-
         remote_url = construct_remote_url(codehost_url, api_key)
 
         # Check if 'origin' remote exists
         remote_names = [remote.name for remote in repo.remotes]
         if 'origin' in remote_names:
             origin_remote = repo.remote('origin')
-            logger.info("Found existing 'origin' remote.")
         else:
             origin_remote = repo.create_remote('origin', remote_url)
             logger.info("Created new 'origin' remote.")
 
         # Set the URL for the 'origin' remote
         origin_remote.set_url(remote_url)
-        logger.info("Set remote URL based on the provided API key.")
 
         # Log the current remotes after setting the URL
-        logger.info(f"Current remotes after setting URL: {remote_names}")
-
-        logger.info(f"Fetching latest changes from remote for repository at {full_path}")
         origin_remote.fetch()
 
         if branch_name in repo.heads:
@@ -220,23 +208,15 @@ def fetch_and_checkout_branch(
             repo.git.reset('--hard', f'origin/{branch_name}')
             logger.info(f"Successfully hard reset local branch '{branch_name}' to match remote.")
 
-        logger.info(f"Checking out branch '{branch_name}'")
         local_branch.checkout()
 
         logger.info(f"Pulling latest changes for branch '{branch_name}'")
         origin_remote.pull(branch_name)
 
-        logger.info(f"Adding {full_path} as a safe directory for Git operations")
         repo.git.config('--global', '--add', 'safe.directory', full_path)
-
-        # Log the current remotes after operations
-        logger.info(f"Remotes before deletion: {[remote.name for remote in repo.remotes]}")
 
         # Remove all remotes after successful fetch and checkout
         remove_all_remotes(repo)
-
-        # Log the current remotes after deletion
-        logger.info(f"Remotes after deletion: {[remote.name for remote in repo.remotes]}")
 
     except GitCommandError as e:
         logger.error(f"Git command failed: {str(e)}")
@@ -263,7 +243,6 @@ def delete_repository(project_name: str):
     try:
         # Remove the entire project directory
         os.rmdir(repo_path)  # This will only work if the directory is empty
-        logger.info(f"Successfully deleted repository for project '{project_name}'.")
     except OSError as e:
         logger.error(f"Error deleting repository for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
@@ -292,7 +271,6 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
 
         # Open the repository
         repo = Repo(full_path)
-        logger.info(f"Opened repository at {full_path}")
 
         remote_url = construct_remote_url(codehost_url, api_key)
 
@@ -300,32 +278,26 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
         remote_names = [remote.name for remote in repo.remotes]
         if 'origin' in remote_names:
             origin_remote = repo.remote('origin')
-            logger.info("Found existing 'origin' remote.")
         else:
             origin_remote = repo.create_remote('origin', remote_url)
             logger.info("Created new 'origin' remote.")
 
         # Set the authenticated URL for the remote
         repo.remotes.origin.set_url(remote_url)
-        logger.debug(f"URL set for push, fetch, and pull: {remote_url}")
-        logger.info(f"Current remotes after setting URL: {[remote.name for remote in repo.remotes]}")
         # Test push to verify if the user has push access (without actual changes)
         try:
             repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
-            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
             return True
         except GitCommandError as e:
             logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
             return False
         try:
             repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
-            logger.info(f"Push access confirmed for branch '{branch_name}' (no changes)")
             return True
         except GitCommandError as e:
             logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
             return False
 
-        logger.info(f"After use remotes after setting URL: {[remote.name for remote in repo.remotes]}")
         remove_all_remotes(repo)
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
@@ -364,11 +336,9 @@ def check_pull_access(
 
         # Open the repository
         repo = Repo(full_path)
-        logger.info(f"Opened repository at {full_path}")
 
         # Get the current active branch
         current_branch = repo.active_branch.name
-        logger.info(f"Current active branch: {current_branch}")
 
         # Check if 'origin' remote exists
         remote_names = [remote.name for remote in repo.remotes]
@@ -377,7 +347,6 @@ def check_pull_access(
             logger.info("Found existing 'origin' remote.")
             # Update the remote URL
             origin_remote.set_url(remote_url)
-            logger.debug(f"Set remote 'origin' URL to: {remote_url}")
         else:
             # Create 'origin' remote with remote_url
             origin_remote = repo.create_remote('origin', remote_url)
@@ -386,7 +355,6 @@ def check_pull_access(
         # Test fetch to verify if the user has pull access without API key
         try:
             origin_remote.fetch(current_branch)  # Attempt to fetch the current branch
-            logger.info(f"Pull access confirmed for branch '{current_branch}' without API key")
             return True
         except GitCommandError as e:
             logger.warning(f"Fetch failed without API key: {str(e)}")
@@ -394,7 +362,7 @@ def check_pull_access(
             remote_url = construct_remote_url(codehost_url, api_key)
             # Update the 'origin' remote URL
             origin_remote.set_url(remote_url)
-            logger.debug(f"Set remote 'origin' URL with API key: {remote_url}")
+            logger.debug(f"Set remote 'origin' URL with API key")
 
             # Attempt to fetch again with the authenticated URL
             try:
@@ -423,20 +391,17 @@ def remove_all_remotes(repo: Repo):
     try:
         # Get the list of all remote names
         remote_names = [remote.name for remote in repo.remotes]
-        logger.info(f"Found remotes: {remote_names}")
 
         # Remove each remote
         for remote_name in remote_names:
             repo.delete_remote(remote_name)
-            logger.info(f"Successfully removed remote '{remote_name}'.")
 
         # Retrieve the updated list of remotes directly
         updated_remotes = [remote.name for remote in Remote.list_items(repo)]
-        logger.debug(f"Remotes after deletion: {updated_remotes}")
 
         # Verify that no remotes remain
         if updated_remotes:
-            logger.error(f"Some remotes were not removed: {updated_remotes}")
+            logger.error(f"Some remotes were not removed")
             raise Exception("Failed to remove all remotes.")
         else:
             logger.info("All remotes have been successfully removed.")

@@ -26,7 +26,6 @@ def add_safe_directory(git_project_path):
             stderr=subprocess.PIPE,  # Capture stderr for logging
             stdout=subprocess.PIPE   # Capture stdout for logging (optional)
         )
-        logger.info(f"Successfully added safe directory: {git_project_path}")
     except subprocess.CalledProcessError as e:
         # Log the error details
         logger.error(f"Error adding safe directory: {e.stderr.decode().strip()}")
@@ -41,7 +40,6 @@ def read_json_file(file_path):
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
-            logger.info(f"Successfully read data from {file_path}")
             return data
     except FileNotFoundError:
         logger.warning(f"File {file_path} not found. Returning an empty dictionary.")
@@ -58,7 +56,6 @@ def write_json_file(data, file_path):
     try:
         with open(file_path, 'w') as file:
             json.dump(data, file, indent=2)
-            logger.info(f"Successfully wrote data to {file_path}")
     except IOError as e:
         logger.error(f"Error writing to file {file_path}: {e}")
 
@@ -97,10 +94,9 @@ def validate_github_auth_url(github_url: str) -> bool:
     match = re.match(pattern, github_url)
 
     if match:
-        logger.info(f"Valid GitHub URL: {github_url}")
         return True
     else:
-        logger.error(f"Invalid GitHub URL: {github_url}")
+        logger.error(f"Invalid GitHub URL")
         return False
 
 def url_to_folder_name(repo_url: str) -> str:
@@ -185,7 +181,7 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
         auth_url = f"{url_parts[0]}://{key_value}@{url_parts[1]}"
 
         if not validate_github_auth_url(auth_url):
-            logger.error(f"Invalid GitHub URL: {auth_url}")
+            logger.error(f"Invalid GitHub URL")
             raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
 
         return auth_url
@@ -196,6 +192,5 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
 def repo_exists(project_name: str) -> bool:
     """Check if the git repository for the specified project exists."""
     git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
-    logger.info(f"git_project_path: {git_project_path}")
     return os.path.exists(git_project_path)  # Use os.path.exists for synchronous check
 

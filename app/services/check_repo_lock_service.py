@@ -23,8 +23,6 @@ async def check_repo_lock(
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
 
     repo_info = await get_repo_info_async(str(codehost_url))
-    logger.info(f"check_repo_lock get repo info: {repo_info}")
-
     ## Check for push access
     #has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
 
