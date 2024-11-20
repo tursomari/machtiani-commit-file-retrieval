@@ -383,10 +383,6 @@ def check_pull_access(
             origin_remote = repo.create_remote('origin', remote_url)
             logger.info("Created new 'origin' remote.")
 
-        # Remove all remotes to ensure a clean state (optional)
-        # If you remove remotes here, make sure to recreate 'origin' before fetching
-        # remove_all_remotes(repo)
-
         # Test fetch to verify if the user has pull access without API key
         try:
             origin_remote.fetch(current_branch)  # Attempt to fetch the current branch
@@ -410,6 +406,7 @@ def check_pull_access(
                 return False
 
         logger.info("User does not have pull access to the current branch.")
+        remove_all_remotes(repo)
         return False
 
     except Exception as e:
