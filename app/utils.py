@@ -67,13 +67,123 @@ class DataDir(Enum):
             logger.error(f"Base path '{BASE_PATH}' not found.")
             return []
 
-def is_text_file(filepath: str) -> bool:
-    """Check if the file at the given path is a text file."""
+def is_not_common_binary_type(filepath: str) -> bool:
+    """Check if the file at the given path is a text file or code file."""
     mime = magic.Magic(mime=True)
     mime_type = mime.from_file(filepath)
 
-    # Check if the mime type starts with 'text/'
-    return mime_type.startswith('text/')
+    # List of common binary MIME types to exclude
+    binary_mime_types = [
+        'application/octet-stream',  # Generic binary
+        'application/x-archive',     # Archive formats
+        'application/x-compress',    # Compressed files
+        'application/x-zip',         # Zip files
+        'application/x-gzip',        # Gzip files
+        'application/x-tar',         # Tar files
+        'application/x-7z-compressed', # 7z files
+        'application/x-rar',         # RAR files
+        'application/pdf',           # PDF files
+        'application/vnd.ms-office',  # Office files
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', # DOCX
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', # XLSX
+        'image/',                     # Image files
+        'video/',                     # Video files
+        'audio/',                     # Audio files
+        'application/x-shockwave-flash', # SWF files
+        'application/java-archive',   # JAR files
+        'application/x-dosexec',      # Windows executables
+        'application/x-msdownload',    # Windows executables
+        'application/x-mach-bundle',   # Mach bundles (macOS)
+        'application/x-bzip2',         # BZ2 files
+        'application/x-cpio',          # CPIO files
+        'application/x-lz4',           # LZ4 files
+        'application/x-lzma',          # LZMA files
+        'application/x-sqlite3',       # SQLite databases
+        'application/x-tar-compressed', # Compressed tar files
+        'application/x-xz',            # XZ files
+        'application/x-iso9660-image', # ISO disk images
+        'application/x-msi',           # Microsoft Installer packages
+        'application/x-deb',           # Debian package files
+        'application/x-rpm',           # RPM package files
+        'application/x-apk',           # Android APK files
+        'application/x-executable',    # Generic executable files
+        'application/vnd.apple.installer+xml', # macOS Installer files
+        'application/x-elf',           # Executable and Linkable Format files
+        'application/x-sharedlib',     # Shared library files
+        'application/x-object',        # Object files
+        'application/x-firmware',      # Firmware binary files
+        'application/x-binary',        # Generic binary files
+        'application/x-pem-file',      # PEM certificate files
+        'application/pkcs12',          # PKCS#12 certificate files
+        'application/x-font-ttf',      # TTF font files
+        'application/x-font-woff',     # WOFF font files
+        'application/x-font-woff2',    # WOFF2 font files
+        'application/vnd.android.package-archive', # Android APK files
+        'application/x-ms-shortcut',   # Windows shortcut files (.lnk)
+        'application/x-disk-image',    # Generic disk image files
+        'application/x-ms-publisher',  # Microsoft Publisher files
+        'application/x-chrome-extension', # Chrome extensions
+        'application/x-flac',          # FLAC audio files
+        'application/x-hdf',           # HDF data files
+        'application/x-netcdf',        # NetCDF data files
+        'application/x-rdata',         # R data files
+        'application/x-matlab-data',   # MATLAB data files
+        'application/x-protobuf',      # Protocol Buffers binary format
+        'application/x-java-serialized-object', # Serialized Java objects
+        'application/vnd.oasis.opendocument.text', # ODT files
+        'application/vnd.oasis.opendocument.spreadsheet', # ODS files
+        'application/vnd.oasis.opendocument.presentation', # ODP files
+        'application/vnd.mozilla.xul+xml', # XUL files
+        'application/x-apple-diskimage', # Apple Disk Image files
+        'application/x-ms-wim',        # Windows Imaging Format files
+        'application/x-lzh-compressed', # LZH compressed files
+        'application/x-tar-bz2',       # Tar BZ2 files
+        'application/x-tar-lzma',      # Tar LZMA files
+        'application/x-tar-xz',        # Tar XZ files
+        'application/x-ace-compressed', # ACE compressed files
+        'application/x-alz-compressed', # ALZ compressed files
+        'application/x-zoo',           # ZOO compressed files
+        'application/x-cab',           # Cabinet files
+        'application/x-dar',           # DAR archive files
+        'application/x-stuffit',       # StuffIt compressed files
+        'application/x-gtar',          # GNU Tar files
+        'application/x-appleworks',    # AppleWorks files
+        'application/x-abiword',       # AbiWord documents
+        'application/x-mobipocket-ebook', # Mobipocket eBook files
+        'application/x-ms-reader',     # Microsoft Reader eBook files
+        'application/x-tgif',          # TGIF vector graphics files
+        'application/x-ustar',         # USTAR Tar files
+        'application/x-windows-themepack', # Windows Theme Pack files
+        'application/x-xar',           # XAR archive files
+        'application/x-xpinstall',     # XPInstall installation files
+        'application/x-zmachine',      # Z-machine game files
+        'application/x-tex',           # TeX files
+        'application/x-bittorrent',    # BitTorrent files
+        'application/x-blender',       # Blender files
+        'application/x-bzip',          # BZip files
+        'application/x-cbr',           # Comic Book RAR files
+        'application/x-cbz',           # Comic Book ZIP files
+        'application/x-cdf',           # CDF files
+        'application/x-csh',           # C-Shell scripts
+        'application/x-dvi',           # DVI files
+        'application/x-font-bdf',      # BDF font files
+        'application/x-font-ghostscript', # Ghostscript font files
+        'application/x-font-linux-psf', # Linux PSF font files
+        'application/x-font-pcf',      # PCF font files
+        'application/x-font-snf',      # SNF font files
+        'application/x-font-type1',    # Type 1 font files
+        'application/x-font-otf',      # OpenType font files
+        'application/x-font-woff',     # Web Open Font Format files
+        'application/x-font-woff2',    # Web Open Font Format 2 files
+        'application/x-gnumeric',      # Gnumeric spreadsheet files
+        'application/x-gramps'
+    ]
+    # Check if the file is binary
+    if any(mime_type.startswith(binary_type) for binary_type in binary_mime_types):
+        return False
+
+    # If it’s not in the binary list, we consider it a text or code file
+    return True
 
 def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> Dict[str, str]:
     file_contents = {}
@@ -96,7 +206,7 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
 
         # Check if the file is a text file
         try:
-            if not is_text_file(full_path):
+            if not is_not_common_binary_type(full_path):
                 logger.warning(f"Skipping non-text file: {full_path}")
                 continue  # Skip non-text files
         except Exception as e:
