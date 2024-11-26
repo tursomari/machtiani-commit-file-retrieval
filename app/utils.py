@@ -19,6 +19,7 @@ class DataDir(Enum):
     COMMITS_LOGS = "commits/logs"
     CONTENT_EMBEDDINGS = "contents/embeddings"
     CONTENT_LOGS = "contents/logs"
+    CONTENT = "contents"  # New CONTENT directory
 
     def get_path(self, project_name: str, dir_type: 'DataDir' = None) -> str:
         """
