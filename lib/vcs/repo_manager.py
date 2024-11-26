@@ -101,6 +101,15 @@ def add_repository(data: AddRepositoryRequest):
     # Clone the repository using the module, into the 'git' directory
     clone_repository(codehost_url, destination_path, project_name, api_key)
 
+    # Initialize a Git repository in the CONTENT directory
+    content_path = DataDir.CONTENT.get_path(project_name)
+    if not os.path.exists(content_path):
+        os.makedirs(content_path)
+
+    if not os.path.exists(os.path.join(content_path, ".git")):  # Check if a Git repo already exists
+        Repo.init(content_path)  # Initialize a new git repository in CONTENT
+        logger.info(f"Initialized a new Git repository at {content_path}")
+
     # Return the openai_api_key with the response for further usage
     return {
         "message": f"{vcs_type} repository added successfully",
