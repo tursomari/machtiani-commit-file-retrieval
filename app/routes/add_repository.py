@@ -1,29 +1,54 @@
-import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import SecretStr
 from app.services.add_repository_service import process_add_repository
 from app.models.responses import AddRepositoryResponse, ErrorResponse
 from app.models.requests import AddRepositoryRequest
-from lib.utils.enums import AddRepositoryRequest
+from lib.utils.enums import VCSType  # Ensure you import VCSType for VS type checks
 from app.routes.load import handle_load
 from app.models.requests import LoadRequest  # Import the LoadRequest model
+from app.utils import DataDir
+from git import Repo  # Ensure you have the GitPython library imported
+import os
+import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+async def commit_embedding_file(project_name):
+    """Commit the embedding file after handle_load is finished."""
+    content_path = DataDir.CONTENT.get_path(project_name)
+    embedding_file_path = DataDir.CONTENT_EMBEDDINGS.get_path(project_name)
+
+    if not os.path.exists(embedding_file_path):
+        logger.error(f"Embedding file does not exist at {embedding_file_path}")
+        raise FileNotFoundError(f"Embedding file does not exist at {embedding_file_path}")
+
+    repo = Repo(content_path)
+
+    # Add and commit the embedding file
+    try:
+        repo.git.add(embedding_file_path)  # Add the embedding file
+        repo.git.commit('-m', 'Saved')  # Commit with the standard message "Saved"
+        logger.info(f"Successfully added and committed the embedding file at {embedding_file_path}")
+    except Exception as e:
+        logger.error(f"Failed to add and commit the embedding file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to commit the embedding file: {str(e)}")
+
 @router.post("/add-repository/", response_model=AddRepositoryResponse, responses={500: {"model": ErrorResponse}})
-@router.post("/add-repository", response_model=AddRepositoryResponse, responses={500: {"model": ErrorResponse}})
 async def handle_add_repository(data: AddRepositoryRequest, background_tasks: BackgroundTasks):
     try:
         response = await process_add_repository(data)
 
-        load_request = LoadRequest(  # Create an instance of LoadRequest
+        load_request = LoadRequest(
             openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
             project_name=data.project_name,
             ignore_files=data.ignore_files
         )
 
+        # Add the background task to handle loading
         background_tasks.add_task(handle_load, load_request)
+
+        # Add a task to commit the embedding file after handle_load is done
+        background_tasks.add_task(commit_embedding_file, data.project_name)
 
         return AddRepositoryResponse(
             message=response.get("message"),

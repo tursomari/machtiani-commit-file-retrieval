@@ -89,7 +89,7 @@ def add_repository(data: AddRepositoryRequest):
     project_name = data.project_name
     vcs_type = data.vcs_type
     api_key = data.api_key
-    openai_api_key = data.openai_api_key  # Get the OpenAI API key
+    openai_api_key = data.openai_api_key
 
     if vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
@@ -107,8 +107,12 @@ def add_repository(data: AddRepositoryRequest):
         os.makedirs(content_path)
 
     if not os.path.exists(os.path.join(content_path, ".git")):  # Check if a Git repo already exists
-        Repo.init(content_path)  # Initialize a new git repository in CONTENT
+        repo = Repo.init(content_path)  # Initialize a new git repository in CONTENT
         logger.info(f"Initialized a new Git repository at {content_path}")
+
+        # Set global Git configuration for user.email and user.name
+        repo.git.config('user.email', '')  # Set user email to an empty string
+        repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
 
     # Return the openai_api_key with the response for further usage
     return {
