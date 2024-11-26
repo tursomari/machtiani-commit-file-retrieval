@@ -54,22 +54,37 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
 
+        # Reload the updated commits logs
         commits_logs_json = await read_commits_logs()
-        existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
+
+        existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path) or {}
+
 
         generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
-        updated_commits_embeddings_json = await asyncio.to_thread(generator.generate_embeddings)
-        await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
+        updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
+
+        logger.info(f"Number of new commit OIDs: {len(new_commit_oids)}")
 
         files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
         logger.info(f"{project}'s embedded files logs file path: {files_embeddings_file_path}")
 
         existing_files_embeddings_json = await asyncio.to_thread(read_json_file, files_embeddings_file_path)
 
-        file_summary_generator = FileSummaryEmbeddingGenerator(commits_logs_json, openai_api_key, git_project_path, ignore_files, existing_files_embeddings_json)
+        # Initialize FileSummaryEmbeddingGenerator with the list of new commit OIDs
+        file_summary_generator = FileSummaryEmbeddingGenerator(
+            commit_logs=commits_logs_json,
+            new_commit_oids=new_commit_oids,  # Pass the list of new commit OIDs
+            api_key=openai_api_key,
+            git_project_path=git_project_path,
+            ignore_files=ignore_files,
+            existing_file_embeddings=existing_files_embeddings_json
+        )
 
         updated_files_embeddings_json = await asyncio.to_thread(file_summary_generator.generate_embeddings)
         await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
 
+        await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
+
     finally:
         await release_lock(lock_file_path)
+

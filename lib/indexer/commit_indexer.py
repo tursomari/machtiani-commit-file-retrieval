@@ -34,44 +34,29 @@ class CommitEmbeddingGenerator:
         return new_commits
 
     def generate_embeddings(self):
-        """
-        Generate embeddings for new commits and return them as a JSON object.
-
-        :return: JSON object containing updated embeddings for all commits, including newly generated ones.
-        """
         new_commits = self._filter_new_commits()
-
         if not new_commits:
             self.logger.info("No new commits to embed.")
-            return self.existing_embeddings
+            return self.existing_embeddings, []
 
-        # Filter out commits with no changed files
         new_commits_with_files = [commit for commit in new_commits if commit.get('files')]
-
         if not new_commits_with_files:
             self.logger.info("No new commits with changed files to embed.")
-            return self.existing_embeddings
+            return self.existing_embeddings, []
 
-        # Extract messages from the new commits for embedding
         messages = [commit['message'] for commit in new_commits_with_files]
-
-        # Generate embeddings for each new commit message
-        self.logger.info(f"Generating embeddings for {len(new_commits_with_files)} new commit messages.")
         embeddings = self.embedding_generator.embed_documents(messages)
 
-        # Add new embeddings to the existing dictionary
+        new_commit_oids = []
+        # Create a copy of existing_embeddings to avoid side effects
+        updated_embeddings = self.existing_embeddings.copy()
         for commit, embedding in zip(new_commits_with_files, embeddings):
-            self.existing_embeddings[commit['oid']] = {
+            updated_embeddings[commit['oid']] = {
                 "message": commit['message'],
                 "embedding": embedding
             }
+            new_commit_oids.append(commit['oid'])
 
         self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} new commits.")
-        return self.existing_embeddings
-
-# Example usage:
-# commit_logs = [...]  # List of commit dictionaries
-# existing_embeddings = {...}  # JSON object with existing embeddings
-# generator = CommitEmbeddingGenerator(commit_logs, existing_embeddings)
-# updated_embeddings = generator.generate_embeddings()
+        return updated_embeddings, new_commit_oids
 
