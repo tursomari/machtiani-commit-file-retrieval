@@ -15,6 +15,7 @@ from lib.utils.utilities import (
     construct_remote_url,
 )
 from app.models.responses import DeleteStoreResponse
+from lib.vcs.git_content_manager import GitContentManager
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union, Dict
 from fastapi import HTTPException
@@ -106,13 +107,13 @@ def add_repository(data: AddRepositoryRequest):
     if not os.path.exists(content_path):
         os.makedirs(content_path)
 
-    if not os.path.exists(os.path.join(content_path, ".git")):  # Check if a Git repo already exists
-        repo = Repo.init(content_path)  # Initialize a new git repository in CONTENT
-        logger.info(f"Initialized a new Git repository at {content_path}")
+    # Initialize a GitContentManager for the CONTENT directory
+    git_content_manager = GitContentManager(project_name)
 
-        # Set global Git configuration for user.email and user.name
-        repo.git.config('user.email', '')  # Set user email to an empty string
-        repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
+    #git_content_manager.add_file(some_file_path)
+
+    ## Commit changes
+    #git_content_manager.commit('Initial commit for repository setup.')
 
     # Return the openai_api_key with the response for further usage
     return {

@@ -5,6 +5,7 @@ from app.models.requests import AddRepositoryRequest
 from lib.utils.enums import VCSType  # Ensure you import VCSType for VS type checks
 from app.routes.load import handle_load
 from app.models.requests import LoadRequest  # Import the LoadRequest model
+from lib.vcs.git_content_manager import GitContentManager
 from app.utils import DataDir
 from git import Repo  # Ensure you have the GitPython library imported
 import os
@@ -22,12 +23,14 @@ async def commit_embedding_file(project_name):
         logger.error(f"Embedding file does not exist at {embedding_file_path}")
         raise FileNotFoundError(f"Embedding file does not exist at {embedding_file_path}")
 
-    repo = Repo(content_path)
+    # Initialize a GitContentManager for the CONTENT directory
+    git_content_manager = GitContentManager(project_name)
 
     # Add and commit the embedding file
     try:
-        repo.git.add(embedding_file_path)  # Add the embedding file
-        repo.git.commit('-m', 'Saved')  # Commit with the standard message "Saved"
+
+        git_content_manager.add_file(embedding_file_path)
+        git_content_manager.commit('Saved')
         logger.info(f"Successfully added and committed the embedding file at {embedding_file_path}")
     except Exception as e:
         logger.error(f"Failed to add and commit the embedding file: {str(e)}")
