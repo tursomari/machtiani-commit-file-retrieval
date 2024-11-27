@@ -1,4 +1,3 @@
-
 import os
 import logging
 from git import Repo, GitCommandError
@@ -14,30 +13,37 @@ class GitContentManager:
         self.project_name = project_name
         self.content_path = DataDir.CONTENT.get_path(project_name)
         self.content_git_path = os.path.join(self.content_path, ".git")
-        self.repo = self._initialize_repo()
-
+        self.repo_path = os.path.join(DataDir.REPO.get_path(self.project_name), "git")
+        self.repo_git_path = os.path.join(self.repo_path, ".git")
+        self.content_repo, self.repo = self._initialize_repo()
 
     def _initialize_repo(self):
         if not os.path.exists(self.content_path):
             os.makedirs(self.content_path)
 
         if not os.path.exists(self.content_git_path):
-            repo = Repo.init(self.content_path)
-            logger.info(f"Initialized a new Git repository at {self.content_path}")
+            content_repo = Repo.init(self.content_path)
+            logger.info(f"Initialized a new Git content repository at {self.content_path}")
             add_safe_directory(self.content_path)
-            repo.git.config('user.email', '')  # Set user email to an empty string
-            repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
+            content_repo.git.config('user.email', '')  # Set user email to an empty string
+            content_repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
         else:
-            repo = Repo(self.content_path)
+            content_repo = Repo(self.content_path)
             add_safe_directory(self.content_path)
 
-        return repo
+        if os.path.exists(self.repo_git_path):
+            repo = Repo(self.repo_path)
+            add_safe_directory(self.repo_path)
+            return content_repo, repo
+        else:
+            logger.error(f"There is no Git repository at {self.repo_path}")
+            raise Exception(f"There is no Git repository at {self.repo_path}")
 
     def add_file(self, file_path: str):
         """Add a file to the Git repository."""
         try:
             add_safe_directory(self.content_path)
-            self.repo.git.add(file_path)
+            self.content_repo.git.add(file_path)
             logger.info(f"Added file {file_path} to the repository.")
         except Exception as e:
             logger.error(f"Failed to add file {file_path}: {str(e)}")
@@ -47,9 +53,9 @@ class GitContentManager:
         """Commit changes to the repository."""
         try:
             add_safe_directory(self.content_path)
-            self.repo.git.config('user.email', '')  # Set user email to an empty string
-            self.repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
-            self.repo.git.commit('-m', message)
+            self.content_repo.git.config('user.email', '')  # Set user email to an empty string
+            self.content_repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
+            self.content_repo.git.commit('-m', message)
             logger.info(f"Committed changes with message: '{message}'")
         except Exception as e:
             logger.error(f"Failed to commit changes: {str(e)}")
@@ -58,22 +64,48 @@ class GitContentManager:
     def remove_all_remotes(self):
         """Remove all remotes from the repository."""
         try:
-            remote_names = [remote.name for remote in self.repo.remotes]
+            remote_names = [remote.name for remote in self.content_repo.remotes]
             for remote_name in remote_names:
-                self.repo.delete_remote(remote_name)
+                self.content_repo.delete_remote(remote_name)
             logger.info("All remotes have been successfully removed.")
         except Exception as e:
             logger.error(f"An error occurred while removing remotes: {str(e)}")
             raise
 
-    def check_repo(self):
+    def check_repo(self, repo):
         """Check the repository and return its status."""
         try:
             logger.info(f"Checking repository at {self.content_path}")
             return {
-                "current_branch": self.repo.active_branch.name,
-                "commit_count": len(list(self.repo.iter_commits())),
+                "current_branch": repo.active_branch.name,
+                "commit_count": len(list(repo.iter_commits())),
             }
         except Exception as e:
             logger.error(f"Failed to check repository: {str(e)}")
             raise
+
+    def get_latest_commit_oid(self, repo) -> str:
+        """Get the latest commit OID from the repository."""
+        try:
+            latest_commit = repo.head.commit
+            logger.info(f"Latest commit OID: {latest_commit.hexsha}")
+            return latest_commit.hexsha
+        except Exception as e:
+            logger.error(f"Failed to get latest commit OID: {str(e)}")
+            raise
+
+    def create_tag(self):
+        """Create a tag in the content repository using the latest commit OID from the specified repository as the tag name."""
+        try:
+            add_safe_directory(self.content_path)
+            # Get the latest commit OIDs
+            repo_latest_commit_oid = self.get_latest_commit_oid(self.repo)
+            content_repo_latest_commit_oid = self.get_latest_commit_oid(self.content_repo)
+
+            # Attempt to create the lightweight tag without checking for duplicates
+            self.content_repo.create_tag(repo_latest_commit_oid, ref=content_repo_latest_commit_oid)
+            logger.info(f"Created tag '{repo_latest_commit_oid}' pointing to commit {content_repo_latest_commit_oid} in the content repository.")
+        except Exception as e:
+            logger.error(f"Failed to create tag '{repo_latest_commit_oid}': {str(e)}")
+            raise
+

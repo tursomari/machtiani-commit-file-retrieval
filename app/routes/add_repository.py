@@ -14,28 +14,6 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-async def commit_embedding_file(project_name):
-    """Commit the embedding file after handle_load is finished."""
-    content_path = DataDir.CONTENT.get_path(project_name)
-    files_embeddings_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
-
-    if not os.path.exists(files_embeddings_path):
-        logger.error(f"Embedding file does not exist at {files_embeddings_path}")
-        raise FileNotFoundError(f"Embedding file does not exist at {files_embeddings_path}")
-
-    # Initialize a GitContentManager for the CONTENT directory
-    git_content_manager = GitContentManager(project_name)
-
-    # Add and commit the embedding file
-    try:
-
-        git_content_manager.add_file(files_embeddings_path)
-        git_content_manager.commit('Initial commit')
-        logger.info(f"Successfully added and committed the the initial embedding file at {files_embeddings_path}")
-    except Exception as e:
-        logger.error(f"Failed to add and commit the embedding file: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to commit the embedding file: {str(e)}")
-
 @router.post("/add-repository/", response_model=AddRepositoryResponse, responses={500: {"model": ErrorResponse}})
 async def handle_add_repository(data: AddRepositoryRequest, background_tasks: BackgroundTasks):
     try:
