@@ -17,11 +17,11 @@ logger = logging.getLogger(__name__)
 async def commit_embedding_file(project_name):
     """Commit the embedding file after handle_load is finished."""
     content_path = DataDir.CONTENT.get_path(project_name)
-    embedding_file_path = DataDir.CONTENT_EMBEDDINGS.get_path(project_name)
+    files_embeddings_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
 
-    if not os.path.exists(embedding_file_path):
-        logger.error(f"Embedding file does not exist at {embedding_file_path}")
-        raise FileNotFoundError(f"Embedding file does not exist at {embedding_file_path}")
+    if not os.path.exists(files_embeddings_path):
+        logger.error(f"Embedding file does not exist at {files_embeddings_path}")
+        raise FileNotFoundError(f"Embedding file does not exist at {files_embeddings_path}")
 
     # Initialize a GitContentManager for the CONTENT directory
     git_content_manager = GitContentManager(project_name)
@@ -29,9 +29,9 @@ async def commit_embedding_file(project_name):
     # Add and commit the embedding file
     try:
 
-        git_content_manager.add_file(embedding_file_path)
-        git_content_manager.commit('Saved')
-        logger.info(f"Successfully added and committed the embedding file at {embedding_file_path}")
+        git_content_manager.add_file(files_embeddings_path)
+        git_content_manager.commit('Initial commit')
+        logger.info(f"Successfully added and committed the the initial embedding file at {files_embeddings_path}")
     except Exception as e:
         logger.error(f"Failed to add and commit the embedding file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to commit the embedding file: {str(e)}")
@@ -50,8 +50,9 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
         # Add the background task to handle loading
         background_tasks.add_task(handle_load, load_request)
 
+        # Load above already results in commit
         # Add a task to commit the embedding file after handle_load is done
-        background_tasks.add_task(commit_embedding_file, data.project_name)
+        #background_tasks.add_task(commit_embedding_file, data.project_name)
 
         return AddRepositoryResponse(
             message=response.get("message"),

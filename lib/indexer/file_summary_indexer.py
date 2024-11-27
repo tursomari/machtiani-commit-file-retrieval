@@ -1,12 +1,17 @@
 import os
 import logging
+import json
+from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
+from lib.vcs.git_content_manager import GitContentManager
+from app.utils import DataDir
 
 class FileSummaryEmbeddingGenerator:
     def __init__(
         self,
+        project_name: str,
         commit_logs,
         new_commit_oids,
         api_key: str,
@@ -16,9 +21,15 @@ class FileSummaryEmbeddingGenerator:
         embed_model="text-embedding-3-large",
         summary_model="gpt-4o-mini"
     ):
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            datefmt="%M:%S"  # Only minutes and seconds
+        )
         self.logger = logging.getLogger(__name__)
 
+        self.project_name = project_name
+        self.logger.info(f"project_name: {self.project_name}")
         self.commit_logs = commit_logs
         self.new_commit_oids = new_commit_oids  # List of new commit OIDs
         self.embed_model = embed_model
@@ -31,6 +42,8 @@ class FileSummaryEmbeddingGenerator:
 
         self.existing_file_embeddings = existing_file_embeddings if existing_file_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
+
+        self.files_embeddings_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
 
         if self.ignore_files:
             self.logger.info(f"Ignored files on initialization: {', '.join(self.ignore_files)}")
@@ -46,6 +59,28 @@ class FileSummaryEmbeddingGenerator:
         except Exception as e:
             self.logger.error(f"Error reading file {full_file_path}: {e}")
             return None
+
+    def commit_embedding_file(self):
+        """Commit the embedding file after handle_load is finished."""
+        content_path = DataDir.CONTENT.get_path(self.project_name)
+        embedding_file_path =  os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name), "files_embeddings.json")
+
+        if not os.path.exists(embedding_file_path):
+            self.logger.error(f"Embedding file does not exist at {embedding_file_path}")
+            raise FileNotFoundError(f"Embedding file does not exist at {embedding_file_path}")
+
+        # Initialize a GitContentManager for the CONTENT directory
+        git_content_manager = GitContentManager(self.project_name)
+
+        # Add and commit the embedding file
+        try:
+
+            git_content_manager.add_file(embedding_file_path)
+            git_content_manager.commit('Saved')
+            self.logger.info(f"Successfully added and committed the embedding file at {embedding_file_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to add and commit the embedding file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to commit the embedding file: {str(e)}")
 
     def send_prompt_to_openai(self, prompt_text: str) -> str:
         """Sends a prompt to OpenAI and returns the response."""
@@ -137,6 +172,15 @@ class FileSummaryEmbeddingGenerator:
                         }
             else:
                 self.logger.error(f"File '{file}' does not exist, skipping.")
+        try:
+            with open(self.files_embeddings_path, 'w') as f:
+                json.dump(self.existing_file_embeddings, f, indent=4)
+            self.logger.info(f"Saved embeddings to {self.files_embeddings_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving embeddings to file: {e}")
+
+        # Save the embeddings to a file and commit the changes
+        self.commit_embedding_file()
 
         self.logger.info(f"Generated embeddings for {len(new_files)} files.")
         return self.existing_file_embeddings

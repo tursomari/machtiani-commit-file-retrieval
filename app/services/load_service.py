@@ -72,6 +72,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         # Initialize FileSummaryEmbeddingGenerator with the list of new commit OIDs
         file_summary_generator = FileSummaryEmbeddingGenerator(
+            project_name=project,
             commit_logs=commits_logs_json,
             new_commit_oids=new_commit_oids,  # Pass the list of new commit OIDs
             api_key=openai_api_key,
@@ -81,7 +82,8 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         )
 
         updated_files_embeddings_json = await asyncio.to_thread(file_summary_generator.generate_embeddings)
-        await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
+        # generating file summary already writes the file.
+        #await asyncio.to_thread(write_json_file, updated_files_embeddings_json, files_embeddings_file_path)
 
         await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
 
