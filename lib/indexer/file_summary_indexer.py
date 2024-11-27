@@ -76,7 +76,7 @@ class FileSummaryEmbeddingGenerator:
         try:
 
             git_content_manager.add_file(embedding_file_path)
-            git_content_manager.commit('Saved')
+            git_content_manager.commit_and_tag('Saved')
             self.logger.info(f"Successfully added and committed the embedding file at {embedding_file_path}")
         except Exception as e:
             self.logger.error(f"Failed to add and commit the embedding file: {str(e)}")

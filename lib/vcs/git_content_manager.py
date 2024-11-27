@@ -49,14 +49,21 @@ class GitContentManager:
             logger.error(f"Failed to add file {file_path}: {str(e)}")
             raise
 
-    def commit(self, message: str):
-        """Commit changes to the repository."""
+    def commit_and_tag(self, message: str):
+        """Commit changes to the repository and create a tag."""
         try:
             add_safe_directory(self.content_path)
             self.content_repo.git.config('user.email', '')  # Set user email to an empty string
             self.content_repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
             self.content_repo.git.commit('-m', message)
             logger.info(f"Committed changes with message: '{message}'")
+
+            # Call create_tag after a successful commit
+            try:
+                self.create_tag()  # Call to create_tag
+            except Exception as tag_error:
+                logger.error(f"Failed to create tag after commit: {str(tag_error)}")
+
         except Exception as e:
             logger.error(f"Failed to commit changes: {str(e)}")
             raise
