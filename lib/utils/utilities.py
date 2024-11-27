@@ -26,6 +26,7 @@ def add_safe_directory(git_project_path):
             stderr=subprocess.PIPE,  # Capture stderr for logging
             stdout=subprocess.PIPE   # Capture stdout for logging (optional)
         )
+        logger.info(f"Added safe directory: {git_project_path}")
     except subprocess.CalledProcessError as e:
         # Log the error details
         logger.error(f"Error adding safe directory: {e.stderr.decode().strip()}")
