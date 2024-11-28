@@ -60,7 +60,7 @@ class FileSummaryEmbeddingGenerator:
             self.logger.error(f"Error reading file {full_file_path}: {e}")
             return None
 
-    def commit_embedding_file(self):
+    def commit_file_summaries_embedding_file(self):
         """Commit the embedding file after handle_load is finished."""
         content_path = DataDir.CONTENT.get_path(self.project_name)
         embedding_file_path =  os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name), "files_embeddings.json")
@@ -179,8 +179,8 @@ class FileSummaryEmbeddingGenerator:
         except Exception as e:
             self.logger.error(f"Error saving embeddings to file: {e}")
 
-        # Save the embeddings to a file and commit the changes
-        self.commit_embedding_file()
+        # Save the file summaries embeddings to a file and commit the changes
+        self.commit_file_summaries_embedding_file()
 
         self.logger.info(f"Generated embeddings for {len(new_files)} files.")
         return self.existing_file_embeddings
