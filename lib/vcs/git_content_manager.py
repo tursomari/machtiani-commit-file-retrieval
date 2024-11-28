@@ -55,18 +55,24 @@ class GitContentManager:
             add_safe_directory(self.content_path)
             self.content_repo.git.config('user.email', '')  # Set user email to an empty string
             self.content_repo.git.config('user.name', 'machtiani')  # Set user name to "machtiani"
-            self.content_repo.git.commit('-m', message)
-            logger.info(f"Committed changes with message: '{message}'")
 
-            # Call create_tag after a successful commit
-            try:
-                self.create_tag()  # Call to create_tag
-            except Exception as tag_error:
-                logger.error(f"Failed to create tag after commit: {str(tag_error)}")
+            # Check if there are changes to commit
+            if not self.content_repo.git.status('--porcelain'):
+                logger.info("Work tree is clean. No changes to commit.")
+                # Directly create a tag since there are no changes
+                self.create_tag()
+            else:
+                # Commit changes if there are any
+                self.content_repo.git.commit('-m', message)
+                logger.info(f"Committed changes with message: '{message}'")
+
+                # Call create_tag after a successful commit
+                self.create_tag()
 
         except Exception as e:
-            logger.error(f"Failed to commit changes: {str(e)}")
+            logger.error(f"Failed to commit or create tag: {str(e)}")
             raise
+
 
     def remove_all_remotes(self):
         """Remove all remotes from the repository."""
