@@ -122,3 +122,36 @@ class GitContentManager:
             logger.error(f"Failed to create tag '{repo_latest_commit_oid}': {str(e)}")
             raise
 
+
+    def find_tag_by_name(self, tag_name: str):
+        """Find a tag by its name in the content repository."""
+        try:
+            add_safe_directory(self.content_path)
+            # Get the list of tags in the content repository
+            tags = self.content_repo.tags
+
+            # Search for the tag by name
+            for tag in tags:
+                if tag.name == tag_name:
+                    logger.info(f"Found tag '{tag_name}' pointing to commit {tag.commit.hexsha}.")
+                    return {
+                        exists: True,
+                        error: False,
+                        error_message: ""
+                    }
+
+            logger.warning(f"Tag '{tag_name}' not found in the repository.")
+            return {
+                exists: False,
+                error: False,
+                error_message: ""
+            }
+
+        except Exception as e:
+            error_message = f"Failed to find tag '{tag_name}': {str(e)}"
+            logger.error(error_message)
+            return {
+                exists: False,
+                error: True,
+                error_message: error_message
+            }

@@ -14,6 +14,7 @@ from lib.utils.utilities import (
     add_safe_directory,
     construct_remote_url,
 )
+from lib.vcs.git_content_manager import GitContentManager
 from app.models.responses import DeleteStoreResponse
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union, Dict
