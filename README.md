@@ -72,10 +72,7 @@ The project includes a FastAPI-based service that provides endpoints for various
 
    ```
    OPENAI_API_KEY=skj-proj-...
-   HOST_MODE=local
    ```
-
-Use `HOST_MODE=production`  you're running this in a production environment - the enables the service to perform the query embedding, if the client does pass it along.
 
 2. Start the FastAPI server:
 
@@ -84,20 +81,6 @@ Use `HOST_MODE=production`  you're running this in a production environment - th
    ```
 
 3. Access the application at `http://localhost:5070` and explore the API documentation at `http://localhost:5070/docs`.
-
-
-#### Embedding Generation
-
-The system can handle embeddings in the following manner depending on the `HOST_MODE` and whether embeddings are included in the request:
-
-1. **Production Mode (`HOST_MODE=production`)**:
-   - If embeddings are provided in the request, they will be used for matching.
-   - If no embeddings are included in the request, the server will generate embeddings for the prompt using OpenAI’s API.
-
-2. **Local Mode (`HOST_MODE=local`)**:
-   - The server always generates embeddings for the prompt using OpenAI’s API, regardless of whether embeddings are provided in the request.
-
-This design ensures that embeddings are only generated when truly necessary, optimizing performance and resource usage based on the operational mode of the application.
 
 ## Conclusion
 
