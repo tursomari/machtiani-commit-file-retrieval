@@ -148,7 +148,11 @@ class FileSummaryEmbeddingGenerator:
             self.logger.info("No new files to embed.")
             return self.existing_file_embeddings
 
-        # Loop through each file found
+        # Prepare to collect summaries and file names
+        summaries = []  # List to hold summaries
+        files_to_process = []  # List to hold file names
+
+        # Loop through new files to gather summaries
         for file, commit_oid in new_files.items():
             full_file_path = os.path.join(self.git_project_path, file)  # Join with git_project_path
             if os.path.exists(full_file_path):  # Check if the file exists
@@ -156,22 +160,34 @@ class FileSummaryEmbeddingGenerator:
                 if content:
                     summary = self._summarize_content(file, content)
                     if summary:
-                        # Create embeddings for the summary
-                        embedding = self.embedding_generator.embed_documents([summary])
-
-                        # Check if the file already exists in the embeddings
-                        if file in self.existing_file_embeddings:
-                            self.logger.info(f"Updating summary and embedding for file: '{file}'")
-                        else:
-                            self.logger.info(f"Creating summary and embedding for new file: '{file}'")
-
-                        # Update or add the file's summary and embedding
-                        self.existing_file_embeddings[file] = {
-                            "summary": summary,
-                            "embedding": embedding[0]  # Assuming embedding returns a list
-                        }
+                        summaries.append(summary)  # Collect the summary
+                        files_to_process.append(file)  # Collect the file name
             else:
                 self.logger.error(f"File '{file}' does not exist, skipping.")
+
+        if not summaries:
+            self.logger.info("No summaries to embed.")
+            return self.existing_file_embeddings
+
+        # Generate embeddings for all summaries at once
+        embeddings = self.embedding_generator.embed_documents(summaries)
+
+        # Update existing file embeddings
+        for i, file in enumerate(files_to_process):
+            summary = summaries[i]
+            embedding = embeddings[i]  # Get the corresponding embedding
+
+            if file in self.existing_file_embeddings:
+                self.logger.info(f"Updating summary and embedding for file: '{file}'")
+            else:
+                self.logger.info(f"Creating summary and embedding for new file: '{file}'")
+
+            # Update or add the file's summary and embedding
+            self.existing_file_embeddings[file] = {
+                "summary": summary,
+                "embedding": embedding  # Assuming embedding returns a list
+            }
+
         try:
             with open(self.files_embeddings_path, 'w') as f:
                 json.dump(self.existing_file_embeddings, f, indent=4)
