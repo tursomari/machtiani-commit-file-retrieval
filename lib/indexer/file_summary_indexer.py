@@ -7,6 +7,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from lib.vcs.git_content_manager import GitContentManager
 from app.utils import DataDir
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FileSummaryEmbeddingGenerator:
     def __init__(
@@ -97,15 +98,31 @@ class FileSummaryEmbeddingGenerator:
         openai_response = openai_chain.invoke({"input_text": prompt_text})
         return openai_response.content
 
-    def _summarize_content(self, file_path, content):
-        """Generate a summary for the given content using OpenAI's API."""
-        prompt = f"Summarize this {file_path}:\n{content}"
-        try:
-            summary = self.send_prompt_to_openai(prompt)
-            return summary
-        except Exception as e:
-            self.logger.error(f"Error generating summary for {file_path}: {e}")
-            return None
+    def _summarize_content(self, contents):
+        """Generate summaries for the given contents using OpenAI's API in parallel."""
+        def summarize_single(file_path, content):
+            prompt = f"Summarize this {file_path}:\n{content}"
+            try:
+                return self.send_prompt_to_openai(prompt)
+            except Exception as e:
+                self.logger.error(f"Error generating summary for {file_path}: {e}")
+                return None
+
+        summaries = [None] * len(contents)  # Initialize a list to hold summaries in order
+        max_workers = 10  # Specify the number of threads here
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_index = {executor.submit(summarize_single, file, content): index for index, (file, content) in enumerate(contents)}
+
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]  # Get the original index
+                try:
+                    summary = future.result()
+                    summaries[index] = summary  # Place the summary in the correct index
+                except Exception as e:
+                    self.logger.error(f"Error summarizing content at index '{index}': {e}")
+
+        return summaries
 
     def _filter_files_from_new_commits(self):
         """Filter files that are associated with the specified new commits."""
@@ -149,21 +166,24 @@ class FileSummaryEmbeddingGenerator:
             return self.existing_file_embeddings
 
         # Prepare to collect summaries and file names
-        summaries = []  # List to hold summaries
-        files_to_process = []  # List to hold file names
+        contents = []  # List to hold file contents
 
-        # Loop through new files to gather summaries
+        # Loop through new files to gather contents
         for file, commit_oid in new_files.items():
             full_file_path = os.path.join(self.git_project_path, file)  # Join with git_project_path
             if os.path.exists(full_file_path):  # Check if the file exists
                 content = self._get_file_content(file)
                 if content:
-                    summary = self._summarize_content(file, content)
-                    if summary:
-                        summaries.append(summary)  # Collect the summary
-                        files_to_process.append(file)  # Collect the file name
+                    contents.append((file, content))  # Collect file and its content
             else:
                 self.logger.error(f"File '{file}' does not exist, skipping.")
+
+        if not contents:
+            self.logger.info("No contents to summarize.")
+            return self.existing_file_embeddings
+
+        # Generate summaries using the updated _summarize_content method
+        summaries = self._summarize_content(contents)
 
         if not summaries:
             self.logger.info("No summaries to embed.")
@@ -173,7 +193,7 @@ class FileSummaryEmbeddingGenerator:
         embeddings = self.embedding_generator.embed_documents(summaries)
 
         # Update existing file embeddings
-        for i, file in enumerate(files_to_process):
+        for i, (file, _) in enumerate(contents):
             summary = summaries[i]
             embedding = embeddings[i]  # Get the corresponding embedding
 
