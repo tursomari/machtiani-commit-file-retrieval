@@ -1,5 +1,6 @@
 import os
 import asyncio
+import logging
 from typing import List
 from pydantic import ValidationError
 from app.utils import retrieve_file_contents
@@ -9,6 +10,10 @@ from lib.vcs.git_commit_parser import GitCommitParser
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.search.file_embedding_matcher import FileEmbeddingMatcher
 from app.utils import DataDir
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 async def retrieve_file_contents_service(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> FileContentResponse:
@@ -44,7 +49,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitParser(commits_logs_json, project)
 
-    closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength)
+    closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
 
     files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
     file_matcher = FileEmbeddingMatcher(embeddings_file=files_embeddings_file_path, api_key=api_key)
@@ -52,6 +57,9 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     closest_file_matches = await file_matcher.find_closest_files(prompt, match_strength)
 
     loop = asyncio.get_event_loop()
+
+    inferred_commit_files = []  # To hold inferred files from commits
+    inferred_file_matches = []    # To hold inferred files from file matches
 
     for match in closest_commit_matches:
         file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
@@ -67,6 +75,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
 
         if closest_file_paths:
             responses.append(response)
+            inferred_commit_files.extend(closest_file_paths)  # Add to inferred commit files
 
     for match in closest_file_matches:
         response = FileSearchResponse(
@@ -77,5 +86,10 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
             mode=mode.value,
         )
         responses.append(response)
+        inferred_file_matches.append(FilePathEntry(path=match["path"]))  # Add to inferred file matches
+
+    # Log the inferred files separately
+    logger.info("Inferred files from commits: %s", [file.path for file in inferred_commit_files])
+    logger.info("Inferred files from file matches: %s", [file.path for file in inferred_file_matches])
 
     return responses

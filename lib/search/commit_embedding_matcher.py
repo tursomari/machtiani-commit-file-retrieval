@@ -39,7 +39,7 @@ class CommitEmbeddingMatcher:
     def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-    async def find_closest_commits(self, input_text: str, match_strength: MatchStrength) -> list:
+    async def find_closest_commits(self, input_text: str, match_strength: MatchStrength, top_n: int = 10) -> list:
         logger.warning("Using the host's OpenAI API key for finding closest commits.")
         input_embedding = await asyncio.to_thread(self.embedding_generator.embed_query, input_text)
         min_similarity = match_strength.get_min_similarity()
@@ -56,4 +56,5 @@ class CommitEmbeddingMatcher:
         # Sort matches by similarity in descending order
         matches.sort(key=lambda x: x["similarity"], reverse=True)
 
-        return matches
+        # Return only the top n matches
+        return matches[:top_n]
