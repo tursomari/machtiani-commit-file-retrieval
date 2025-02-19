@@ -102,12 +102,17 @@ class FileSummaryEmbeddingGenerator:
     def _summarize_content(self, contents):
         """Generate summaries for the given contents using OpenAI's API in parallel."""
         def summarize_single(file_path, content):
+            # Check if the content is not empty or just whitespace
+            if not content or not content.strip():
+                self.logger.warning(f"No text content to summarize for file: {file_path}")
+                return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
+
             prompt = f"Summarize this {file_path}:\n{content}"
             try:
                 return self.send_prompt_to_openai(prompt)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
-                return None
+                return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
 
         summaries = [None] * len(contents)  # Initialize a list to hold summaries in order
         max_workers = 10  # Specify the number of threads here
