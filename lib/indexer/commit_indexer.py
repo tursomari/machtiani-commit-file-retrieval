@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import logging
 from dotenv import load_dotenv
@@ -34,6 +35,7 @@ class CommitEmbeddingGenerator:
         return new_commits
 
     def generate_embeddings(self):
+        start_time = time.time()  # Start the timer
         new_commits = self._filter_new_commits()
         if not new_commits:
             self.logger.info("No new commits to embed.")
@@ -57,6 +59,7 @@ class CommitEmbeddingGenerator:
             }
             new_commit_oids.append(commit['oid'])
 
-        self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} new commits.")
+        duration = time.time() - start_time  # Calculate the duration
+        self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} files in {duration:.2f} seconds.")
         return updated_embeddings, new_commit_oids
 

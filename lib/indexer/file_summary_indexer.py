@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 import json
 from fastapi import HTTPException
@@ -159,6 +160,7 @@ class FileSummaryEmbeddingGenerator:
         """
         Generate embeddings for file summaries and return them as a JSON object.
         """
+        start_time = time.time()  # Start the timer
         new_files = self._filter_files_from_new_commits()
 
         if not new_files:
@@ -218,6 +220,7 @@ class FileSummaryEmbeddingGenerator:
         # Save the file summaries embeddings to a file and commit the changes
         self.commit_file_summaries_embedding_file()
 
-        self.logger.info(f"Generated embeddings for {len(new_files)} files.")
+        duration = time.time() - start_time  # Calculate the duration
+        self.logger.info(f"Generated embeddings for {len(new_files)} files in {duration:.2f} seconds.")
         return self.existing_file_embeddings
 
