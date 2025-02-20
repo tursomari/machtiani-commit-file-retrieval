@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from app.utils import retrieve_file_contents
 from lib.utils.utilities import url_to_folder_name, read_json_file
 from lib.utils.enums import FilePathEntry, FileContentResponse, FileSearchResponse
-from lib.vcs.git_commit_parser import GitCommitParser
+from lib.vcs.git_commit_manager import GitCommitManager
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.search.file_embedding_matcher import FileEmbeddingMatcher
 from app.utils import DataDir
@@ -47,7 +47,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitParser(commits_logs_json, project)
+    parser = GitCommitManager(commits_logs_json, project)
 
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
 

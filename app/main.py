@@ -14,7 +14,7 @@ from lib.vcs.repo_manager import (
     check_pull_access,
     check_push_access,
 )
-from lib.vcs.git_commit_parser import GitCommitParser
+from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher

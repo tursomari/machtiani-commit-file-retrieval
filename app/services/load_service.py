@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 from app.models.requests import LoadRequest  # Import LoadRequest model
-from lib.vcs.git_commit_parser import GitCommitParser
+from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
 from lib.utils.utilities import (
@@ -42,7 +42,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-        parser = GitCommitParser(commits_logs_json, project)
+        parser = GitCommitManager(commits_logs_json, project)
         depth = 1000
         logger.info("Adding commits to log...")
         await parser.add_commits_to_log(git_project_path, depth)

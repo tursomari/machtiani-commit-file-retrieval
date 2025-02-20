@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 from lib.vcs.repo_manager import add_repository, delete_store, fetch_and_checkout_branch
-from lib.vcs.git_commit_parser import GitCommitParser
+from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.utils.utilities import url_to_folder_name, read_json_file, write_json_file
 from lib.utils.enums import VCSType, AddRepositoryRequest, FetchAndCheckoutBranchRequest
@@ -67,7 +67,7 @@ async def count_tokens_load(load_request: LoadRequest):  # Change parameter to L
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitParser(commits_logs_json, project)
+    parser = GitCommitManager(commits_logs_json, project)
 
     depth = 1000
     await parser.add_commits_to_log(git_project_path, depth)

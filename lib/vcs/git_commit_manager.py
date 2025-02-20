@@ -15,7 +15,7 @@ from app.utils import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class GitCommitParser:
+class GitCommitManager:
     def __init__(self, json_data, project):
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
