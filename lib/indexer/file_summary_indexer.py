@@ -4,10 +4,8 @@ import logging
 import json
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
 from lib.vcs.git_content_manager import GitContentManager
-from app.utils import DataDir
+from app.utils import DataDir, send_prompt_to_openai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FileSummaryEmbeddingGenerator:
@@ -84,21 +82,6 @@ class FileSummaryEmbeddingGenerator:
             self.logger.error(f"Failed to add and commit the embedding file: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to commit the embedding file: {str(e)}")
 
-    def send_prompt_to_openai(self, prompt_text: str) -> str:
-        """Sends a prompt to OpenAI and returns the response."""
-        # Define the prompt template
-        prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
-
-        # Initialize OpenAI LLM with the provided API key
-        openai_llm = ChatOpenAI(api_key=self.openai_api_key, model=self.summary_model)
-
-        # Chain the prompt and the LLM
-        openai_chain = prompt | openai_llm
-
-        # Execute the chain with the invoke method and return the response
-        openai_response = openai_chain.invoke({"input_text": prompt_text})
-        return openai_response.content
-
     def _summarize_content(self, contents):
         """Generate summaries for the given contents using OpenAI's API in parallel."""
         def summarize_single(file_path, content):
@@ -109,7 +92,7 @@ class FileSummaryEmbeddingGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
             try:
-                return self.send_prompt_to_openai(prompt)
+                return send_prompt_to_openai(prompt)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense

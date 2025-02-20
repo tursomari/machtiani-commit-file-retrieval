@@ -4,6 +4,8 @@ import magic
 from enum import Enum
 from typing import List, Dict
 from lib.utils.enums import FilePathEntry
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -231,3 +233,30 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
 def count_tokens(text: str) -> int:
     # Simple estimation: 1 token is approximately 4 characters (including spaces)
     return len(text) // 4 + 1
+
+
+def send_prompt_to_openai(
+    prompt_text: str,
+    api_key: str,
+    model: str = "gpt-4o-mini",
+    timeout: int = 3600,
+    max_retries: int = 5,
+):
+    """Sends a prompt to OpenAI and returns the response."""
+    # Define the prompt template
+    prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
+
+    # Initialize OpenAI LLM with the provided API key
+    openai_llm = ChatOpenAI(
+        openai_api_key=api_key,
+        model=model,
+        request_timeout=timeout,
+        max_retries=max_retries
+    )
+
+    # Chain the prompt and the LLM
+    openai_chain = prompt | openai_llm
+
+    # Execute the chain with the invoke method and return the response
+    openai_response = openai_chain.invoke({"input_text": prompt_text})
+    return openai_response.content

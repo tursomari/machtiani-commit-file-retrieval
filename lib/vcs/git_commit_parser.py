@@ -46,15 +46,24 @@ class GitCommitParser:
 
             message = commit.message.strip()
             files = []
+            diffs_info = {}
 
             if commit.parents:
-                diffs = commit.diff(commit.parents[0])
+                diffs = commit.diff(commit.parents[0], create_patch=True)
             else:
                 NULL_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
-                diffs = commit.diff(NULL_TREE)
+                diffs = commit.diff(NULL_TREE, create_patch=True)
+
 
             for diff in diffs:
                 files.append(diff.a_path)
+                diffs_info[diff.a_path] = {
+                    'diff': diff.diff.decode('utf-8') if diff.diff else '',
+                    'changes': {
+                        'added': diff.change_type == 'A',  # If the file is added
+                        'deleted': diff.change_type == 'D',  # If the file is deleted
+                    }
+                }
 
             logger.info(f"Files changed in commit {commit.hexsha}: {files}")
 
@@ -62,7 +71,8 @@ class GitCommitParser:
                 return {
                     "oid": commit.hexsha,
                     "message": message,
-                    "files": files
+                    "files": files,
+                    "diffs": diffs_info  # Include diffs in the returned info
                 }
             else:
                 logger.info(f"No file changes for commit {commit.hexsha}, skipping...")
@@ -71,7 +81,6 @@ class GitCommitParser:
         except Exception as e:
             logger.error(f"Error processing commit at depth {depth}: {e}")
             return None
-
 
     def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
         try:
