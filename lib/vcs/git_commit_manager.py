@@ -9,6 +9,7 @@ from app.utils import (
     DataDir,
     count_tokens,
     retrieve_file_contents,
+    send_prompt_to_openai,
 )
 
 # Configure logging
@@ -16,7 +17,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GitCommitManager:
-    def __init__(self, json_data, project):
+    def __init__(
+        self,
+        json_data,
+        project,
+        api_key: str,
+        commit_message_model="gpt-4o-mini"
+    ):
+        self.openai_api_key = api_key
+        self.commit_message_model = commit_message_model
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
         """
@@ -111,9 +120,26 @@ class GitCommitManager:
 
 
     def amplify_commits(self):
-        # works with new_commits
-        logger.info(f"Amplified new commits: {self.new_commits}")
+        base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n"
+        for commit in self.new_commits:
+            diff_blocks = []
+            # Check if the commit has any diffs and iterate through them.
+            if 'diffs' in commit:
+                for file_name, diff_info in commit['diffs'].items():
+                    diff_text = diff_info.get('diff', '')
+                    # Create a block with the file name and its associated diff.
+                    diff_block = f"{file_name}\n{diff_text}"
+                    diff_blocks.append(diff_block)
+            # Combine all diff blocks with double newlines for clarity.
+            combined_diffs = "\n\n".join(diff_blocks)
+            # Append the combined diff text to the base prompt.
+            full_prompt = base_prompt + combined_diffs
+            # Call the function to get the commit message based on the diff.
+            message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model)
 
+            # Append the generated message to the commit's message list.
+            commit['message'].append(message)
+        logger.info(f"Amplified new commits: {self.new_commits}")
 
     def is_file_deleted(self, file_path, commit_oid):
         """

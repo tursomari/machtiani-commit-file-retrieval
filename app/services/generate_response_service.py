@@ -47,7 +47,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project)
+    parser = GitCommitManager(commits_logs_json, project, api_key)
 
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
 

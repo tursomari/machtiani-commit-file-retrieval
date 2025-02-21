@@ -42,13 +42,13 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-        parser = GitCommitManager(commits_logs_json, project)
+        parser = GitCommitManager(commits_logs_json, project, openai_api_key)
         depth = 1000
         logger.info("Adding commits to log...")
         await parser.add_commits_to_log(git_project_path, depth)
 
         # amplify_commits will add extra commits and correspsonding embeddings.
-        #await parser.amplify_commits()
+        parser.amplify_commits()
 
         logger.info("Finished adding commits to log.")
 

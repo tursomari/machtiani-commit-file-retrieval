@@ -92,7 +92,7 @@ class FileSummaryEmbeddingGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
             try:
-                return send_prompt_to_openai(prompt)
+                return send_prompt_to_openai(prompt, self.openai_api_key, self.summary_model)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
