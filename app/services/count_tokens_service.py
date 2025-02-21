@@ -50,10 +50,10 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
 
     return embedding_tokens, inference_token
 
-async def count_tokens_load(load_request: LoadRequest):  # Change parameter to LoadRequest
-    openai_api_key = load_request.openai_api_key  # Access openai_api_key directly
-    project = load_request.project_name  # Access project_name directly
-    ignore_files = load_request.ignore_files or []  # Access ignore_files directly
+async def count_tokens_load(load_request: LoadRequest):
+    openai_api_key = load_request.openai_api_key
+    project = load_request.project_name
+    ignore_files = load_request.ignore_files or []
 
     projects = DataDir.list_projects()
 
@@ -91,7 +91,8 @@ async def count_tokens_load(load_request: LoadRequest):  # Change parameter to L
         logger.info("No new commits to count tokens for.")
         return 0, 0
 
-    new_commits_messages = [commit['message'] for commit in new_commits]
+    # Since 'message' is now a list of messages, join them into a single string for token counting
+    new_commits_messages = ['\n'.join(commit['message']) for commit in new_commits]
     new_commits_string = '\n'.join(new_commits_messages)  # Create a string from messages
 
     total_embedding_tokens = count_tokens(new_commits_string)

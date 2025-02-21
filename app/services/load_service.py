@@ -46,6 +46,10 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         depth = 1000
         logger.info("Adding commits to log...")
         await parser.add_commits_to_log(git_project_path, depth)
+
+        # amplify_commits will add extra commits and correspsonding embeddings.
+        #await parser.amplify_commits()
+
         logger.info("Finished adding commits to log.")
 
         logger.info(f"New commits added: {parser.commits}")

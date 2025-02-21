@@ -46,15 +46,19 @@ class CommitEmbeddingMatcher:
 
         matches = []
 
+        # Iterate over each commit's entry.
+        # Each entry now contains a list of embeddings under the key "embeddings".
         for oid, value in self.embeddings_dict.items():
-            embedding = value["embedding"]
-            similarity = self.cosine_similarity(input_embedding, embedding)
+            embeddings = value["embeddings"]
 
-            if similarity >= min_similarity:
-                matches.append({"oid": oid, "similarity": similarity})
+            # Compute the similarity for each embedding in the list
+            # and select the maximum similarity.
+            max_similarity = max(self.cosine_similarity(input_embedding, emb) for emb in embeddings)
 
-        # Sort matches by similarity in descending order
+            # If the maximum similarity meets the threshold, add this commit.
+            if max_similarity >= min_similarity:
+                matches.append({"oid": oid, "similarity": max_similarity})
+
+        # Sort matches by similarity in descending order and return the top_n matches.
         matches.sort(key=lambda x: x["similarity"], reverse=True)
-
-        # Return only the top n matches
         return matches[:top_n]

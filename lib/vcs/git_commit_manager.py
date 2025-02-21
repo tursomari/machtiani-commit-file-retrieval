@@ -46,6 +46,7 @@ class GitCommitManager:
 
             message = commit.message.strip()
             files = []
+            messages = [message]
             diffs_info = {}
 
             if commit.parents:
@@ -70,7 +71,7 @@ class GitCommitManager:
             if files:
                 return {
                     "oid": commit.hexsha,
-                    "message": message,
+                    "message": messages,
                     "files": files,
                     "diffs": diffs_info  # Include diffs in the returned info
                 }
@@ -107,6 +108,12 @@ class GitCommitManager:
         self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
+
+
+    def amplify_commits(self):
+        # works with new_commits
+        logger.info(f"Amplified new commits: {self.new_commits}")
+
 
     def is_file_deleted(self, file_path, commit_oid):
         """

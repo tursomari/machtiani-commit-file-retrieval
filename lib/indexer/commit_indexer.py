@@ -46,16 +46,24 @@ class CommitEmbeddingGenerator:
             self.logger.info("No new commits with changed files to embed.")
             return self.existing_embeddings, []
 
+        # Rename variable to clarify it holds commit embeddings.
+        commit_embeddings = []
+        # Collect the messages from each commit.
         messages = [commit['message'] for commit in new_commits_with_files]
-        embeddings = self.embedding_generator.embed_documents(messages)
+        for message in messages:
+            # Each call to embed_documents returns an array of embeddings that
+            # correspond one-to-one with the messages.
+            commit_embeddings.append(self.embedding_generator.embed_documents(message))
 
         new_commit_oids = []
-        # Create a copy of existing_embeddings to avoid side effects
+        # Create a copy of existing_embeddings to avoid side effects.
         updated_embeddings = self.existing_embeddings.copy()
-        for commit, embedding in zip(new_commits_with_files, embeddings):
+
+        # For each commit, update its entry with both the messages and the array of embeddings.
+        for commit, embed_list in zip(new_commits_with_files, commit_embeddings):
             updated_embeddings[commit['oid']] = {
-                "message": commit['message'],
-                "embedding": embedding
+                "messages": commit['message'],  # Assumes commit['message'] is an array of messages.
+                "embeddings": embed_list        # The array of corresponding embeddings.
             }
             new_commit_oids.append(commit['oid'])
 
