@@ -59,7 +59,10 @@ class GitCommitManager:
             diffs_info = {}
 
             if commit.parents:
-                diffs = commit.diff(commit.parents[0], create_patch=True)
+                # Inverts the commits so additions are subtractions, and vice versa
+                #diffs = commit.diff(commit.parents[0], create_patch=True)
+
+                diffs = commit.parents[0].diff(commit, create_patch=True)
             else:
                 NULL_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
                 diffs = commit.diff(NULL_TREE, create_patch=True)
