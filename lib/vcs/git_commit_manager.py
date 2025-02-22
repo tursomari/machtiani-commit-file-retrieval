@@ -66,15 +66,16 @@ class GitCommitManager:
 
 
             for diff in diffs:
-                files.append(diff.a_path)
-                diffs_info[diff.a_path] = {
+                # Use the non-None path, whether it's a_path or b_path
+                file_path = diff.a_path if diff.a_path is not None else diff.b_path
+                files.append(file_path)
+                diffs_info[file_path] = {
                     'diff': diff.diff.decode('utf-8') if diff.diff else '',
                     'changes': {
                         'added': diff.change_type == 'A',  # If the file is added
                         'deleted': diff.change_type == 'D',  # If the file is deleted
                     }
                 }
-
             logger.info(f"Files changed in commit {commit.hexsha}: {files}")
 
             if files:
