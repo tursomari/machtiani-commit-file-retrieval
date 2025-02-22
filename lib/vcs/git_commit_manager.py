@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 from lib.utils.enums import FilePathEntry
 from app.utils import (
@@ -125,7 +126,8 @@ class GitCommitManager:
 
     def amplify_commits(self):
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n"
-        for commit in self.new_commits:
+
+        def generate_commit_message(commit):
             diff_blocks = []
             # Check if the commit has any diffs and iterate through them.
             if 'diffs' in commit:
@@ -140,9 +142,22 @@ class GitCommitManager:
             full_prompt = base_prompt + combined_diffs
             # Call the function to get the commit message based on the diff.
             message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model)
+            return message
 
-            # Append the generated message to the commit's message list.
-            commit['message'].append(message)
+        messages = [None] * len(self.new_commits)  # To store commit messages in order
+        max_workers = 10  # Specify the number of threads here
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_index = {executor.submit(generate_commit_message, commit): index for index, commit in enumerate(self.new_commits)}
+
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]  # Get the original index
+                try:
+                    message = future.result()
+                    self.new_commits[index]['message'].append(message)  # Append the generated message to the commit's message list.
+                except Exception as e:
+                    logger.error(f"Error generating commit message for commit at index '{index}': {e}")
+
         logger.info(f"Amplified new commits: {self.new_commits}")
 
     def is_file_deleted(self, file_path, commit_oid):
