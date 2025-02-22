@@ -4,7 +4,7 @@ import logging
 from lib.vcs.repo_manager import add_repository, delete_store, fetch_and_checkout_branch
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
-from lib.utils.utilities import url_to_folder_name, read_json_file, write_json_file
+from lib.utils.utilities import url_to_folder_name, read_json_file
 from lib.utils.enums import VCSType, AddRepositoryRequest, FetchAndCheckoutBranchRequest
 from app.utils import count_tokens
 from app.models.requests import LoadRequest  # Import the LoadRequest model
@@ -74,12 +74,10 @@ async def count_tokens_load(load_request: LoadRequest):
 
     new_commits_string = parser.new_commits
 
-    await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
-
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
 
-    commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
+    commits_logs_json = parser.commits
     existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
     generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
 
