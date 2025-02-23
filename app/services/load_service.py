@@ -48,7 +48,10 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         await parser.add_commits_to_log(git_project_path, depth)
 
         # amplify_commits will add extra commits and correspsonding embeddings.
-        parser.amplify_commits()
+
+        base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
+        parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+        parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
 

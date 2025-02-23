@@ -123,38 +123,58 @@ class GitCommitManager:
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
 
-
-    def amplify_commits(self):
-        base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n"
+    def amplify_commits(self, base_prompt, temperature, per_file=False):
 
         def generate_commit_message(commit):
-            diff_blocks = []
-            # Check if the commit has any diffs and iterate through them.
-            if 'diffs' in commit:
-                for file_name, diff_info in commit['diffs'].items():
-                    diff_text = diff_info.get('diff', '')
-                    # Create a block with the file name and its associated diff.
-                    diff_block = f"{file_name}\n{diff_text}"
-                    diff_blocks.append(diff_block)
-            # Combine all diff blocks with double newlines for clarity.
-            combined_diffs = "\n\n".join(diff_blocks)
-            # Append the combined diff text to the base prompt.
-            full_prompt = base_prompt + combined_diffs
-            # Call the function to get the commit message based on the diff.
-            message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model)
-            return message
+            messages = []
+            diffs = commit.get('diffs', {})
+
+            if diffs:
+                if per_file:
+                    # Only execute per‑file logic if there is more than one diff.
+                    if len(diffs) > 1:
+                        for file_name, diff_info in diffs.items():
+                            diff_text = diff_info.get('diff', '')
+                            diff_block = f"{file_name}\n{diff_text}"
+                            full_prompt = base_prompt + diff_block
+                            message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model, temperature)
+                            messages.append(message)
+                    else:
+                        # If there is only a single diff, do not generate any messages in per_file mode.
+                        return []
+                else:
+                    # Combined processing: aggregate all diffs.
+                    diff_blocks = []
+                    for file_name, diff_info in diffs.items():
+                        diff_text = diff_info.get('diff', '')
+                        diff_block = f"{file_name}\n{diff_text}"
+                        diff_blocks.append(diff_block)
+                    combined_diffs = "\n\n".join(diff_blocks)
+                    full_prompt = base_prompt + combined_diffs
+                    message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model, temperature)
+                    messages.append(message)
+            else:
+                # If no diffs exist, send only the base prompt.
+                message = send_prompt_to_openai(base_prompt, self.openai_api_key, self.commit_message_model, temperature)
+                messages.append(message)
+
+            return messages
 
         messages = [None] * len(self.new_commits)  # To store commit messages in order
         max_workers = 10  # Specify the number of threads here
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_index = {executor.submit(generate_commit_message, commit): index for index, commit in enumerate(self.new_commits)}
+            future_to_index = {
+                executor.submit(generate_commit_message, commit): index
+                for index, commit in enumerate(self.new_commits)
+            }
 
             for future in as_completed(future_to_index):
-                index = future_to_index[future]  # Get the original index
+                index = future_to_index[future]
                 try:
-                    message = future.result()
-                    self.new_commits[index]['message'].append(message)  # Append the generated message to the commit's message list.
+                    message_list = future.result()
+                    # Extend the commit's message list with one or more messages.
+                    self.new_commits[index]['message'].extend(message_list)
                 except Exception as e:
                     logger.error(f"Error generating commit message for commit at index '{index}': {e}")
 

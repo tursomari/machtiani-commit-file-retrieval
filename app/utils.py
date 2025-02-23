@@ -239,6 +239,7 @@ def send_prompt_to_openai(
     prompt_text: str,
     api_key: str,
     model: str = "gpt-4o-mini",
+    temperature: float = 0.0,
     timeout: int = 3600,
     max_retries: int = 5,
 ):
@@ -251,7 +252,8 @@ def send_prompt_to_openai(
         openai_api_key=api_key,
         model=model,
         request_timeout=timeout,
-        max_retries=max_retries
+        max_retries=max_retries,
+        temperature=temperature
     )
 
     # Chain the prompt and the LLM
