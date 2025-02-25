@@ -59,7 +59,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     loop = asyncio.get_event_loop()
 
     inferred_commit_files = []  # To hold inferred files from commits
-    inferred_file_matches = []    # To hold inferred files from file matches
+    inferred_file_matches = []  # To hold inferred files from file matches
 
     for match in closest_commit_matches:
         file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
@@ -71,6 +71,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
             file_paths=closest_file_paths,
             embedding_model=model.value,
             mode=mode.value,
+            path_type='commit'  # Set type as 'commit' for commit matches
         )
 
         if closest_file_paths:
@@ -84,6 +85,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
             file_paths=[FilePathEntry(path=match["path"])],
             embedding_model=model.value,
             mode=mode.value,
+            path_type='file'  # Set type as 'file' for file matches
         )
         responses.append(response)
         inferred_file_matches.append(FilePathEntry(path=match["path"]))  # Add to inferred file matches

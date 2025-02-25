@@ -33,6 +33,7 @@ class FileSearchResponse(BaseModel):
     file_paths: List[FilePathEntry]
     embedding_model: EmbeddingModel
     mode: SearchMode
+    path_type: str
 
 class FileContentResponse(BaseModel):
     contents: Dict[str, str]
