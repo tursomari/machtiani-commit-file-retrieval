@@ -101,6 +101,18 @@ class GitCommitManager:
         try:
             repo = git.Repo(repo_path)
             commits = []
+
+            # Start with the first commit and compare OIDs
+            if self.commits and self.stop_oid != self.commits[0]['oid']:
+                logger.info(f"Looking for stop_oid {self.stop_oid} in the existing commit list.")
+                # Iterate through existing commits to find a match
+                for n, commit in enumerate(self.commits):
+                    if commit['oid'] == self.stop_oid:
+                        logger.info(f"Found stop_oid {self.stop_oid} at index {n}.")
+                        return self.commits[:n + 1]  # Return commits up to the found stop_oid
+                logger.warning(f"stop_oid {self.stop_oid} not found in the existing commits.")
+
+            # If no matching stop_oid is found in the existing commits, proceed as usual
             for i in range(max_depth):
                 commit_info = self.get_commit_info_at_depth(repo, i)
                 if commit_info:
@@ -112,6 +124,7 @@ class GitCommitManager:
                     logger.info(f"No file changes for commit at depth {i}, skipping...")
                     break
             return commits
+
         except Exception as e:
             logger.error(f"Error accessing the repository: {e}")
             return []
