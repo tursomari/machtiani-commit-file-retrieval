@@ -1,6 +1,6 @@
 import re
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 import json
 import os
 import asyncio
@@ -60,70 +60,59 @@ def write_json_file(data, file_path):
     except IOError as e:
         logger.error(f"Error writing to file {file_path}: {e}")
 
-def parse_github_url(github_url: str):
-    # Regex to extract the token and the URL part
-    pattern = r"(https://ghp_[a-zA-Z0-9]+)@(github.com/[\w-]+/[\w-]+)"
-
-    match = re.match(pattern, github_url)
-    if match:
-        token = match.group(1).replace("https://", "")
-        url_part = match.group(2)
-
-        # Parse the URL to extract user and repo
-        parsed_url = urlparse(f"https://{url_part}")
-        user_repo_path = parsed_url.path.strip("/")
-
-        # Return the tuple
-        return f"https://{parsed_url.netloc}/{user_repo_path}/", token
-    else:
-        raise ValueError("Invalid GitHub URL format")
-
-def validate_github_auth_url(github_url: str) -> bool:
+def validate_auth_url(auth_url: str) -> bool:
     """
-    Validate the GitHub URL format.
+    Validate the authentication URL format.
 
-    The expected format is: https://<github-api-key>@github.com/<user>/<project>/
+    The expected format is: https://<auth-token>@<domain>/<user>/<project>/
     The trailing slash is optional.
 
     Parameters:
-        github_url (str): The GitHub URL to validate.
+        auth_url (str): The authentication URL to validate.
 
     Returns:
         bool: True if the URL is valid, False otherwise.
     """
-    pattern = r"^https://ghp_[a-zA-Z0-9]+@github\.com/[^/]+/[^/]+/?$"  # Trailing slash is optional
-    match = re.match(pattern, github_url)
+    # Regex to validate the auth URL format with any domain
+    pattern = r"^https://[a-zA-Z0-9_-]+@[a-zA-Z0-9.-]+/[^/]+/[^/]+/?$"  # Trailing slash is optional
+    match = re.match(pattern, auth_url)
 
     if match:
         return True
     else:
-        logger.error(f"Invalid GitHub URL")
+        logger.error(f"Invalid authentication URL")
         return False
+
+
 
 def url_to_folder_name(repo_url: str) -> str:
     # Normalize the repository URL by stripping unwanted characters
     repo_url = repo_url.rstrip('/')
 
-    # Remove only the ".git" suffix from the URL if it is present
+    # Remove only the ".git" suffix from the URL if present
     if repo_url.endswith('.git'):
         repo_url = repo_url[:-4]
 
-    # Extract the domain, user, and repo name after removing .git if necessary
-    match = re.match(r"https?://(www\.)?(github\.com)/([^/]+)/([^/]+)$", repo_url)
-    if not match:
-        raise ValueError("Invalid GitHub URL")
+    parsed_url = urlparse(repo_url)
 
-    domain = match.group(2)  # Ensure we only capture 'github.com'
-    user = match.group(3)
-    repo_name = match.group(4)
+    # Validate scheme (but do not include it in the folder name)
+    if parsed_url.scheme not in ['http', 'https', 'git']:
+        raise ValueError("Unsupported URL scheme")
 
-    # Combine domain, user, and repo into a folder name
-    folder_name = f"{domain}_{user}_{repo_name}"
+    netloc = parsed_url.netloc  # e.g., github.com, localhost:3000
+    path = parsed_url.path.strip("/")
+    path_components = path.split('/')
 
-    # Replace any non-alphanumeric characters (except hyphens and underscores) with underscores
-    folder_name = re.sub(r'[^\w\-]', '_', folder_name)
+    if len(path_components) < 2:
+        raise ValueError("Invalid repository URL format")
 
-    folder_name = folder_name.lower()
+    user, repo_name = path_components[0], path_components[1]
+
+    # Construct folder name without the scheme
+    folder_name = f"{netloc}_{user}_{repo_name}"
+
+    # Replace special characters and lowercase
+    folder_name = re.sub(r'[^\w\-]', '_', folder_name).lower()
 
     return folder_name
 
@@ -168,22 +157,18 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
     """
     url_str = str(codehost_url)
     if api_key:
-        # Get the raw token value, should start with ghp_
+        # Get the raw token value
         key_value = api_key.get_secret_value()
 
         url_parts = url_str.split("://")
         if len(url_parts) != 2:
             raise ValueError("Invalid codehost URL format.")
 
-        if not key_value.startswith('ghp_'):
-            logger.error(f"Invalid API key format. Expected key starting with 'ghp_', got something else")
-            raise ValueError("Invalid GitHub API key format")
-
         auth_url = f"{url_parts[0]}://{key_value}@{url_parts[1]}"
 
-        if not validate_github_auth_url(auth_url):
-            logger.error(f"Invalid GitHub URL")
-            raise HTTPException(status_code=400, detail="Invalid Authorized GitHub URL format.")
+        if not validate_auth_url(auth_url):
+            logger.error(f"Invalid authentication URL")
+            raise HTTPException(status_code=400, detail="Invalid Authorized URL format.")
 
         return auth_url
 

@@ -8,8 +8,6 @@ from fastapi import FastAPI, Query, HTTPException, Body
 import os
 import asyncio  # Import asyncio
 from lib.utils.utilities import (
-    parse_github_url,
-    validate_github_auth_url,
     url_to_folder_name,
     add_safe_directory,
     construct_remote_url,
