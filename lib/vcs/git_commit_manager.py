@@ -117,9 +117,16 @@ class GitCommitManager:
             return []
 
     async def add_commits_to_log(self, repo_path, max_depth):
-        new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
-        self.new_commits = new_commits
-        self.commits = new_commits + self.commits  # Prepend the new commits to the existing log
+        # Retrieve new commits from the repository
+        all_new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
+
+        # Filter out commits that already exist in the current commit log
+        existing_oids = {commit['oid'] for commit in self.commits}
+        self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
+
+        # Prepend the new commits to the existing log
+        self.commits = self.new_commits + self.commits
+
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
 
