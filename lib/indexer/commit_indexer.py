@@ -48,26 +48,30 @@ class CommitEmbeddingGenerator:
 
         # Rename variable to clarify it holds commit embeddings.
         commit_embeddings = []
-        # Collect the messages from each commit.
-        messages = [commit['message'] for commit in new_commits_with_files]
-        for message in messages:
-            # Each call to embed_documents returns an array of embeddings that
-            # correspond one-to-one with the messages.
-            commit_embeddings.append(self.embedding_generator.embed_documents(message))
+        # Combine commit messages and summaries for each commit.
+        combined_texts = [
+            commit['message'] + commit.get('summaries', [])
+            for commit in new_commits_with_files
+        ]
+        # Generate embeddings for each set of combined texts.
+        for texts in combined_texts:
+            # Each call to embed_documents returns an array of embeddings corresponding
+            # one-to-one with the texts.
+            commit_embeddings.append(self.embedding_generator.embed_documents(texts))
 
         new_commit_oids = []
         # Create a copy of existing_embeddings to avoid side effects.
         updated_embeddings = self.existing_embeddings.copy()
 
-        # For each commit, update its entry with both the messages and the array of embeddings.
-        for commit, embed_list in zip(new_commits_with_files, commit_embeddings):
+        # For each commit, update its entry with both the combined texts and the embeddings.
+        for commit, embed_list, texts in zip(new_commits_with_files, commit_embeddings, combined_texts):
             updated_embeddings[commit['oid']] = {
-                "messages": commit['message'],  # Assumes commit['message'] is an array of messages.
-                "embeddings": embed_list        # The array of corresponding embeddings.
+                "messages": texts,       # Combined commit messages and summaries.
+                "embeddings": embed_list # The corresponding embeddings.
             }
             new_commit_oids.append(commit['oid'])
 
         duration = time.time() - start_time  # Calculate the duration
-        self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} files in {duration:.2f} seconds.")
+        self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} commits in {duration:.2f} seconds.")
         return updated_embeddings, new_commit_oids
 
