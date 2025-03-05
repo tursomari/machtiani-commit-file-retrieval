@@ -6,11 +6,13 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 from lib.utils.enums import FilePathEntry
+from lib.vcs.git_content_manager import GitContentManager
 from app.utils import (
     DataDir,
     count_tokens,
     retrieve_file_contents,
     send_prompt_to_openai,
+    send_prompt_to_openai_async,
 )
 
 # Configure logging
@@ -23,7 +25,9 @@ class GitCommitManager:
         json_data,
         project,
         api_key: str,
-        commit_message_model="gpt-4o-mini"
+        commit_message_model="gpt-4o-mini",
+        ignore_files: List[str] = [],
+        skip_summaries: bool = False
     ):
         self.openai_api_key = api_key
         self.commit_message_model = commit_message_model
@@ -44,6 +48,8 @@ class GitCommitManager:
         self.project = project
         self.git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
         self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
+        self.ignore_files = ignore_files
+        self.skip_summaries = skip_summaries
 
     def get_commit_info_at_depth(self, repo, depth):
         try:
@@ -129,7 +135,7 @@ class GitCommitManager:
             logger.error(f"Error accessing the repository: {e}")
             return []
 
-    async def add_commits_to_log(self, repo_path, max_depth):
+    async def add_commits_and_summaries_to_log(self, repo_path, max_depth):
         # Retrieve new commits from the repository
         all_new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
 
@@ -137,11 +143,41 @@ class GitCommitManager:
         existing_oids = {commit['oid'] for commit in self.commits}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
+        for commit in self.new_commits:
+            # Thread pool for commits, probably want to add
+            # Not exactly how that works but later maybe.
+            if self.skip_summaries:
+                commit['summaries'] = []
+            else:
+                summaries = []
+                files = commit.get('files', [])
+                for file in files:
+                    summary = await self.summarize_file(file)
+                    summaries.append(summary)
+                commit['summaries'] = summaries
+
         # Prepend the new commits to the existing log
         self.commits = self.new_commits + self.commits
 
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
+
+    async def summarize_file(self, file_path: str):
+        """Summarize the content of the specified file using OpenAI's API."""
+        # full_file_path = os.path.join(self.content_path, file_path)
+        contents_dict = retrieve_file_contents(self.project, [FilePathEntry(path=file_path)], self.ignore_files)
+        if contents_dict == {}:
+            logger.warning(f"No text content to summarize for file: {file_path}")
+            return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
+        elif contents_dict.get(file_path) is not None:
+            content = contents_dict[file_path]
+            prompt = f"Summarize this {file_path}:\n{content}"
+            try:
+                summary = await send_prompt_to_openai_async(prompt, self.openai_api_key, self.commit_message_model)
+                return summary
+            except Exception as e:
+                logger.error(f"Error generating summary for {file_path}: {e}")
+                return f"Error generating summary: {e}"
 
     def amplify_commits(self, base_prompt, temperature, per_file=False):
 
@@ -268,3 +304,4 @@ class GitCommitManager:
                 logger.info(f"Counted {tokens} tokens in file: {file_path}")
 
         return token_counts
+

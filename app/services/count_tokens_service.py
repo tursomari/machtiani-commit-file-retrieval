@@ -67,10 +67,11 @@ async def count_tokens_load(load_request: LoadRequest):
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project, openai_api_key)
+    parser = GitCommitManager(commits_logs_json, project, openai_api_key, commit_message_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
+
 
     depth = 1000
-    await parser.add_commits_to_log(git_project_path, depth)
+    await parser.add_commits_and_summaries_to_log(git_project_path, depth)
 
     new_commits_string = parser.new_commits
 

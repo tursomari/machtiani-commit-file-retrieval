@@ -42,16 +42,15 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-        parser = GitCommitManager(commits_logs_json, project, openai_api_key)
-        depth = 1000
+        parser = GitCommitManager(commits_logs_json, project, openai_api_key, commit_message_model="gpt-4o-mini", ignore_files=ignore_files)
+        depth = 15000
         logger.info("Adding commits to log...")
-        await parser.add_commits_to_log(git_project_path, depth)
-
+        await parser.add_commits_and_summaries_to_log(git_project_path, depth)
         # amplify_commits will add extra commits and correspsonding embeddings.
 
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
         parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
-        parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
+        #parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
 
