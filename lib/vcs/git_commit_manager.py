@@ -162,22 +162,24 @@ class GitCommitManager:
         # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
 
+
     async def summarize_file(self, file_path: str):
         """Summarize the content of the specified file using OpenAI's API."""
-        # full_file_path = os.path.join(self.content_path, file_path)
         contents_dict = retrieve_file_contents(self.project, [FilePathEntry(path=file_path)], self.ignore_files)
-        if contents_dict == {}:
+
+        # Check if no content was retrieved or if the content is empty/whitespace
+        if file_path not in contents_dict or not contents_dict[file_path].strip():
             logger.warning(f"No text content to summarize for file: {file_path}")
             return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
-        elif contents_dict.get(file_path) is not None:
-            content = contents_dict[file_path]
-            prompt = f"Summarize this {file_path}:\n{content}"
-            try:
-                summary = await send_prompt_to_openai_async(prompt, self.openai_api_key, self.commit_message_model)
-                return summary
-            except Exception as e:
-                logger.error(f"Error generating summary for {file_path}: {e}")
-                return f"Error generating summary: {e}"
+
+        content = contents_dict[file_path]
+        prompt = f"Summarize this {file_path}:\n{content}"
+        try:
+            summary = await send_prompt_to_openai_async(prompt, self.openai_api_key, self.commit_message_model)
+            return summary
+        except Exception as e:
+            logger.error(f"Error generating summary for {file_path}: {e}")
+            return f"Error generating summary: {e}"
 
     def amplify_commits(self, base_prompt, temperature, per_file=False):
 
