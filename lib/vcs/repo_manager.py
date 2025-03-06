@@ -12,7 +12,6 @@ from lib.utils.utilities import (
     add_safe_directory,
     construct_remote_url,
 )
-from lib.vcs.git_content_manager import GitContentManager
 from app.models.responses import DeleteStoreResponse
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union, Dict
@@ -99,11 +98,6 @@ def add_repository(data: AddRepositoryRequest):
 
     # Clone the repository using the module, into the 'git' directory
     clone_repository(codehost_url, destination_path, project_name, api_key)
-
-    # Initialize a Git repository in the CONTENT directory
-    content_path = DataDir.CONTENT.get_path(project_name)
-    if not os.path.exists(content_path):
-        os.makedirs(content_path)
 
     # Return the openai_api_key with the response for further usage
     return {

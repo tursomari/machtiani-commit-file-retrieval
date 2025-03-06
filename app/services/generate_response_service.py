@@ -8,7 +8,6 @@ from lib.utils.utilities import url_to_folder_name, read_json_file
 from lib.utils.enums import FilePathEntry, FileContentResponse, FileSearchResponse
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
-from lib.search.file_embedding_matcher import FileEmbeddingMatcher
 from app.utils import DataDir
 
 # Set up logging
@@ -51,15 +50,9 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
 
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
 
-    files_embeddings_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
-    file_matcher = FileEmbeddingMatcher(embeddings_file=files_embeddings_file_path, api_key=api_key)
-
-    closest_file_matches = await file_matcher.find_closest_files(prompt, match_strength)
-
     loop = asyncio.get_event_loop()
 
     inferred_commit_files = []  # To hold inferred files from commits
-    inferred_file_matches = []  # To hold inferred files from file matches
 
     for match in closest_commit_matches:
         file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
@@ -78,20 +71,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
             responses.append(response)
             inferred_commit_files.extend(closest_file_paths)  # Add to inferred commit files
 
-    for match in closest_file_matches:
-        response = FileSearchResponse(
-            oid="",  # Assuming file matches do not have an OID
-            similarity=match["similarity"],
-            file_paths=[FilePathEntry(path=match["path"])],
-            embedding_model=model.value,
-            mode=mode.value,
-            path_type='file'  # Set type as 'file' for file matches
-        )
-        responses.append(response)
-        inferred_file_matches.append(FilePathEntry(path=match["path"]))  # Add to inferred file matches
-
     # Log the inferred files separately
     logger.info("Inferred files from commits: %s", [file.path for file in inferred_commit_files])
-    logger.info("Inferred files from file matches: %s", [file.path for file in inferred_file_matches])
 
     return responses
