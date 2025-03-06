@@ -4,25 +4,40 @@ import asyncio
 from typing import Dict, List, Optional
 from app.utils import DataDir
 from lib.utils.utilities import read_json_file, url_to_folder_name
+from lib.vcs.git_commit_manager import GitCommitManager
 
 logger = logging.getLogger(__name__)
 
-async def fetch_summary(file_path: str, file_summaries: Dict[str, dict]) -> Optional[Dict[str, str]]:
-    summary = file_summaries.get(file_path)
-    if summary is None:
-        logger.warning(f"No summary found for file path: {file_path}")
-        return None
-    return {"file_path": file_path, "summary": summary["summary"]}
+async def fetch_summary_from_commit(file_path: str, commits_log: List[Dict]) -> Optional[Dict[str, str]]:
+    # Iterate over each commit in the commit log
+    for commit in commits_log:
+        files = commit.get('files', [])
+        summaries = commit.get('summaries', [])
+
+        # Check if file_path is in the list of files
+        if file_path in files:
+            # Find the index of the file_path
+            index = files.index(file_path)
+            # Get the summary at the same index
+            summary = summaries[index] if index < len(summaries) else None
+
+            if summary:
+                return {"file_path": file_path, "summary": summary}
+            else:
+                logger.warning(f"No summary found for file path: {file_path} in commit {commit.get('oid')}")
+    logger.warning(f"No summary found for file path: {file_path}")
+    return None
 
 async def get_file_summaries(file_paths: List[str], project_name: str) -> List[Dict[str, str]]:
-    project_name = url_to_folder_name(project_name)
-    file_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
+    project = url_to_folder_name(project_name)
+    commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+    commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
 
-    # Read the existing file summaries asynchronously
-    file_summaries = await asyncio.to_thread(read_json_file, file_summaries_file_path)
+    # Read the commit logs asynchronously
+    commits_log = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-    # Create a list of async tasks for fetching summaries
-    tasks = [fetch_summary(file_path, file_summaries) for file_path in file_paths]
+    # Create a list of async tasks for fetching summaries from the commit log
+    tasks = [fetch_summary_from_commit(file_path, commits_log) for file_path in file_paths]
     results = await asyncio.gather(*tasks)
 
     # Prepare the output, filtering out None results
