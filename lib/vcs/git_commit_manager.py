@@ -138,30 +138,27 @@ class GitCommitManager:
     async def add_commits_and_summaries_to_log(self, repo_path, max_depth):
         # Retrieve new commits from the repository
         all_new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
-
         # Filter out commits that already exist in the current commit log
         existing_oids = {commit['oid'] for commit in self.commits}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
-        for commit in self.new_commits:
-            # Thread pool for commits, probably want to add
-            # Not exactly how that works but later maybe.
+        async def process_commit(commit):
             if self.skip_summaries:
                 commit['summaries'] = []
             else:
-                summaries = []
                 files = commit.get('files', [])
-                for file in files:
-                    summary = await self.summarize_file(file)
-                    summaries.append(summary)
-                commit['summaries'] = summaries
+                # Run all file summarizations concurrently for this commit
+                commit['summaries'] = await asyncio.gather(
+                    *(self.summarize_file(file) for file in files)
+                )
+
+        # Process each new commit concurrently
+        await asyncio.gather(*(process_commit(commit) for commit in self.new_commits))
 
         # Prepend the new commits to the existing log
         self.commits = self.new_commits + self.commits
 
-        # Log the added new commits
         logger.info(f"Added new commits: {self.new_commits}")
-
 
     async def summarize_file(self, file_path: str):
         """Summarize the content of the specified file using OpenAI's API."""
