@@ -196,7 +196,7 @@ class GitCommitManager:
         if self.is_first_run:
             if file_path in self.summary_cache:
                logger.info(f"Using cached summary for {file_path}")
-               return self.summary_cache[file_path]
+               return self.summary_cache[file_path]['summary']
 
         contents_dict = retrieve_file_contents(self.project, [FilePathEntry(path=file_path)], self.ignore_files)
         if file_path not in contents_dict or not contents_dict[file_path].strip():

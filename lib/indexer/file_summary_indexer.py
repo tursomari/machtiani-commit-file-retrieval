@@ -173,17 +173,23 @@ class FileSummaryGenerator:
             self.logger.info("No summaries to embed.")
             return self.existing_file_embeddings
 
+        embeddings = self.embedding_generator.embed_documents(summaries)
 
         # Update existing file embeddings
         for i, (file, _) in enumerate(contents):
             summary = summaries[i]
+            embedding = embeddings[i]
+
             if file in self.existing_file_embeddings:
                 self.logger.info(f"Updating summary and embedding for file: '{file}'")
             else:
                 self.logger.info(f"Creating summary and embedding for new file: '{file}'")
 
             # Update or add the file's summary and embedding
-            self.existing_file_embeddings[file] = summary
+            self.existing_file_embeddings[file] = {
+                "summary": summary,
+                "embedding": embedding  # Assuming embedding returns a list
+            }
 
         try:
             with open(self.files_embeddings_path, 'w') as f:
