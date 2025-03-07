@@ -4,9 +4,15 @@ import json
 import logging
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
+from lib.indexer.file_summary_indexer import FileSummaryGenerator
+from typing import Dict
+from app.utils import (
+    DataDir,
+    retrieve_file_contents,
+)
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, api_key: str, existing_embeddings=None, model="text-embedding-3-large"):
+    def __init__(self, commit_logs, api_key: str, existing_embeddings=None, model="text-embedding-3-large", files_summaries_json: Dict[str, str] = {},):
         """
         Initialize the CommitEmbeddingGenerator with commit logs and an optional existing embeddings JSON object.
 
@@ -27,6 +33,7 @@ class CommitEmbeddingGenerator:
 
         # Use the provided existing embeddings or start with an empty dictionary
         self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
+        self.summary_cache = files_summaries_json
 
     def _filter_new_commits(self):
         """Filter out commits that already have embeddings."""
@@ -46,32 +53,40 @@ class CommitEmbeddingGenerator:
             self.logger.info("No new commits with changed files to embed.")
             return self.existing_embeddings, []
 
-        # Rename variable to clarify it holds commit embeddings.
         commit_embeddings = []
+
         # Combine commit messages and summaries for each commit.
-        combined_texts = [
-            commit['message'] + commit.get('summaries', [])
-            for commit in new_commits_with_files
-        ]
+        combined_texts = []  # This will store the final combined texts for each commit.
+        for commit in new_commits_with_files:
+            combined_text = commit['message']
+            combined_embeddings = []
 
-        self.logger.info(f"combined_texts type {type(combined_texts)}")
-        self.logger.info(f"combined_texts {combined_texts}")
+            for file in commit.get('files', []):
+                if file in self.summary_cache and 'embedding' in self.summary_cache[file]:
+                    self.logger.info(f"Using cached embedding for file: {file}")
+                    combined_embeddings.append(self.summary_cache[file]['embedding'])
+                else:
+                    # If no cached embedding, append the summary text for embedding.
+                    combined_text += commit.get('summaries', [])
 
-        # Generate embeddings for each set of combined texts.
-        for texts in combined_texts:
-            # Each call to embed_documents returns an array of embeddings corresponding
-            # one-to-one with the texts.
-            commit_embeddings.append(self.embedding_generator.embed_documents(texts))
+            # Store combined text for the commit to populate "messages" field.
+            combined_texts.append(combined_text)
+
+            # Generate new embeddings only for the non-cached texts.
+            if any(text.strip() for text in combined_text):
+                new_embeddings = self.embedding_generator.embed_documents(combined_text)
+                combined_embeddings.extend(new_embeddings)
+
+            commit_embeddings.append(combined_embeddings)
 
         new_commit_oids = []
-        # Create a copy of existing_embeddings to avoid side effects.
         updated_embeddings = self.existing_embeddings.copy()
 
         # For each commit, update its entry with both the combined texts and the embeddings.
         for commit, embed_list, texts in zip(new_commits_with_files, commit_embeddings, combined_texts):
             updated_embeddings[commit['oid']] = {
                 "messages": texts,       # Combined commit messages and summaries.
-                "embeddings": embed_list # The corresponding embeddings.
+                "embeddings": embed_list # The corresponding combined embeddings.
             }
             new_commit_oids.append(commit['oid'])
 
