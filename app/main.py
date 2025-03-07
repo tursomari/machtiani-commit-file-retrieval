@@ -16,7 +16,7 @@ from lib.vcs.repo_manager import (
 )
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
-from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator
+from lib.indexer.file_summary_indexer import FileSummaryGenerator
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.search.file_embedding_matcher import FileEmbeddingMatcher
 from lib.utils.utilities import (

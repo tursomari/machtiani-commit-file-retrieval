@@ -8,12 +8,11 @@ from lib.vcs.git_content_manager import GitContentManager
 from app.utils import DataDir, send_prompt_to_openai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-class FileSummaryEmbeddingGenerator:
+class FileSummaryGenerator:
     def __init__(
         self,
         project_name: str,
         commit_logs,
-        new_commit_oids,
         api_key: str,
         git_project_path: str,
         ignore_files: list = None,
@@ -31,7 +30,6 @@ class FileSummaryEmbeddingGenerator:
         self.project_name = project_name
         self.logger.info(f"project_name: {self.project_name}")
         self.commit_logs = commit_logs
-        self.new_commit_oids = new_commit_oids  # List of new commit OIDs
         self.embed_model = embed_model
         self.summary_model = summary_model
         self.git_project_path = git_project_path
@@ -126,11 +124,6 @@ class FileSummaryEmbeddingGenerator:
                 self.logger.warning("Commit without 'oid' encountered, skipping.")
                 continue
 
-            # Process only commits that are in the new_commit_oids list
-            if commit_oid not in self.new_commit_oids:
-                self.logger.debug(f"Commit '{commit_oid}' is not a new commit. Skipping its files.")
-                continue  # Skip commits that are not new
-
             for file in commit.get('files', []):
                 # Skip files in the ignore list
                 if file in self.ignore_files:
@@ -144,9 +137,9 @@ class FileSummaryEmbeddingGenerator:
         self.logger.info(f"Found {len(new_files)} files from new commits to embed (excluding ignored files).")
         return new_files
 
-    def generate_embeddings(self):
+    def generate(self):
         """
-        Generate embeddings for file summaries and return them as a JSON object.
+        Generate file summaries and return them as a JSON object.
         """
         start_time = time.time()  # Start the timer
         new_files = self._filter_files_from_new_commits()
@@ -154,6 +147,7 @@ class FileSummaryEmbeddingGenerator:
         if not new_files:
             self.logger.info("No new files to embed.")
             return self.existing_file_embeddings
+
 
         # Prepare to collect summaries and file names
         contents = []  # List to hold file contents
@@ -179,24 +173,17 @@ class FileSummaryEmbeddingGenerator:
             self.logger.info("No summaries to embed.")
             return self.existing_file_embeddings
 
-        # Generate embeddings for all summaries at once
-        embeddings = self.embedding_generator.embed_documents(summaries)
 
         # Update existing file embeddings
         for i, (file, _) in enumerate(contents):
             summary = summaries[i]
-            embedding = embeddings[i]  # Get the corresponding embedding
-
             if file in self.existing_file_embeddings:
                 self.logger.info(f"Updating summary and embedding for file: '{file}'")
             else:
                 self.logger.info(f"Creating summary and embedding for new file: '{file}'")
 
             # Update or add the file's summary and embedding
-            self.existing_file_embeddings[file] = {
-                "summary": summary,
-                "embedding": embedding  # Assuming embedding returns a list
-            }
+            self.existing_file_embeddings[file] = summary
 
         try:
             with open(self.files_embeddings_path, 'w') as f:

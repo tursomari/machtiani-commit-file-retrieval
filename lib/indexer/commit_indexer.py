@@ -53,6 +53,10 @@ class CommitEmbeddingGenerator:
             commit['message'] + commit.get('summaries', [])
             for commit in new_commits_with_files
         ]
+
+        self.logger.info(f"combined_texts type {type(combined_texts)}")
+        self.logger.info(f"combined_texts {combined_texts}")
+
         # Generate embeddings for each set of combined texts.
         for texts in combined_texts:
             # Each call to embed_documents returns an array of embeddings corresponding

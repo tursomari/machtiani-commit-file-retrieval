@@ -4,15 +4,20 @@ import os
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List
+from typing import List, Dict
 from lib.utils.enums import FilePathEntry
 from lib.vcs.git_content_manager import GitContentManager
+from lib.indexer.file_summary_indexer import FileSummaryGenerator
 from app.utils import (
     DataDir,
     count_tokens,
     retrieve_file_contents,
     send_prompt_to_openai,
     send_prompt_to_openai_async,
+)
+
+from lib.utils.utilities import (
+    read_json_file,
 )
 
 # Configure logging
@@ -27,10 +32,14 @@ class GitCommitManager:
         api_key: str,
         commit_message_model="gpt-4o-mini",
         ignore_files: List[str] = [],
+        files_summaries_json: Dict[str, str] = {},
         skip_summaries: bool = False
     ):
+
+        self.is_first_run = True
         self.openai_api_key = api_key
         self.commit_message_model = commit_message_model
+        self.summary_cache = files_summaries_json
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
         """
@@ -43,8 +52,11 @@ class GitCommitManager:
         # Get the first OID from the initialized JSON and assign it to self.stop_oid
         if self.commits:
             self.stop_oid = self.commits[0]['oid']
+            self.is_first_run = False
         else:
             self.stop_oid = None
+
+        logger.info(f"is first run: {self.is_first_run}")
         self.project = project
         self.git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
         self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
@@ -142,6 +154,22 @@ class GitCommitManager:
         existing_oids = {commit['oid'] for commit in self.commits}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
+        if self.is_first_run and not self.skip_summaries:
+            files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project), "files_embeddings.json")
+            existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
+
+            file_summary_generator = FileSummaryGenerator(
+                project_name=self.project,
+                commit_logs=self.new_commits,
+                api_key=self.openai_api_key,
+                git_project_path=self.git_project_path,
+                ignore_files=self.ignore_files,
+                existing_file_embeddings=existing_files_summaries_json
+            )
+
+            self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)
+            logger.info(f"generated file summaries")
+
         async def process_commit(commit):
             if self.skip_summaries:
                 commit['summaries'] = []
@@ -156,18 +184,24 @@ class GitCommitManager:
         await asyncio.gather(*(process_commit(commit) for commit in self.new_commits))
 
         # Prepend the new commits to the existing log
+        logger.info(f"Existing commits in logs: {self.commits}")
         self.commits = self.new_commits + self.commits
 
         logger.info(f"Added new commits: {self.new_commits}")
 
     async def summarize_file(self, file_path: str):
-        """Summarize the content of the specified file using OpenAI's API."""
-        contents_dict = retrieve_file_contents(self.project, [FilePathEntry(path=file_path)], self.ignore_files)
+        logger.info(f"Summary cache {self.summary_cache}")
+        # Use caching only if it's the first run
+        logger.info(f"summarize file path {file_path}")
+        if self.is_first_run:
+            if file_path in self.summary_cache:
+               logger.info(f"Using cached summary for {file_path}")
+               return self.summary_cache[file_path]
 
-        # Check if no content was retrieved or if the content is empty/whitespace
+        contents_dict = retrieve_file_contents(self.project, [FilePathEntry(path=file_path)], self.ignore_files)
         if file_path not in contents_dict or not contents_dict[file_path].strip():
             logger.warning(f"No text content to summarize for file: {file_path}")
-            return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
+            return "eddf150cd15072ba4a8474209ec090fedd4d79e4"
 
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"

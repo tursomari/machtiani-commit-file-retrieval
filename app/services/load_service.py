@@ -4,6 +4,7 @@ import logging
 from app.models.requests import LoadRequest  # Import LoadRequest model
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
+from lib.indexer.file_summary_indexer import FileSummaryGenerator
 from lib.utils.utilities import (
     read_json_file,
     write_json_file,
@@ -40,6 +41,22 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
             return await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
+
+        #files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project), "files_embeddings.json")
+        #existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
+
+        #file_summary_generator = FileSummaryGenerator(
+        #    project_name=project,
+        #    commit_logs=commits_logs_json,
+        #    api_key=openai_api_key,
+        #    git_project_path=git_project_path,
+        #    ignore_files=ignore_files,
+        #    existing_file_embeddings=existing_files_summaries_json
+        #)
+
+        #files_summaries_json = await asyncio.to_thread(file_summary_generator.generate)
+        #logger.info(f"files summaries type {type(files_summaries_json)}")
+        #logger.info(f"files summaries  {files_summaries_json}")
 
         parser = GitCommitManager(commits_logs_json, project, openai_api_key, commit_message_model="gpt-4o-mini", ignore_files=ignore_files)
         depth = 15000
