@@ -154,7 +154,7 @@ class GitCommitManager:
         existing_oids = {commit['oid'] for commit in self.commits}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
-        if self.is_first_run and not self.skip_summaries:
+        if self.skip_summaries is False and self.is_first_run is True:
             files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project), "files_embeddings.json")
             existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
 
