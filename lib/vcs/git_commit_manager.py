@@ -212,61 +212,42 @@ class GitCommitManager:
             logger.error(f"Error generating summary for {file_path}: {e}")
             return f"Error generating summary: {e}"
 
-    def amplify_commits(self, base_prompt, temperature, per_file=False):
+    async def amplify_commits(self, base_prompt, temperature, per_file=False):
+        sem = asyncio.Semaphore(10)  # Adjust based on API limits
 
-        def generate_commit_message(commit):
-            messages = []
-            diffs = commit.get('diffs', {})
-
-            if diffs:
-                if per_file:
-                    # Only execute per‑file logic if there is more than one diff.
-                    if len(diffs) > 1:
-                        for file_name, diff_info in diffs.items():
-                            diff_text = diff_info.get('diff', '')
-                            diff_block = f"{file_name}\n{diff_text}"
-                            full_prompt = base_prompt + diff_block
-                            message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model, temperature)
-                            messages.append(message)
-                    else:
-                        # If there is only a single diff, do not generate any messages in per_file mode.
-                        return []
-                else:
-                    # Combined processing: aggregate all diffs.
-                    diff_blocks = []
-                    for file_name, diff_info in diffs.items():
-                        diff_text = diff_info.get('diff', '')
-                        diff_block = f"{file_name}\n{diff_text}"
-                        diff_blocks.append(diff_block)
-                    combined_diffs = "\n\n".join(diff_blocks)
-                    full_prompt = base_prompt + combined_diffs
-                    message = send_prompt_to_openai(full_prompt, self.openai_api_key, self.commit_message_model, temperature)
-                    messages.append(message)
-            else:
-                # If no diffs exist, send only the base prompt.
-                message = send_prompt_to_openai(base_prompt, self.openai_api_key, self.commit_message_model, temperature)
-                messages.append(message)
-
-            return messages
-
-        messages = [None] * len(self.new_commits)  # To store commit messages in order
-        max_workers = 10  # Specify the number of threads here
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_index = {
-                executor.submit(generate_commit_message, commit): index
-                for index, commit in enumerate(self.new_commits)
-            }
-
-            for future in as_completed(future_to_index):
-                index = future_to_index[future]
+        async def generate_message(commit_index, prompt):
+            async with sem:
                 try:
-                    message_list = future.result()
-                    # Extend the commit's message list with one or more messages.
-                    self.new_commits[index]['message'].extend(message_list)
+                    message = await send_prompt_to_openai_async(
+                        prompt, self.openai_api_key, self.commit_message_model, temperature
+                    )
+                    self.new_commits[commit_index]['message'].append(message)
                 except Exception as e:
-                    logger.error(f"Error generating commit message for commit at index '{index}': {e}")
+                    logger.error(f"Error generating commit message for commit {commit_index}: {e}")
 
+        tasks = []
+        for commit_index, commit in enumerate(self.new_commits):
+            diffs = commit.get('diffs', {})
+            if per_file and len(diffs) > 1:
+                for file_name, diff_info in diffs.items():
+                    diff_text = diff_info.get('diff', '')
+                    diff_block = f"{file_name}\n{diff_text}"
+                    prompt = base_prompt + diff_block
+                    tasks.append(generate_message(commit_index, prompt))
+            elif not per_file:
+                if diffs:
+                    diff_blocks = [
+                        f"{file_name}\n{diff_info.get('diff', '')}"
+                        for file_name, diff_info in diffs.items()
+                    ]
+                    combined_diffs = "\n\n".join(diff_blocks)
+                    prompt = base_prompt + combined_diffs
+                else:
+                    prompt = base_prompt
+                tasks.append(generate_message(commit_index, prompt))
+
+        if tasks:
+            await asyncio.gather(*tasks)
         logger.info(f"Amplified new commits: {self.new_commits}")
 
     def is_file_deleted(self, file_path, commit_oid):
