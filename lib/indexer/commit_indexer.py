@@ -50,63 +50,66 @@ class CommitEmbeddingGenerator:
     def generate_embeddings(self):
         start_time = time.time()  # Start the timer
         new_commits = self._filter_new_commits()
-        if not new_commits:
-            self.logger.info("No new commits to embed.")
-            return self.existing_embeddings, []
 
-        new_commits_with_files = [commit for commit in new_commits if commit.get('files')]
+        # If there are no new commits, return early
+        new_commits_with_files = [c for c in new_commits if c.get('files')]
         if not new_commits_with_files:
             self.logger.info("No new commits with changed files to embed.")
             return self.existing_embeddings, []
 
         # Prepare data structures
-        combined_texts = []  # Final texts for each commit
-        commit_embeddings = []  # Final embeddings for each commit
-
-        # First collect all texts and cached embeddings by commit
         all_commits_data = []
 
+        # First collect all texts and cached embeddings by commit
         for commit in new_commits_with_files:
-            # Ensure message is a string
-            message = self._ensure_string(commit['message'])
+            # Handle 'message' as a list
+            messages = commit['message'] if isinstance(commit['message'], list) else [commit['message']]
 
             commit_data = {
                 'commit': commit,
-                'combined_text': message,
+                'messages': messages,  # Store the original list of messages
                 'cached_embeddings': [],
                 'needs_embedding': False
             }
 
+            # Get any summaries (also potentially a list)
+            summaries = commit.get('summaries', [])
+            if summaries:
+                if not isinstance(summaries, list):
+                    summaries = [summaries]
+                commit_data['messages'].extend(summaries)
+
+            # Check for cached embeddings for files
             for file in commit.get('files', []):
                 if file in self.summary_cache and 'embedding' in self.summary_cache[file]:
                     self.logger.info(f"Using cached embedding for file: {file}")
                     commit_data['cached_embeddings'].append(self.summary_cache[file]['embedding'])
                 else:
-                    # If no cached embedding, append the summary text for embedding
-                    summaries = commit.get('summaries', [])
-                    summaries_text = self._ensure_string(summaries)
-                    if summaries_text:
-                        commit_data['combined_text'] += " " + summaries_text
                     commit_data['needs_embedding'] = True
 
             all_commits_data.append(commit_data)
 
         # Collect all texts that need embedding into a single batch
         texts_to_embed = []
-        for commit_data in all_commits_data:
-            if commit_data['needs_embedding'] and self._ensure_string(commit_data['combined_text']).strip():
-                texts_to_embed.append(commit_data['combined_text'])
+        commit_indices = []  # Track which commit each text belongs to
+
+        for i, commit_data in enumerate(all_commits_data):
+            if commit_data['needs_embedding']:
+                # Add all messages from this commit that need embedding
+                for message in commit_data['messages']:
+                    message_str = self._ensure_string(message)
+                    if message_str.strip():
+                        texts_to_embed.append(message_str)
+                        commit_indices.append(i)
 
         # Make a single batch embedding call
         if texts_to_embed:
             batch_embeddings = self.embedding_generator.embed_documents(texts_to_embed)
 
             # Distribute embeddings back to their respective commits
-            embedding_index = 0
-            for commit_data in all_commits_data:
-                if commit_data['needs_embedding'] and self._ensure_string(commit_data['combined_text']).strip():
-                    commit_data['cached_embeddings'].append(batch_embeddings[embedding_index])
-                    embedding_index += 1
+            for i, embedding in enumerate(batch_embeddings):
+                commit_index = commit_indices[i]
+                all_commits_data[commit_index]['cached_embeddings'].append(embedding)
 
         # Update embeddings dictionary
         new_commit_oids = []
@@ -116,13 +119,10 @@ class CommitEmbeddingGenerator:
         for commit_data in all_commits_data:
             commit = commit_data['commit']
             updated_embeddings[commit['oid']] = {
-                "messages": commit_data['combined_text'],
-                "embeddings": commit_data['cached_embeddings']
+                "messages": commit_data['messages'],  # Already a list of messages
+                "embeddings": commit_data['cached_embeddings']  # List of embeddings
             }
             new_commit_oids.append(commit['oid'])
-            # Add to combined_texts and commit_embeddings for consistency with original code
-            combined_texts.append(commit_data['combined_text'])
-            commit_embeddings.append(commit_data['cached_embeddings'])
 
         duration = time.time() - start_time  # Calculate the duration
         self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} commits in {duration:.2f} seconds.")
