@@ -40,7 +40,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
     project = url_to_folder_name(project)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-    matcher = CommitEmbeddingMatcher(embeddings_file=commits_embeddings_file_path, api_key=api_key)
+    matcher = CommitEmbeddingMatcher(commits_embedding_filepath=commits_embeddings_file_path, embeddings_model_api_key=api_key)
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")

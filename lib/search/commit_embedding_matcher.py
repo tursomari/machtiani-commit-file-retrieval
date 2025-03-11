@@ -13,12 +13,12 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:
-    def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
+    def __init__(self, commits_embedding_filepath: str, embeddings_model_api_key: str, embeddings_model: str = "text-embedding-3-large"):
         # Set up your OpenAI API key
-        if api_key:
-            self.openai_api_key = api_key
-            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=model)
-            self.embeddings_dict = self.load_embeddings(embeddings_file)
+        if embeddings_model_api_key:
+            self.embeddings_model_api_key = embeddings_model_api_key
+            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=embeddings_model)
+            self.embeddings_dict = self.load_embeddings(commits_embedding_filepath)
         else:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
 
