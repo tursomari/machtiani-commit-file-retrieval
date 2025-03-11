@@ -67,7 +67,7 @@ async def count_tokens_load(load_request: LoadRequest):
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project, openai_api_key, commit_message_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
+    parser = GitCommitManager(commits_logs_json, project, openai_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
 
 
     depth = 1000
@@ -78,7 +78,7 @@ async def count_tokens_load(load_request: LoadRequest):
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
     logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
 
-    commits_logs_json = parser.commits
+    commits_logs_json = parser.commits_logs
     existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
     generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
 

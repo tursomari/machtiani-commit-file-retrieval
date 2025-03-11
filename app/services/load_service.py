@@ -58,7 +58,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         #logger.info(f"files summaries type {type(files_summaries_json)}")
         #logger.info(f"files summaries  {files_summaries_json}")
 
-        parser = GitCommitManager(commits_logs_json, project, openai_api_key, commit_message_model="gpt-4o-mini", ignore_files=ignore_files)
+        parser = GitCommitManager(commits_logs_json, project, openai_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files)
         depth = 15000
         logger.info("Adding commits to log...")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth)
@@ -70,8 +70,8 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         logger.info("Finished adding commits to log.")
 
-        logger.info(f"New commits added: {parser.commits}")
-        await asyncio.to_thread(write_json_file, parser.commits, commits_logs_file_path)
+        logger.info(f"New commits added: {parser.commits_logs}")
+        await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)
 
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
