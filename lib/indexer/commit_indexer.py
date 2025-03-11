@@ -12,7 +12,7 @@ from app.utils import (
 )
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, api_key: str, existing_embeddings=None, model="text-embedding-3-large", files_summaries_json: Dict[str, str] = {},):
+    def __init__(self, commit_logs, llm_api_key: str, existing_commits_embeddings=None, llm_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {},):
         """
         Initialize the CommitEmbeddingGenerator with commit logs and an optional existing embeddings JSON object.
 
@@ -25,19 +25,19 @@ class CommitEmbeddingGenerator:
         self.logger = logging.getLogger(__name__)
 
         self.commit_logs = commit_logs
-        self.model = model
+        self.llm_model = llm_model
 
         # Set up your OpenAI API key
-        self.openai_api_key = api_key
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.model)
+        self.llm_api_key = llm_api_key
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.llm_api_key, model=self.llm_model)
 
         # Use the provided existing embeddings or start with an empty dictionary
-        self.existing_embeddings = existing_embeddings if existing_embeddings is not None else {}
-        self.summary_cache = files_summaries_json
+        self.existing_commits_embeddings = existing_commits_embeddings if existing_commits_embeddings is not None else {}
+        self.files_embeddings_cache = files_embeddings
 
     def _filter_new_commits(self):
         """Filter out commits that already have embeddings."""
-        new_commits = [commit for commit in self.commit_logs if commit['oid'] not in self.existing_embeddings]
+        new_commits = [commit for commit in self.commit_logs if commit['oid'] not in self.existing_commits_embeddings]
         self.logger.info(f"Found {len(new_commits)} new commits to embed.")
         return new_commits
 
@@ -55,7 +55,7 @@ class CommitEmbeddingGenerator:
         new_commits_with_files = [c for c in new_commits if c.get('files')]
         if not new_commits_with_files:
             self.logger.info("No new commits with changed files to embed.")
-            return self.existing_embeddings, []
+            return self.existing_commits_embeddings, []
 
         # Prepare data structures
         all_commits_data = []
@@ -81,9 +81,9 @@ class CommitEmbeddingGenerator:
 
             # Check for cached embeddings for files
             for file in commit.get('files', []):
-                if file in self.summary_cache and 'embedding' in self.summary_cache[file]:
+                if file in self.files_embeddings_cache and 'embedding' in self.files_embeddings_cache[file]:
                     self.logger.info(f"Using cached embedding for file: {file}")
-                    commit_data['cached_embeddings'].append(self.summary_cache[file]['embedding'])
+                    commit_data['cached_embeddings'].append(self.files_embeddings_cache[file]['embedding'])
                 else:
                     commit_data['needs_embedding'] = True
 
@@ -113,7 +113,7 @@ class CommitEmbeddingGenerator:
 
         # Update embeddings dictionary
         new_commit_oids = []
-        updated_embeddings = self.existing_embeddings.copy()
+        updated_embeddings = self.existing_commits_embeddings.copy()
 
         # For each commit, update its entry
         for commit_data in all_commits_data:
