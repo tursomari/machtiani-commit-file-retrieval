@@ -161,10 +161,10 @@ class GitCommitManager:
             file_summary_generator = FileSummaryGenerator(
                 project_name=self.project,
                 commit_logs=self.new_commits,
-                api_key=self.openai_api_key,
+                llm_api_key=self.openai_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
-                existing_file_embeddings=existing_files_summaries_json
+                existing_files_embeddings=existing_files_summaries_json
             )
 
             self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)

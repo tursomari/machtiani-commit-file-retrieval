@@ -13,12 +13,12 @@ class FileSummaryGenerator:
         self,
         project_name: str,
         commit_logs,
-        api_key: str,
+        llm_api_key: str,
         git_project_path: str,
         ignore_files: list = None,
-        existing_file_embeddings=None,
-        embed_model="text-embedding-3-large",
-        summary_model="gpt-4o-mini"
+        existing_files_embeddings=None,
+        embeddings_model="text-embedding-3-large",
+        llm_model_summary="gpt-4o-mini"
     ):
         logging.basicConfig(
             level=logging.INFO,
@@ -30,15 +30,15 @@ class FileSummaryGenerator:
         self.project_name = project_name
         self.logger.info(f"project_name: {self.project_name}")
         self.commit_logs = commit_logs
-        self.embed_model = embed_model
-        self.summary_model = summary_model
+        self.embed_model = embeddings_model
+        self.summary_model = llm_model_summary
         self.git_project_path = git_project_path
         self.ignore_files = ignore_files if ignore_files is not None else []  # Default to empty list
 
-        self.openai_api_key = api_key
+        self.openai_api_key = llm_api_key
         self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.embed_model)
 
-        self.existing_file_embeddings = existing_file_embeddings if existing_file_embeddings is not None else {}
+        self.existing_file_embeddings = existing_files_embeddings if existing_files_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
 
         self.files_embeddings_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(project_name), "files_embeddings.json")
