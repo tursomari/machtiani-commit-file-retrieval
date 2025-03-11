@@ -12,7 +12,7 @@ from app.utils import (
 )
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, llm_api_key: str, existing_commits_embeddings=None, llm_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {},):
+    def __init__(self, commit_logs, embeddings_model_api_key: str, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {},):
         """
         Initialize the CommitEmbeddingGenerator with commit logs and an optional existing embeddings JSON object.
 
@@ -25,11 +25,11 @@ class CommitEmbeddingGenerator:
         self.logger = logging.getLogger(__name__)
 
         self.commit_logs = commit_logs
-        self.llm_model = llm_model
+        self.embeddings_model = embeddings_model
 
         # Set up your OpenAI API key
-        self.llm_api_key = llm_api_key
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.llm_api_key, model=self.llm_model)
+        self.embeddings_model_api_key = embeddings_model_api_key
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=self.embeddings_model)
 
         # Use the provided existing embeddings or start with an empty dictionary
         self.existing_commits_embeddings = existing_commits_embeddings if existing_commits_embeddings is not None else {}
