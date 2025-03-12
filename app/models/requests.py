@@ -24,7 +24,3 @@ class DeleteStoreRequest(BaseModel):
     vcs_type: VCSType
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None
-
-class DeleteStoreResponse(BaseModel):
-    success: bool
-    message: str
