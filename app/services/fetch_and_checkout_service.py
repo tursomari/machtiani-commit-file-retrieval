@@ -28,6 +28,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
 
     openai_api_key_value = openai_api_key.get_secret_value() if openai_api_key else None
     load_request = LoadRequest(  # Create an instance of LoadRequest
+        embeddings_model_api_key=openai_api_key_value,
         openai_api_key=openai_api_key_value,
         project_name=project_name,
         ignore_files=data.ignore_files
