@@ -107,7 +107,7 @@ def add_repository(data: AddRepositoryRequest):
         "openai_api_key_provided": bool(openai_api_key)
     }
 
-def delete_store(codehost_url: HttpUrl, project_name: str, ignore_files: list, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None, openai_api_key: Optional[SecretStr] = None, new_repo: bool = False) -> Dict[str, str]:
+def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None,  new_repo: bool = False) -> Dict[str, str]:
     """
     Deletes the specified store and cleans up associated files after checking for push access,
     unless `new_repo` is set to True.

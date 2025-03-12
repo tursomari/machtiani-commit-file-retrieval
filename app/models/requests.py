@@ -23,7 +23,6 @@ class LoadRequest(BaseModel):
 class DeleteStoreRequest(BaseModel):
     project_name: str
     codehost_url: HttpUrl
-    ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType
     api_key: Optional[SecretStr] = None
     openai_api_key: Optional[SecretStr] = None

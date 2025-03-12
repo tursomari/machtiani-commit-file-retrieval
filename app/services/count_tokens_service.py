@@ -44,10 +44,8 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         delete_store,
         codehost_url=data.codehost_url,
         project_name=data.project_name,
-        ignore_files=data.ignore_files,
         vcs_type=data.vcs_type,
         api_key=data.api_key,
-        openai_api_key=data.openai_api_key,
         new_repo=True,
     )
 
