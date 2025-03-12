@@ -20,6 +20,8 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
         response = await process_add_repository(data)
 
         load_request = LoadRequest(
+            llm_model = None,
+            embeddings_model=None,
             embeddings_model_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
             openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
             project_name=data.project_name,

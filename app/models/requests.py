@@ -13,6 +13,8 @@ class AddRepositoryRequest(BaseModel):
     openai_api_key: Optional[SecretStr] = None
 
 class LoadRequest(BaseModel):
+    llm_model: Optional[str] = None
+    embeddings_model: Optional[str] = None
     embeddings_model_api_key: Optional[str]
     openai_api_key: Optional[str]  # Make it optional
     project_name: str
