@@ -16,7 +16,7 @@ class LoadRequest(BaseModel):
     llm_model: Optional[str] = None
     embeddings_model: Optional[str] = None
     embeddings_model_api_key: Optional[str]
-    openai_api_key: Optional[str]  # Make it optional
+    llm_api_key: Optional[str]  # Make it optional
     project_name: str
     ignore_files: Optional[List[str]] = None
 

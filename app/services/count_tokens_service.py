@@ -31,7 +31,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         embeddings_model=None,
         llm_model=None,
         embeddings_model_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
-        openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
+        llm_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
         project_name=data.project_name,
         ignore_files=data.ignore_files
     )
@@ -54,7 +54,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
     return embedding_tokens, inference_token
 
 async def count_tokens_load(load_request: LoadRequest):
-    openai_api_key = load_request.openai_api_key
+    openai_api_key = load_request.llm_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
 

@@ -31,7 +31,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
         embeddings_model=None,
         llm_model=None,
         embeddings_model_api_key=openai_api_key_value,
-        openai_api_key=openai_api_key_value,
+        llm_api_key=openai_api_key_value,
         project_name=project_name,
         ignore_files=data.ignore_files
     )

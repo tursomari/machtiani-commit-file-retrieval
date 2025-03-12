@@ -23,7 +23,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             llm_model = None,
             embeddings_model=None,
             embeddings_model_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
-            openai_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
+            llm_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
             project_name=data.project_name,
             ignore_files=data.ignore_files
         )
