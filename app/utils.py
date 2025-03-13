@@ -259,8 +259,8 @@ async def send_prompt_to_openai_async(
     openai_chain = prompt | openai_llm
 
     # Asynchronously invoke the chain using the new ainvoke method
-    openai_response = await openai_chain.ainvoke({"input_text": prompt_text})
-    return openai_response.content
+    llm_model_response = await openai_chain.ainvoke({"input_text": prompt_text})
+    return llm_model_response.content
 
 def send_prompt_to_openai(
     prompt_text: str,
@@ -287,5 +287,5 @@ def send_prompt_to_openai(
     openai_chain = prompt | openai_llm
 
     # Execute the chain with the invoke method and return the response
-    openai_response = openai_chain.invoke({"input_text": prompt_text})
-    return openai_response.content
+    llm_model_response = openai_chain.invoke({"input_text": prompt_text})
+    return llm_model_response.content
