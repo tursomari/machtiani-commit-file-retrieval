@@ -35,7 +35,6 @@ from lib.utils.enums import (
     MatchStrength,
     EmbeddingModel,
     FilePathEntry,
-    FileContentResponse,
     VCSType,
     AddRepositoryRequest,
     FetchAndCheckoutBranchRequest,

@@ -27,9 +27,6 @@ class EmbeddingModel(str, Enum):
 class FilePathEntry(BaseModel):
     path: str
 
-class FileContentResponse(BaseModel):
-    contents: Dict[str, str]
-    retrieved_file_paths: List[str]
 
 class VCSType(str, Enum):
     git = "git"

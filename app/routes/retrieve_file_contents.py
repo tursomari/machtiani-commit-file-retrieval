@@ -6,7 +6,8 @@ from fastapi import APIRouter, HTTPException, Body
 from pydantic import ValidationError
 from lib.utils.utilities import url_to_folder_name
 from app.utils import retrieve_file_contents
-from lib.utils.enums import FilePathEntry, FileContentResponse
+from app.models.responses import FileContentResponse
+from lib.utils.enums import FilePathEntry
 from app.services.generate_response_service import retrieve_file_contents_service  # Import the service
 
 router = APIRouter()

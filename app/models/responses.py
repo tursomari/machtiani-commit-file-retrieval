@@ -58,3 +58,7 @@ class FileSearchResponse(BaseModel):
     embedding_model: EmbeddingModel
     mode: SearchMode
     path_type: str
+
+class FileContentResponse(BaseModel):
+    contents: Dict[str, str]
+    retrieved_file_paths: List[str]
