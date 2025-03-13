@@ -27,14 +27,6 @@ class EmbeddingModel(str, Enum):
 class FilePathEntry(BaseModel):
     path: str
 
-class FileSearchResponse(BaseModel):
-    oid: str
-    similarity: float
-    file_paths: List[FilePathEntry]
-    embedding_model: EmbeddingModel
-    mode: SearchMode
-    path_type: str
-
 class FileContentResponse(BaseModel):
     contents: Dict[str, str]
     retrieved_file_paths: List[str]

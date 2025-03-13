@@ -3,11 +3,11 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
+from app.models.responses import FileSearchResponse
 from lib.utils.enums import (
     SearchMode,
     EmbeddingModel,
     FilePathEntry,
-    FileSearchResponse,
 )
 
 router = APIRouter()

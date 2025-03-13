@@ -4,7 +4,8 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Body
 import logging
 from lib.utils.utilities import read_json_file, url_to_folder_name
-from lib.utils.enums import SearchMode, MatchStrength, EmbeddingModel, FilePathEntry, FileSearchResponse
+from lib.utils.enums import SearchMode, MatchStrength, EmbeddingModel, FilePathEntry
+from app.models.responses import FileSearchResponse
 from app.services.generate_response_service import infer_file_service  # Import the service
 
 router = APIRouter()

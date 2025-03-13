@@ -4,8 +4,9 @@ import logging
 from typing import List
 from pydantic import ValidationError
 from app.utils import retrieve_file_contents
+from app.models.responses import FileSearchResponse
 from lib.utils.utilities import url_to_folder_name, read_json_file
-from lib.utils.enums import FilePathEntry, FileContentResponse, FileSearchResponse
+from lib.utils.enums import FilePathEntry, FileContentResponse
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from app.utils import DataDir
