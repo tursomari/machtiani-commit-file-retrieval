@@ -1,9 +1,9 @@
 import logging
 from fastapi import APIRouter, HTTPException
 from app.services.count_tokens_service import process_repository_and_count_tokens
-from lib.utils.enums import AddRepositoryRequest
 from lib.utils.utilities import url_to_folder_name, repo_exists
 from app.models.responses import LoadResponse
+from app.models.requests import AddRepositoryRequest
 
 # Setting up the router and logger
 router = APIRouter()

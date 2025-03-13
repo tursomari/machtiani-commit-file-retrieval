@@ -1,8 +1,7 @@
 from git import Repo, Remote, GitCommandError
 from app.utils import DataDir
 from lib.utils.enums import (
-    AddRepositoryRequest,
-    VCSType,
+    VCSType
 )
 from fastapi import FastAPI, Query, HTTPException, Body
 import os
@@ -13,6 +12,7 @@ from lib.utils.utilities import (
     construct_remote_url,
 )
 from app.models.responses import DeleteStoreResponse
+from app.models.requests import AddRepositoryRequest
 from pydantic import HttpUrl, SecretStr
 from typing import Optional, Union, Dict
 from fastapi import HTTPException

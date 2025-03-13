@@ -36,7 +36,6 @@ from lib.utils.enums import (
     EmbeddingModel,
     FilePathEntry,
     VCSType,
-    AddRepositoryRequest,
     FetchAndCheckoutBranchRequest,
 )
 from app.routes import (

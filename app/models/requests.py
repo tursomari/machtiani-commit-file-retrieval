@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, SecretStr
+from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
 from typing import Optional, List, Dict
 from lib.utils.enums import VCSType
@@ -11,6 +11,18 @@ class AddRepositoryRequest(BaseModel):
     ignore_files: List[str] = []  # Default to an empty list
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
+
+    @validator('api_key')
+    def validate_api_key(cls, v):
+        if v and not v.get_secret_value().strip():
+            raise ValueError("API key cannot be empty if provided")
+        return v
+
+    @validator('llm_model_api_key')
+    def validate_api_key(cls, v):
+        if v and not v.get_secret_value().strip():
+            raise ValueError("API key cannot be empty if provided")
+        return v
 
 class LoadRequest(BaseModel):
     llm_model: Optional[str] = None

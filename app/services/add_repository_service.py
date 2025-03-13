@@ -1,7 +1,7 @@
 import asyncio
+from app.models.requests import AddRepositoryRequest
 from lib.vcs.repo_manager import add_repository
 from lib.utils.utilities import url_to_folder_name
-from lib.utils.enums import AddRepositoryRequest
 from fastapi import HTTPException
 
 async def process_add_repository(data: AddRepositoryRequest):

@@ -32,26 +32,6 @@ class VCSType(str, Enum):
     git = "git"
     # Additional VCS types can be added here in the future, e.g., "svn", "mercurial", etc.
 
-class AddRepositoryRequest(BaseModel):
-    codehost_url: HttpUrl
-    project_name: str
-    vcs_type: VCSType = VCSType.git  # Default to "git"
-    ignore_files: List[str] = []  # Default to an empty list
-    api_key: Optional[SecretStr] = None
-    llm_model_api_key: Optional[SecretStr] = None
-
-    @validator('api_key')
-    def validate_api_key(cls, v):
-        if v and not v.get_secret_value().strip():
-            raise ValueError("API key cannot be empty if provided")
-        return v
-
-    @validator('llm_model_api_key')
-    def validate_api_key(cls, v):
-        if v and not v.get_secret_value().strip():
-            raise ValueError("API key cannot be empty if provided")
-        return v
-
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
