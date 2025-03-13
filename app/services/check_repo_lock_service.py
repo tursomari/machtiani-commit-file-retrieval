@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 async def check_repo_lock(
     codehost_url: HttpUrl,
-    api_key: Optional[SecretStr]
 ):
     """ Check if the repo.lock file is present after verifying push access. """
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name

@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 @router.get("/status/")
 async def check_repo_lock_route(
     codehost_url: HttpUrl = Query(..., description="Code host URL for the repository"),
-    api_key: Optional[SecretStr] = Query(None, description="Optional API key for authentication")
+    # Should also have a codehost_api_key, to validate user has access?
 ):
     """ Check if the repo.lock file is present after verifying push access. """
     try:
-        return await check_repo_lock(codehost_url, api_key)
+        return await check_repo_lock(codehost_url)
     except Exception as e:
         logger.error(f"Error checking repo lock: {str(e)}")
         raise HTTPException(status_code=403, detail=str(e))
