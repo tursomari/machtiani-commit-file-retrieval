@@ -36,7 +36,6 @@ from lib.utils.enums import (
     EmbeddingModel,
     FilePathEntry,
     VCSType,
-    FetchAndCheckoutBranchRequest,
 )
 from app.routes import (
     test_pull_access,

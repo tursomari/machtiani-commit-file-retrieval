@@ -3,10 +3,10 @@ import logging
 from fastapi import APIRouter, HTTPException
 from app.utils import DataDir
 from lib.utils.utilities import url_to_folder_name, get_lock_file_path
-from lib.utils.enums import VCSType, FetchAndCheckoutBranchRequest
+from lib.utils.enums import VCSType
 from lib.vcs.repo_manager import fetch_and_checkout_branch
 from app.services.count_tokens_service import count_tokens_load
-from app.models.requests import LoadRequest  # Import the LoadRequest model
+from app.models.requests import LoadRequest, FetchAndCheckoutBranchRequest  # Import the LoadRequest model
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

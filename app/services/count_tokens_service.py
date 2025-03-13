@@ -5,7 +5,7 @@ from lib.vcs.repo_manager import add_repository, delete_store, fetch_and_checkou
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.utils.utilities import url_to_folder_name, read_json_file
-from lib.utils.enums import VCSType, FetchAndCheckoutBranchRequest
+from lib.utils.enums import VCSType
 from app.utils import count_tokens
 from app.models.requests import LoadRequest, AddRepositoryRequest  # Import the LoadRequest model
 from fastapi import APIRouter, HTTPException

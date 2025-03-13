@@ -4,8 +4,7 @@ from fastapi import APIRouter, HTTPException
 from app.utils import DataDir
 from lib.utils.utilities import url_to_folder_name, get_lock_file_path
 from lib.vcs.repo_manager import fetch_and_checkout_branch
-from lib.utils.enums import FetchAndCheckoutBranchRequest
-from app.models.requests import LoadRequest  # Import the LoadRequest model
+from app.models.requests import LoadRequest, FetchAndCheckoutBranchRequest  # Import the LoadRequest model
 from app.routes.load import handle_load
 from app.models.responses import FetchAndCheckoutResponse  # Import the new response model
 

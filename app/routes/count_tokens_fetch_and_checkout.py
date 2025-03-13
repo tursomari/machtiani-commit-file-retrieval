@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from fastapi import APIRouter, HTTPException
-from lib.utils.enums import VCSType, FetchAndCheckoutBranchRequest
+from app.models.requests import FetchAndCheckoutBranchRequest
+from lib.utils.enums import VCSType
 from app.services.fetch_and_checkout_service import process_fetch_and_checkout  # Importing the service
 from app.models.responses import LoadResponse
 
