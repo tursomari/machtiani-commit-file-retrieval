@@ -87,7 +87,7 @@ def add_repository(data: AddRepositoryRequest):
     project_name = data.project_name
     vcs_type = data.vcs_type
     api_key = data.api_key
-    openai_api_key = data.openai_api_key
+    llm_model_api_key = data.llm_model_api_key
 
     if vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{vcs_type}' is not supported.")
@@ -99,12 +99,12 @@ def add_repository(data: AddRepositoryRequest):
     # Clone the repository using the module, into the 'git' directory
     clone_repository(codehost_url, destination_path, project_name, api_key)
 
-    # Return the openai_api_key with the response for further usage
+    # Return the llm_model_api_key with the response for further usage
     return {
         "message": f"{vcs_type} repository added successfully",
         "full_path": f"{destination_path}/{project_name}/repo/git",
         "api_key_provided": bool(api_key),
-        "openai_api_key_provided": bool(openai_api_key)
+        "llm_model_api_key_provided": bool(llm_model_api_key)
     }
 
 def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None,  new_repo: bool = False) -> Dict[str, str]:
@@ -117,7 +117,7 @@ def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = V
     :param ignore_files: List of files to ignore during operations.
     :param vcs_type: The type of version control system (default: git).
     :param api_key: Optional GitHub API key for authentication.
-    :param openai_api_key: Optional OpenAI API key for additional operations.
+    :param llm_model_api_key: Optional OpenAI API key for additional operations.
     :param new_repo: If True, skip checking push access before deletion (default: False).
     :return: A message indicating success or failure in deletion.
     """

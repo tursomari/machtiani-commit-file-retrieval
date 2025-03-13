@@ -17,7 +17,7 @@ from app.utils import DataDir
 logger = logging.getLogger(__name__)
 
 async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
-    openai_api_key = load_request.llm_api_key
+    llm_model_api_key = load_request.llm_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
 
@@ -41,7 +41,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-        parser = GitCommitManager(commits_logs_json, project, openai_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files)
+        parser = GitCommitManager(commits_logs_json, project, llm_model_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files)
         depth = 15000
         logger.info("Adding commits to log...")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth)
@@ -64,7 +64,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path) or {}
 
-        generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json, files_embeddings=parser.summary_cache)
+        generator = CommitEmbeddingGenerator(commits_logs_json, llm_model_api_key, existing_commits_embeddings_json, files_embeddings=parser.summary_cache)
         updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
 
         logger.info(f"Number of new commit OIDs: {len(new_commit_oids)}")

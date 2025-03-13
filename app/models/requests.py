@@ -10,13 +10,13 @@ class AddRepositoryRequest(BaseModel):
     vcs_type: VCSType = VCSType.git  # Default to "git"
     ignore_files: List[str] = []  # Default to an empty list
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None
+    llm_model_api_key: Optional[SecretStr] = None
 
 class LoadRequest(BaseModel):
     llm_model: Optional[str] = None
     embeddings_model: Optional[str] = None
     embeddings_model_api_key: Optional[str]
-    llm_api_key: Optional[str]  # Make it optional
+    llm_model_api_key: Optional[str]  # Make it optional
     project_name: str
     ignore_files: Optional[List[str]] = None
 
@@ -25,4 +25,4 @@ class DeleteStoreRequest(BaseModel):
     codehost_url: HttpUrl
     vcs_type: VCSType
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None
+    llm_model_api_key: Optional[SecretStr] = None

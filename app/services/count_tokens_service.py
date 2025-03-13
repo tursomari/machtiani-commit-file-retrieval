@@ -25,13 +25,13 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
     result_add_repo = await asyncio.to_thread(add_repository, data)
 
     # Extract the OpenAI API key value
-    openai_api_key_value = data.openai_api_key.get_secret_value() if data.openai_api_key else None
+    llm_model_api_key_value = data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None
 
     load_request = LoadRequest(
         embeddings_model=None,
         llm_model=None,
-        embeddings_model_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
-        llm_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key else None,
+        embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
+        llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
         project_name=data.project_name,
         ignore_files=data.ignore_files
     )
@@ -52,7 +52,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
     return embedding_tokens, inference_token
 
 async def count_tokens_load(load_request: LoadRequest):
-    openai_api_key = load_request.llm_api_key
+    llm_model_api_key = load_request.llm_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
 
@@ -68,7 +68,7 @@ async def count_tokens_load(load_request: LoadRequest):
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project, openai_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
+    parser = GitCommitManager(commits_logs_json, project, llm_model_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
 
 
     depth = 1000
@@ -81,7 +81,7 @@ async def count_tokens_load(load_request: LoadRequest):
 
     commits_logs_json = parser.commits_logs
     existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path)
-    generator = CommitEmbeddingGenerator(commits_logs_json, openai_api_key, existing_commits_embeddings_json)
+    generator = CommitEmbeddingGenerator(commits_logs_json, llm_model_api_key, existing_commits_embeddings_json)
 
     new_commits = await asyncio.to_thread(generator._filter_new_commits)
     logger.info(f"new commits:\n{new_commits}")

@@ -49,7 +49,7 @@ class AddRepositoryRequest(BaseModel):
     vcs_type: VCSType = VCSType.git  # Default to "git"
     ignore_files: List[str] = []  # Default to an empty list
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None
+    llm_model_api_key: Optional[SecretStr] = None
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -57,7 +57,7 @@ class AddRepositoryRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
-    @validator('openai_api_key')
+    @validator('llm_model_api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")
@@ -70,9 +70,9 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None
+    llm_model_api_key: Optional[SecretStr] = None
 
-    @validator('openai_api_key')
+    @validator('llm_model_api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")

@@ -17,7 +17,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
     project_name = url_to_folder_name(data.project_name)
     branch_name = data.branch_name
     api_key = data.api_key
-    openai_api_key = data.openai_api_key
+    llm_model_api_key = data.llm_model_api_key
 
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
@@ -26,12 +26,12 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
 
     await asyncio.to_thread(fetch_and_checkout_branch, codehost_url, destination_path, project_name, branch_name, api_key)
 
-    openai_api_key_value = openai_api_key.get_secret_value() if openai_api_key else None
+    llm_model_api_key_value = llm_model_api_key.get_secret_value() if llm_model_api_key else None
     load_request = LoadRequest(  # Create an instance of LoadRequest
         embeddings_model=None,
         llm_model=None,
-        embeddings_model_api_key=openai_api_key_value,
-        llm_api_key=openai_api_key_value,
+        embeddings_model_api_key=llm_model_api_key_value,
+        llm_model_api_key=llm_model_api_key_value,
         project_name=project_name,
         ignore_files=data.ignore_files
     )

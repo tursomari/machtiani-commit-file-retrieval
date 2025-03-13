@@ -22,8 +22,8 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
         load_request = LoadRequest(
             llm_model = None,
             embeddings_model=None,
-            embeddings_model_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
-            llm_api_key=data.openai_api_key.get_secret_value() if data.openai_api_key and data.openai_api_key.get_secret_value().strip() else None,
+            embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,
+            llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,
             project_name=data.project_name,
             ignore_files=data.ignore_files
         )
@@ -39,7 +39,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             message=response.get("message"),
             full_path=response.get("full_path"),
             api_key_provided=response.get("api_key_provided"),
-            openai_api_key_provided=response.get("openai_api_key_provided")
+            llm_model_api_key_provided=response.get("llm_model_api_key_provided")
         )
 
     except HTTPException as e:

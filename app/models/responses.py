@@ -8,7 +8,7 @@ class AddRepositoryResponse(BaseModel):
     message: str
     full_path: str
     api_key_provided: bool
-    openai_api_key_provided: bool
+    llm_model_api_key_provided: bool
 
 class TokenCountResponse(BaseModel):
     token_count: int
@@ -34,9 +34,9 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
-    openai_api_key: Optional[SecretStr] = None
+    llm_model_api_key: Optional[SecretStr] = None
 
-    @validator('openai_api_key')
+    @validator('llm_model_api_key')
     def validate_api_key(cls, v):
         if v and not v.get_secret_value().strip():
             raise ValueError("API key cannot be empty if provided")

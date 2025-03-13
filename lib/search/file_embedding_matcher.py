@@ -16,8 +16,8 @@ class FileEmbeddingMatcher:
     def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
         # Set up your OpenAI API key
         if api_key:
-            self.openai_api_key = api_key
-            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=model)
+            self.llm_model_api_key = api_key
+            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.llm_model_api_key, model=model)
             self.embeddings_dict = self.load_embeddings(embeddings_file)
         else:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")

@@ -35,8 +35,8 @@ class FileSummaryGenerator:
         self.git_project_path = git_project_path
         self.ignore_files = ignore_files if ignore_files is not None else []  # Default to empty list
 
-        self.openai_api_key = llm_api_key
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.openai_api_key, model=self.embed_model)
+        self.llm_model_api_key = llm_api_key
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.llm_model_api_key, model=self.embed_model)
 
         self.existing_file_embeddings = existing_files_embeddings if existing_files_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
@@ -90,7 +90,7 @@ class FileSummaryGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
             try:
-                return send_prompt_to_openai(prompt, self.openai_api_key, self.summary_model)
+                return send_prompt_to_openai(prompt, self.llm_model_api_key, self.summary_model)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense

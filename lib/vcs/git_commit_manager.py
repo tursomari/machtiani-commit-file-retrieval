@@ -44,7 +44,7 @@ class GitCommitManager:
     ):
 
         self.is_first_run = True
-        self.openai_api_key = llm_api_key
+        self.llm_model_api_key = llm_api_key
         self.llm_model = llm_model
         self.summary_cache = files_embeddings
         """
@@ -168,7 +168,7 @@ class GitCommitManager:
             file_summary_generator = FileSummaryGenerator(
                 project_name=self.project_name,
                 commit_logs=self.new_commits,
-                llm_api_key=self.openai_api_key,
+                llm_api_key=self.llm_model_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
                 existing_files_embeddings=existing_files_summaries_json
@@ -213,7 +213,7 @@ class GitCommitManager:
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"
         try:
-            summary = await send_prompt_to_openai_async(prompt, self.openai_api_key, self.llm_model)
+            summary = await send_prompt_to_openai_async(prompt, self.llm_model_api_key, self.llm_model)
             return summary
         except Exception as e:
             logger.error(f"Error generating summary for {file_path}: {e}")
@@ -226,7 +226,7 @@ class GitCommitManager:
             async with sem:
                 try:
                     message = await send_prompt_to_openai_async(
-                        prompt, self.openai_api_key, self.llm_model, temperature
+                        prompt, self.llm_model_api_key, self.llm_model, temperature
                     )
                     self.new_commits[commit_index]['message'].append(message)
                 except Exception as e:
