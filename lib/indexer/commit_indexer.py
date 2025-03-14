@@ -4,7 +4,6 @@ import json
 import logging
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
-from lib.indexer.file_summary_indexer import FileSummaryGenerator
 from typing import Dict, List, Union
 from app.utils import (
     DataDir,

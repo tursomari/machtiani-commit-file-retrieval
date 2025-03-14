@@ -168,7 +168,8 @@ class GitCommitManager:
             file_summary_generator = FileSummaryGenerator(
                 project_name=self.project_name,
                 commit_logs=self.new_commits,
-                llm_api_key=self.llm_model_api_key,
+                llm_model_api_key=self.llm_model_api_key,
+                embeddings_model_api_key=self.llm_model_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
                 existing_files_embeddings=existing_files_summaries_json
