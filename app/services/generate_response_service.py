@@ -35,19 +35,30 @@ async def retrieve_file_contents_service(project_name: str, file_paths: List[Fil
     return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
 
 
-async def infer_file_service(prompt: str, project: str, mode: str, model: str, match_strength: str, api_key: str, ignore_files: List[str]) -> List[FileSearchResponse]:
+async def infer_file_service(prompt: str, project: str, mode: str, model: str, match_strength: str, llm_model_api_key: str, embeddings_model_api_key: str, ignore_files: List[str]) -> List[FileSearchResponse]:
     """Service method to infer file matches."""
     responses = []
     project = url_to_folder_name(project)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
-    matcher = CommitEmbeddingMatcher(commits_embedding_filepath=commits_embeddings_file_path, embeddings_model_api_key=api_key)
+    matcher = CommitEmbeddingMatcher(
+        commits_embedding_filepath=commits_embeddings_file_path,
+        embeddings_model_api_key=embeddings_model_api_key
+    )
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project, api_key, llm_model=model, ignore_files=ignore_files, skip_summaries=True)
+    parser = GitCommitManager(
+        commits_logs_json,
+        project,
+        llm_model_api_key=llm_model_api_key,
+        embeddings_model_api_key=embeddings_model_api_key,
+        llm_model=model,
+        ignore_files=ignore_files,
+        skip_summaries=True
+    )
 
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
 

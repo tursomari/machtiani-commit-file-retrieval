@@ -19,13 +19,23 @@ async def infer_file(
     model: EmbeddingModel = Body(..., description="The embedding model used"),
     match_strength: MatchStrength = Body(..., description="The strength of the match"),
     llm_model_api_key: str = Body(..., description="OpenAI API key"),
+    embeddings_model_api_key: str = Body(..., description="OpenAI API key for Embeddings"),
     ignore_files: List[str] = Body(..., description="List of file to ignore"),
 ) -> List[FileSearchResponse]:
     if not prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
 
     try:
-        responses = await infer_file_service(prompt, project, mode, model, match_strength, llm_model_api_key, ignore_files)
+        responses = await infer_file_service(
+            prompt,
+            project,
+            mode,
+            model,
+            match_strength,
+            llm_model_api_key,
+            embeddings_model_api_key,
+            ignore_files
+        )
     except Exception as e:
         logger.error(f"Error during inferencing: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while inferring file.")

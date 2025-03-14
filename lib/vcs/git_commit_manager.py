@@ -36,16 +36,20 @@ class GitCommitManager:
         self,
         commits_logs,
         project_name,
-        llm_api_key: str,
+        llm_model_api_key: str,
+        embeddings_model_api_key: str,
         llm_model="gpt-4o-mini",
+        embeddings_model="text-embedding-3-large",
         ignore_files: List[str] = [],
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False
     ):
 
         self.is_first_run = True
-        self.llm_model_api_key = llm_api_key
+        self.embeddings_model_api_key = embeddings_model_api_key
+        self.llm_model_api_key = llm_model_api_key
         self.llm_model = llm_model
+        self.embeddings_model = embeddings_model
         self.summary_cache = files_embeddings
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
@@ -169,7 +173,7 @@ class GitCommitManager:
                 project_name=self.project_name,
                 commit_logs=self.new_commits,
                 llm_model_api_key=self.llm_model_api_key,
-                embeddings_model_api_key=self.llm_model_api_key,
+                embeddings_model_api_key=self.embeddings_model_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
                 existing_files_embeddings=existing_files_summaries_json

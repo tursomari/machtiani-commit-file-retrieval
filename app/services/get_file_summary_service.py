@@ -4,7 +4,6 @@ import asyncio
 from typing import Dict, List, Optional
 from app.utils import DataDir
 from lib.utils.utilities import read_json_file, url_to_folder_name
-from lib.vcs.git_commit_manager import GitCommitManager
 
 logger = logging.getLogger(__name__)
 

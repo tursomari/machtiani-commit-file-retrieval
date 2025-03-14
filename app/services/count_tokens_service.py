@@ -53,6 +53,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
 
 async def count_tokens_load(load_request: LoadRequest):
     llm_model_api_key = load_request.llm_model_api_key
+    embeddings_model_api_key = load_request.embeddings_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
 
@@ -68,7 +69,15 @@ async def count_tokens_load(load_request: LoadRequest):
     logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    parser = GitCommitManager(commits_logs_json, project, llm_model_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files, skip_summaries=True)
+    parser = GitCommitManager(
+        commits_logs_json,
+        project,
+        llm_model_api_key=llm_model_api_key,
+        embeddings_model_api_key=embeddings_model_api_key,
+        llm_model="gpt-4o-mini",
+        ignore_files=ignore_files,
+        skip_summaries=True
+    )
 
 
     depth = 1000

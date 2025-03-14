@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
     llm_model_api_key = load_request.llm_model_api_key
+    embeddings_model_api_key = load_request.embeddings_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
 
@@ -41,7 +42,15 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
-        parser = GitCommitManager(commits_logs_json, project, llm_model_api_key, llm_model="gpt-4o-mini", ignore_files=ignore_files)
+        parser = GitCommitManager(
+            commits_logs_json,
+            project,
+            llm_model_api_key=llm_model_api_key,
+            embeddings_model_api_key=embeddings_model_api_key,
+            llm_model="gpt-4o-mini",
+            ignore_files=ignore_files
+        )
+
         depth = 15000
         logger.info("Adding commits to log...")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth)
