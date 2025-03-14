@@ -5,7 +5,7 @@ import json
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from lib.vcs.git_content_manager import GitContentManager
-from app.utils import DataDir, send_prompt_to_openai
+from app.utils import DataDir, LlmModel
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FileSummaryGenerator:
@@ -92,8 +92,10 @@ class FileSummaryGenerator:
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
 
             prompt = f"Summarize this {file_path}:\n{content}"
+
+            llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model)
             try:
-                return send_prompt_to_openai(prompt, self.llm_model_api_key, self.summary_model)
+                return llm_instance.send_prompt(prompt)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense

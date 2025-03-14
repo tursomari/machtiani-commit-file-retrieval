@@ -12,9 +12,10 @@ from app.utils import (
     DataDir,
     count_tokens,
     retrieve_file_contents,
-    send_prompt_to_openai,
-    send_prompt_to_openai_async,
+    LlmModel,
 )
+
+
 
 from lib.utils.utilities import (
     read_json_file,
@@ -44,7 +45,6 @@ class GitCommitManager:
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False
     ):
-
         self.is_first_run = True
         self.embeddings_model_api_key = embeddings_model_api_key
         self.llm_model_api_key = llm_model_api_key
@@ -217,8 +217,10 @@ class GitCommitManager:
 
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"
+
+        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model)
         try:
-            summary = await send_prompt_to_openai_async(prompt, self.llm_model_api_key, self.llm_model)
+            summary = await llm_instance.send_prompt_to_openai_async(prompt)
             return summary
         except Exception as e:
             logger.error(f"Error generating summary for {file_path}: {e}")
@@ -229,10 +231,9 @@ class GitCommitManager:
 
         async def generate_message(commit_index, prompt):
             async with sem:
+                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature)
                 try:
-                    message = await send_prompt_to_openai_async(
-                        prompt, self.llm_model_api_key, self.llm_model, temperature
-                    )
+                    message = await llm_instance.send_prompt_async(prompt)
                     self.new_commits[commit_index]['message'].append(message)
                 except Exception as e:
                     logger.error(f"Error generating commit message for commit {commit_index}: {e}")
