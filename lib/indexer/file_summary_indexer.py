@@ -5,7 +5,8 @@ import json
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from lib.vcs.git_content_manager import GitContentManager
-from app.utils import DataDir, LlmModel
+from app.utils import DataDir
+from lib.ai.llm_model import LlmModel
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FileSummaryGenerator:

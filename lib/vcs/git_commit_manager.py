@@ -8,14 +8,12 @@ from typing import List, Dict
 from lib.utils.enums import FilePathEntry
 from lib.vcs.git_content_manager import GitContentManager
 from lib.indexer.file_summary_indexer import FileSummaryGenerator
+from lib.ai.llm_model import LlmModel
 from app.utils import (
     DataDir,
     count_tokens,
     retrieve_file_contents,
-    LlmModel,
 )
-
-
 
 from lib.utils.utilities import (
     read_json_file,
