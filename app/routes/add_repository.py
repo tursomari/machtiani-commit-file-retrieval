@@ -24,6 +24,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             embeddings_model=None,
             embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,
             llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,
+            llm_model_base_url=data.llm_model_base_url,
             project_name=data.project_name,
             ignore_files=data.ignore_files
         )

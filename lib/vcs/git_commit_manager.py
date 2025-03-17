@@ -3,6 +3,7 @@ import json
 import os
 import logging
 import asyncio
+from pydantic import HttpUrl
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict
 from lib.utils.enums import FilePathEntry
@@ -36,6 +37,7 @@ class GitCommitManager:
         commits_logs,
         project_name,
         llm_model_api_key: str,
+        llm_model_base_url: HttpUrl,
         embeddings_model_api_key: str,
         llm_model="gpt-4o-mini",
         embeddings_model="text-embedding-3-large",
@@ -46,6 +48,7 @@ class GitCommitManager:
         self.is_first_run = True
         self.embeddings_model_api_key = embeddings_model_api_key
         self.llm_model_api_key = llm_model_api_key
+        self.llm_model_base_url = str(llm_model_base_url)
         self.llm_model = llm_model
         self.embeddings_model = embeddings_model
         self.summary_cache = files_embeddings
@@ -171,6 +174,7 @@ class GitCommitManager:
                 project_name=self.project_name,
                 commit_logs=self.new_commits,
                 llm_model_api_key=self.llm_model_api_key,
+                llm_model_base_url=self.llm_model_base_url,
                 embeddings_model_api_key=self.embeddings_model_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
@@ -216,7 +220,7 @@ class GitCommitManager:
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"
 
-        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model)
+        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url)
         try:
             summary = await llm_instance.send_prompt_to_openai_async(prompt)
             return summary
@@ -229,7 +233,7 @@ class GitCommitManager:
 
         async def generate_message(commit_index, prompt):
             async with sem:
-                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature)
+                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url)
                 try:
                     message = await llm_instance.send_prompt_async(prompt)
                     self.new_commits[commit_index]['message'].append(message)

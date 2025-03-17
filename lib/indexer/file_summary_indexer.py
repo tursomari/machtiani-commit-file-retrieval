@@ -2,6 +2,7 @@ import os
 import time
 import logging
 import json
+from pydantic import HttpUrl
 from fastapi import HTTPException
 from langchain_openai import OpenAIEmbeddings
 from lib.vcs.git_content_manager import GitContentManager
@@ -15,12 +16,13 @@ class FileSummaryGenerator:
         project_name: str,
         commit_logs,
         llm_model_api_key: str,
+        llm_model_base_url: HttpUrl,
         embeddings_model_api_key: str,
         git_project_path: str,
         ignore_files: list = None,
         existing_files_embeddings=None,
         embeddings_model="text-embedding-3-large",
-        llm_model="gpt-4o-mini"
+        llm_model="gpt-4o-mini",
     ):
         logging.basicConfig(
             level=logging.INFO,
@@ -38,6 +40,7 @@ class FileSummaryGenerator:
         self.ignore_files = ignore_files if ignore_files is not None else []  # Default to empty list
 
         self.llm_model_api_key = llm_model_api_key
+        self.llm_model_base_url = str(llm_model_base_url)
         self.embeddings_model_api_key = embeddings_model_api_key
 
         self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=self.embeddings_model)
@@ -94,7 +97,7 @@ class FileSummaryGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
 
-            llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model)
+            llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model, base_url=self.llm_model_base_url)
             try:
                 return llm_instance.send_prompt(prompt)
             except Exception as e:

@@ -1,6 +1,7 @@
 import os
 import asyncio
 from typing import List
+from pydantic import HttpUrl
 from fastapi import APIRouter, HTTPException, Body
 import logging
 from lib.utils.utilities import read_json_file, url_to_folder_name
@@ -18,6 +19,7 @@ async def infer_file(
     mode: SearchMode = Body(..., description="Search mode: pure-chat, commit, or super"),
     model: EmbeddingModel = Body(..., description="The embedding model used"),
     match_strength: MatchStrength = Body(..., description="The strength of the match"),
+    llm_model_base_url: HttpUrl = Body(..., description="OpenAI API key"),
     llm_model_api_key: str = Body(..., description="OpenAI API key"),
     embeddings_model_api_key: str = Body(..., description="OpenAI API key for Embeddings"),
     ignore_files: List[str] = Body(..., description="List of file to ignore"),
@@ -33,6 +35,7 @@ async def infer_file(
             model,
             match_strength,
             llm_model_api_key,
+            llm_model_base_url,
             embeddings_model_api_key,
             ignore_files
         )

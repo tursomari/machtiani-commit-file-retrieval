@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
     llm_model_api_key = load_request.llm_model_api_key
+    llm_model_base_url = load_request.llm_model_base_url
     embeddings_model_api_key = load_request.embeddings_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
@@ -46,6 +47,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
             commits_logs_json,
             project,
             llm_model_api_key=llm_model_api_key,
+            llm_model_base_url=llm_model_base_url,
             embeddings_model_api_key=embeddings_model_api_key,
             llm_model="gpt-4o-mini",
             ignore_files=ignore_files

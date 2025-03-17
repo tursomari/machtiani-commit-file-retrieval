@@ -11,6 +11,7 @@ class AddRepositoryRequest(BaseModel):
     ignore_files: List[str] = []  # Default to an empty list
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
+    llm_model_base_url: HttpUrl
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -29,6 +30,7 @@ class LoadRequest(BaseModel):
     embeddings_model: Optional[str] = None
     embeddings_model_api_key: Optional[str]
     llm_model_api_key: Optional[str]  # Make it optional
+    llm_model_base_url: HttpUrl
     project_name: str
     ignore_files: Optional[List[str]] = None
 
@@ -47,6 +49,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
+    llm_model_base_url: HttpUrl
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):

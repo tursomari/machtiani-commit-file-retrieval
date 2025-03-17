@@ -18,6 +18,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
     branch_name = data.branch_name
     api_key = data.api_key
     llm_model_api_key = data.llm_model_api_key
+    llm_model_base_url = data.llm_model_base_url
 
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
@@ -32,6 +33,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
         llm_model=None,
         embeddings_model_api_key=llm_model_api_key_value,
         llm_model_api_key=llm_model_api_key_value,
+        llm_model_base_url=llm_model_base_url,
         project_name=project_name,
         ignore_files=data.ignore_files
     )

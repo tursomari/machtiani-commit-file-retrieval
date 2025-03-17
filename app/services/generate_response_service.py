@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 from typing import List
-from pydantic import ValidationError
+from pydantic import ValidationError, HttpUrl
 from app.utils import retrieve_file_contents
 from app.models.responses import FileSearchResponse, FileContentResponse
 from lib.utils.utilities import url_to_folder_name, read_json_file
@@ -35,7 +35,7 @@ async def retrieve_file_contents_service(project_name: str, file_paths: List[Fil
     return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
 
 
-async def infer_file_service(prompt: str, project: str, mode: str, model: str, match_strength: str, llm_model_api_key: str, embeddings_model_api_key: str, ignore_files: List[str]) -> List[FileSearchResponse]:
+async def infer_file_service(prompt: str, project: str, mode: str, model: str, match_strength: str, llm_model_api_key: str, llm_model_base_url: HttpUrl ,embeddings_model_api_key: str, ignore_files: List[str]) -> List[FileSearchResponse]:
     """Service method to infer file matches."""
     responses = []
     project = url_to_folder_name(project)
@@ -54,6 +54,7 @@ async def infer_file_service(prompt: str, project: str, mode: str, model: str, m
         commits_logs_json,
         project,
         llm_model_api_key=llm_model_api_key,
+        llm_model_base_url=llm_model_base_url,
         embeddings_model_api_key=embeddings_model_api_key,
         llm_model=model,
         ignore_files=ignore_files,

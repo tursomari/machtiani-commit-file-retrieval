@@ -32,6 +32,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         llm_model=None,
         embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
         llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
+        llm_model_base_url=data.llm_model_base_url,
         project_name=data.project_name,
         ignore_files=data.ignore_files
     )
@@ -53,6 +54,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
 
 async def count_tokens_load(load_request: LoadRequest):
     llm_model_api_key = load_request.llm_model_api_key
+    llm_model_base_url = load_request.llm_model_base_url
     embeddings_model_api_key = load_request.embeddings_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
@@ -73,6 +75,7 @@ async def count_tokens_load(load_request: LoadRequest):
         commits_logs_json,
         project,
         llm_model_api_key=llm_model_api_key,
+        llm_model_base_url=llm_model_base_url,
         embeddings_model_api_key=embeddings_model_api_key,
         llm_model="gpt-4o-mini",
         ignore_files=ignore_files,
