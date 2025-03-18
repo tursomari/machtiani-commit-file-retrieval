@@ -4,6 +4,7 @@ import numpy as np
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from lib.utils.enums import MatchStrength
+from lib.ai.embeddings_model import EmbeddingModel
 from typing import List
 import logging
 import asyncio  # Import asyncio for asynchronous operations
@@ -17,7 +18,7 @@ class CommitEmbeddingMatcher:
         # Set up your OpenAI API key
         if embeddings_model_api_key:
             self.embeddings_model_api_key = embeddings_model_api_key
-            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=embeddings_model)
+            self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embeddings_model=embeddings_model)
             self.embeddings_dict = self.load_embeddings(commits_embedding_filepath)
         else:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")
@@ -41,7 +42,7 @@ class CommitEmbeddingMatcher:
 
     async def find_closest_commits(self, input_text: str, match_strength: MatchStrength, top_n: int = 10) -> list:
         logger.warning("Using the host's OpenAI API key for finding closest commits.")
-        input_embedding = await asyncio.to_thread(self.embedding_generator.embed_query, input_text)
+        input_embedding = await asyncio.to_thread(self.embedding_generator.embed_text, input_text)
         min_similarity = match_strength.get_min_similarity()
 
         matches = []

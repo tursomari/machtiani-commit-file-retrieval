@@ -4,7 +4,7 @@ import logging
 import json
 from pydantic import HttpUrl
 from fastapi import HTTPException
-from langchain_openai import OpenAIEmbeddings
+from lib.ai.embeddings_model import EmbeddingModel
 from lib.vcs.git_content_manager import GitContentManager
 from app.utils import DataDir
 from lib.ai.llm_model import LlmModel
@@ -43,7 +43,7 @@ class FileSummaryGenerator:
         self.llm_model_base_url = str(llm_model_base_url)
         self.embeddings_model_api_key = embeddings_model_api_key
 
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=self.embeddings_model)
+        self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embeddings_model=embeddings_model)
 
         self.existing_file_embeddings = existing_files_embeddings if existing_files_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
@@ -182,7 +182,7 @@ class FileSummaryGenerator:
             self.logger.info("No summaries to embed.")
             return self.existing_file_embeddings
 
-        embeddings = self.embedding_generator.embed_documents(summaries)
+        embeddings = self.embedding_generator.embed_list_of_text(summaries)
 
         # Update existing file embeddings
         for i, (file, _) in enumerate(contents):
