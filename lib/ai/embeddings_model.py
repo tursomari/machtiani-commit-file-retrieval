@@ -1,9 +1,10 @@
 import logging
 from typing import List
+from pydantic import HttpUrl
 from langchain_openai import OpenAIEmbeddings
 
 class EmbeddingModel:
-    def __init__(self, embeddings_model_api_key: str, embeddings_model="text-embedding-3-large"):
+    def __init__(self, embeddings_model_api_key: str, embedding_model_base_url: HttpUrl, embeddings_model="text-embedding-3-large"):
         """
         Initialize the LlmModel for generating embeddings.
 
@@ -16,7 +17,7 @@ class EmbeddingModel:
 
         # Set up your OpenAI API key and model for embeddings
         self.embeddings_model_api_key = embeddings_model_api_key
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=embeddings_model)
+        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, base_url=str(embedding_model_base_url), model=embeddings_model)
 
     def embed_list_of_text(self, texts: List[str]) -> List[List[float]]:
         """

@@ -2,10 +2,10 @@ import os
 import json
 import numpy as np
 from dotenv import load_dotenv
-from langchain_openai import OpenAIEmbeddings
 from lib.utils.enums import MatchStrength
 from lib.ai.embeddings_model import EmbeddingModel
 from typing import List
+from pydantic import HttpUrl
 import logging
 import asyncio  # Import asyncio for asynchronous operations
 
@@ -14,11 +14,11 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:
-    def __init__(self, commits_embedding_filepath: str, embeddings_model_api_key: str, embeddings_model: str = "text-embedding-3-large"):
+    def __init__(self, commits_embedding_filepath: str, embeddings_model_api_key: str, embedding_model_base_url: HttpUrl, embeddings_model: str = "text-embedding-3-large"):
         # Set up your OpenAI API key
         if embeddings_model_api_key:
             self.embeddings_model_api_key = embeddings_model_api_key
-            self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embeddings_model=embeddings_model)
+            self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embedding_model_base_url=embedding_model_base_url, embeddings_model=embeddings_model)
             self.embeddings_dict = self.load_embeddings(commits_embedding_filepath)
         else:
             raise ValueError("OpenAI API key not found. Please set it in the environment or pass it explicitly.")

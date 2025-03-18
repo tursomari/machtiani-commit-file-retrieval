@@ -43,7 +43,7 @@ class FileSummaryGenerator:
         self.llm_model_base_url = str(llm_model_base_url)
         self.embeddings_model_api_key = embeddings_model_api_key
 
-        self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embeddings_model=embeddings_model)
+        self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embedding_model_base_url=llm_model_base_url, embeddings_model=embeddings_model)
 
         self.existing_file_embeddings = existing_files_embeddings if existing_files_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
