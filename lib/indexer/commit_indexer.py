@@ -1,16 +1,24 @@
 import time
 import logging
 from typing import Dict, List, Union
-from langchain_openai import OpenAIEmbeddings
+from pydantic import HttpUrl
+from lib.ai.embeddings_model import EmbeddingModel
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, embeddings_model_api_key: str, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}):
+    def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}):
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.commit_logs = commit_logs
         self.embeddings_model = embeddings_model
         self.embeddings_model_api_key = embeddings_model_api_key
-        self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, model=self.embeddings_model)
+
+        # Use EmbeddingModel instead of OpenAIEmbeddings
+        self.embedding_generator = EmbeddingModel(
+            embeddings_model_api_key=self.embeddings_model_api_key,
+            embedding_model_base_url=embeddings_model_base_url,
+            embeddings_model=self.embeddings_model
+        )
+
         self.existing_commits_embeddings = existing_commits_embeddings if existing_commits_embeddings is not None else {}
         self.files_embeddings_cache = files_embeddings
 
@@ -86,10 +94,10 @@ class CommitEmbeddingGenerator:
                         texts_to_embed_global.append(text_str)
                         commit_indices.append(i)
 
-        # Generate embeddings in a single batch
+        # Generate embeddings in a single batch using the new embedding model
         batch_embeddings = []
         if texts_to_embed_global:
-            batch_embeddings = self.embedding_generator.embed_documents(texts_to_embed_global)
+            batch_embeddings = self.embedding_generator.embed_list_of_text(texts_to_embed_global)
 
         # Distribute embeddings back to commits
         embeddings_iter = iter(batch_embeddings)
@@ -132,4 +140,3 @@ class CommitEmbeddingGenerator:
         duration = time.time() - start_time
         self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} commits in {duration:.2f} seconds.")
         return updated_embeddings, new_commit_oids
-

@@ -75,7 +75,13 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         existing_commits_embeddings_json = await asyncio.to_thread(read_json_file, commits_embeddings_file_path) or {}
 
-        generator = CommitEmbeddingGenerator(commits_logs_json, llm_model_api_key, existing_commits_embeddings_json, files_embeddings=parser.summary_cache)
+        generator = CommitEmbeddingGenerator(
+            commits_logs_json,
+            embeddings_model_api_key,
+            embeddings_model_base_url=llm_model_base_url,  # Pass the llm_model_base_url here
+            existing_commits_embeddings=existing_commits_embeddings_json,
+            files_embeddings=parser.summary_cache
+        )
         updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
 
         logger.info(f"Number of new commit OIDs: {len(new_commit_oids)}")
