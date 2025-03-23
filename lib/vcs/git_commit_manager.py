@@ -222,7 +222,7 @@ class GitCommitManager:
 
         llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url)
         try:
-            summary = await llm_instance.send_prompt_to_openai_async(prompt)
+            summary = await llm_instance.send_prompt_async(prompt)
             return summary
         except Exception as e:
             logger.error(f"Error generating summary for {file_path}: {e}")

@@ -2,11 +2,8 @@ import os
 import logging
 import json
 import asyncio
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain.callbacks import AsyncIteratorCallbackHandler
-from langchain.schema import HumanMessage
-
+from typing import AsyncIterator, Optional
+import openai
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -15,11 +12,11 @@ logger = logging.getLogger(__name__)
 class LlmModel:
     def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = 0.0, timeout: int = 3600, max_retries: int = 5):
         """
-        Initialize the LlmModel with a ChatOpenAI instance.
+        Initialize the LlmModel with the OpenAI client.
 
         Args:
             api_key (str): API key for authentication with the provider.
-            base_url (str): Base URL of the API endpoint (default: "https://api.openai.com/v1").
+            base_url (str): Base URL of the API endpoint.
             model (str): The model name to use (default: "gpt-4o-mini").
             temperature (float): Controls randomness of output (default: 0.0, deterministic).
             timeout (int): Request timeout in seconds (default: 3600).
@@ -31,32 +28,25 @@ class LlmModel:
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
-        if self.model == 'reason':
-            # Instantiate ChatOpenAI in the constructor
-            self.llm = ChatOpenAI(
-                openai_api_key=self.openai_api_key,
-                model=self.model,
-                openai_api_base=self.base_url,
-                request_timeout=self.timeout,
-                max_retries=self.max_retries,
-                temperature=None,
-                extra_kwargs={"reasoning_effort": "low"}
-            )
-        else:
-            # Instantiate ChatOpenAI in the constructor
-            self.llm = ChatOpenAI(
-                openai_api_key=self.openai_api_key,
-                model=self.model,
-                openai_api_base=self.base_url,
-                request_timeout=self.timeout,
-                max_retries=self.max_retries,
-                temperature=self.temperature
-            )
 
+        if not self.base_url.startswith(('http://', 'https://')):
+            self.base_url = 'https://' + self.base_url
 
-    def send_prompt(self, prompt_text: str):
+        try:
+            logger.debug(f"Connecting to OpenAI at URL: {self.base_url}")
+            self.client = openai.OpenAI(
+                api_key=self.openai_api_key,
+                base_url=self.base_url,
+                timeout=self.timeout,
+                max_retries=self.max_retries
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {e}, base_url: {self.base_url}")
+            raise
+
+    def send_prompt(self, prompt_text: str) -> str:
         """
-        Send a prompt to the pre-initialized ChatOpenAI instance.
+        Send a prompt to the OpenAI API.
 
         Args:
             prompt_text (str): The text prompt to send.
@@ -64,14 +54,27 @@ class LlmModel:
         Returns:
             str: The response content from the LLM.
         """
-        prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
-        openai_chain = prompt | self.llm
-        openai_response = openai_chain.invoke({"input_text": prompt_text})
-        return openai_response.content
+        try:
+            kwargs = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt_text}],
+            }
 
-    async def send_prompt_async(self, prompt_text: str):
+            # Handle the 'reason' model specifically
+            if self.model != 'o3-mini':
+                kwargs["temperature"] = self.temperature
+
+            response = self.client.chat.completions.create(**kwargs)
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error in send_prompt: {e}")
+            raise
+
+    async def send_prompt_async(self, prompt_text: str) -> str:
         """
-        Send a prompt to the pre-initialized ChatOpenAI instance.
+        Send a prompt to the OpenAI API asynchronously.
 
         Args:
             prompt_text (str): The text prompt to send.
@@ -79,71 +82,67 @@ class LlmModel:
         Returns:
             str: The response content from the LLM.
         """
-        prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
-        openai_chain = prompt | self.llm
-        openai_response = await openai_chain.ainvoke({"input_text": prompt_text})
-        return openai_response.content
+        try:
+            # Create an async client
+            async_client = openai.AsyncOpenAI(
+                api_key=self.openai_api_key,
+                base_url=self.base_url,
+                timeout=self.timeout,
+                max_retries=self.max_retries
+            )
 
-    async def send_prompt_streaming(
-        self,
-        prompt_text: str,
-    ):
+            kwargs = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt_text}],
+            }
+
+            # Handle the 'reason' model specifically
+            if self.model != 'o3-mini':
+                kwargs["temperature"] = self.temperature
+
+            response = await async_client.chat.completions.create(**kwargs)
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error in send_prompt_async: {e}")
+            raise
+
+    async def send_prompt_streaming(self, prompt_text: str) -> AsyncIterator[str]:
         """
         Send a prompt to the OpenAI API and stream the response.
 
         Args:
             prompt_text (str): The text prompt to send.
-            model (str): The model name to use (default: "gpt-4o-mini").
-            timeout (int): Request timeout in seconds (default: 3600).
-            max_retries (int): Maximum number of retries for failed requests (default: 5).
 
         Yields:
             str: A JSON-formatted string containing each token as it streams.
         """
-        # Define the prompt template
-        prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
-
-        # Initialize the callback handler for streaming
-        callback = AsyncIteratorCallbackHandler()
-
-        # Initialize the ChatOpenAI model with streaming enabled
-        if self.model == 'reason':
-            openai_llm = ChatOpenAI(
-                openai_api_key=self.openai_api_key,
-                model=self.model,
-                openai_api_base=self.base_url,
-                request_timeout=self.timeout,
-                max_retries=self.max_retries,
-                streaming=True,
-                callbacks=[callback],
-                temperature=None,
-                extra_kwargs={"reasoning_effort": "low"}
-            )
-        else:
-            # Instantiate ChatOpenAI in the constructor
-            openai_llm = ChatOpenAI(
-                openai_api_key=self.openai_api_key,
-                model=self.model,
-                openai_api_base=self.base_url,
-                request_timeout=self.timeout,
-                max_retries=self.max_retries,
-                streaming=True,
-                callbacks=[callback],
-                temperature=self.temperature
+        try:
+            # Create an async client
+            async_client = openai.AsyncOpenAI(
+                api_key=self.openai_api_key,
+                base_url=self.base_url,
+                timeout=self.timeout,
+                max_retries=self.max_retries
             )
 
-        # Format the input text using the prompt template
-        input_text = prompt.format(input_text=prompt_text)
-        messages = [HumanMessage(content=input_text)]
+            kwargs = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt_text}],
+                "stream": True
+            }
 
-        # Start the asynchronous generation process
-        generation_task = asyncio.create_task(openai_llm.agenerate(messages=[messages]))
+            if self.model != 'o3-mini':
+                kwargs["temperature"] = self.temperature
 
-        # Iterate over the streaming tokens
-        async for token in callback.aiter():
-            # Yield each token as a JSON-formatted string
-            yield json.dumps({"token": token})
+            stream = await async_client.chat.completions.create(**kwargs)
 
-        # Await the completion of the generation task
-        await generation_task
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
+                    yield json.dumps({"token": token})
 
+        except Exception as e:
+            logger.error(f"Error in send_prompt_streaming: {e}")
+            raise
