@@ -31,15 +31,28 @@ class LlmModel:
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
-        # Instantiate ChatOpenAI in the constructor
-        self.llm = ChatOpenAI(
-            openai_api_key=self.openai_api_key,
-            model=self.model,
-            openai_api_base=self.base_url,
-            request_timeout=self.timeout,
-            max_retries=self.max_retries,
-            temperature=self.temperature
-        )
+        if self.model == 'reason':
+            # Instantiate ChatOpenAI in the constructor
+            self.llm = ChatOpenAI(
+                openai_api_key=self.openai_api_key,
+                model=self.model,
+                openai_api_base=self.base_url,
+                request_timeout=self.timeout,
+                max_retries=self.max_retries,
+                temperature=None,
+                extra_kwargs={"reasoning_effort": "low"}
+            )
+        else:
+            # Instantiate ChatOpenAI in the constructor
+            self.llm = ChatOpenAI(
+                openai_api_key=self.openai_api_key,
+                model=self.model,
+                openai_api_base=self.base_url,
+                request_timeout=self.timeout,
+                max_retries=self.max_retries,
+                temperature=self.temperature
+            )
+
 
     def send_prompt(self, prompt_text: str):
         """
@@ -94,15 +107,30 @@ class LlmModel:
         callback = AsyncIteratorCallbackHandler()
 
         # Initialize the ChatOpenAI model with streaming enabled
-        openai_llm = ChatOpenAI(
-            openai_api_key=self.openai_api_key,
-            model=self.model,
-            openai_api_base=self.base_url,
-            request_timeout=self.timeout,
-            max_retries=self.max_retries,
-            streaming=True,
-            callbacks=[callback],
-        )
+        if self.model == 'reason':
+            openai_llm = ChatOpenAI(
+                openai_api_key=self.openai_api_key,
+                model=self.model,
+                openai_api_base=self.base_url,
+                request_timeout=self.timeout,
+                max_retries=self.max_retries,
+                streaming=True,
+                callbacks=[callback],
+                temperature=None,
+                extra_kwargs={"reasoning_effort": "low"}
+            )
+        else:
+            # Instantiate ChatOpenAI in the constructor
+            openai_llm = ChatOpenAI(
+                openai_api_key=self.openai_api_key,
+                model=self.model,
+                openai_api_base=self.base_url,
+                request_timeout=self.timeout,
+                max_retries=self.max_retries,
+                streaming=True,
+                callbacks=[callback],
+                temperature=self.temperature
+            )
 
         # Format the input text using the prompt template
         input_text = prompt.format(input_text=prompt_text)
@@ -118,3 +146,4 @@ class LlmModel:
 
         # Await the completion of the generation task
         await generation_task
+
