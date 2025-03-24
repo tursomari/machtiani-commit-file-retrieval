@@ -37,7 +37,8 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
             llm_model_base_url=data.llm_model_base_url,
             project_name=project_name,
-            ignore_files=data.ignore_files
+            ignore_files=data.ignore_files,
+            head=data.head
         )
 
         result_load = await handle_load(load_request)

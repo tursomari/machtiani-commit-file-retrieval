@@ -35,7 +35,8 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
         llm_model_api_key=llm_model_api_key_value,
         llm_model_base_url=llm_model_base_url,
         project_name=project_name,
-        ignore_files=data.ignore_files
+        ignore_files=data.ignore_files,
+        head=data.head
     )
 
     # Count tokens

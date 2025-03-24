@@ -272,6 +272,31 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
 
         remote_url = construct_remote_url(codehost_url, api_key)
 
+        # Check if the repository is in a detached HEAD state
+        if repo.head.is_detached:
+            logger.warning(f"Repository '{project_name}' is in a detached HEAD state.")
+            # Handle the case accordingly, e.g., return False or raise a specific exception.
+            if default_branch in repo.branches:
+                logger.info(f"Checking out the default branch '{default_branch}'.")
+                repo.git.checkout(default_branch)
+                current_branch = default_branch
+            else:
+                logger.error(f"Default branch '{default_branch}' does not exist in the repository.")
+                return False
+
+        #try:
+        #    current_branch = repo.active_branch.name
+        #except (AttributeError, TypeError):
+        #    logger.warning("No active branch found, repo might be in a detached HEAD state.")
+        #    # Checkout the default branch
+        #    if default_branch in repo.branches:
+        #        logger.info(f"Checking out the default branch '{default_branch}'.")
+        #        repo.git.checkout(default_branch)
+        #        current_branch = default_branch
+        #    else:
+        #        logger.error(f"Default branch '{default_branch}' does not exist in the repository.")
+        #        return False
+
         # Check if 'origin' remote exists
         remote_names = [remote.name for remote in repo.remotes]
         if 'origin' in remote_names:
@@ -309,74 +334,81 @@ def check_pull_access(
 ) -> bool:
     """
     Check if the user has pull access to the current branch of the specified repository.
-
-    :param codehost_url: The URL of the code host (e.g., GitHub).
-    :param destination_path: The path where the repository is located.
-    :param project_name: The name of the project.
-    :param api_key: Optional GitHub API key for authentication.
-    :return: True if pull access is granted, False otherwise.
+    Handles detached HEAD state by checking out the default branch or first available branch.
     """
     full_path = os.path.join(destination_path, "git")
-    url_str = str(codehost_url)
-    # Initialize remote_url with url_str
-    remote_url = url_str
-
-    # Determine the repository path
+    remote_url = str(codehost_url)
     git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
 
     try:
-        # Add the repo path as a safe directory
         add_safe_directory(git_project_path)
-
         if not os.path.exists(full_path):
             logger.info(f"Repository not found at {full_path}")
             return False
 
-        # Open the repository
         repo = Repo(full_path)
+        current_branch = None
 
-        # Get the current active branch
-        current_branch = repo.active_branch.name
+        # Handle detached HEAD state
+        if repo.head.is_detached:
+            logger.warning(f"Repository '{project_name}' is in detached HEAD state")
 
-        # Check if 'origin' remote exists
-        remote_names = [remote.name for remote in repo.remotes]
-        if 'origin' in remote_names:
-            origin_remote = repo.remote('origin')
-            logger.info("Found existing 'origin' remote.")
-            # Update the remote URL
-            origin_remote.set_url(remote_url)
+            # Try to determine default branch
+            default_branch = None
+            if 'origin' in [r.name for r in repo.remotes]:
+                try:
+                    # Get default branch from origin/HEAD reference
+                    head_ref = repo.remotes.origin.refs.HEAD
+                    default_branch = head_ref.ref.name.split('/')[-1]
+                except Exception as e:
+                    logger.debug(f"Couldn't get default branch from origin: {e}")
+
+            # Fallback to common branch names if needed
+            if not default_branch:
+                for candidate in ['main', 'master']:
+                    if candidate in repo.branches:
+                        default_branch = candidate
+                        break
+
+            # If still no branch found, try any existing branch
+            if not default_branch and repo.branches:
+                default_branch = next(iter(repo.branches)).name
+
+            if default_branch:
+                logger.info(f"Checking out branch '{default_branch}'")
+                repo.git.checkout(default_branch)
+                current_branch = default_branch
+            else:
+                logger.error("No branches available for checkout")
+                return False
         else:
-            # Create 'origin' remote with remote_url
-            origin_remote = repo.create_remote('origin', remote_url)
-            logger.info("Created new 'origin' remote.")
+            current_branch = repo.active_branch.name
 
-        # Test fetch to verify if the user has pull access without API key
+        # Configure remote
+        if 'origin' in [r.name for r in repo.remotes]:
+            origin = repo.remote('origin')
+            origin.set_url(remote_url)
+        else:
+            origin = repo.create_remote('origin', remote_url)
+
+        # Test pull access
         try:
-            origin_remote.fetch(current_branch)  # Attempt to fetch the current branch
+            origin.fetch(current_branch)
             return True
         except GitCommandError as e:
-            logger.warning(f"Fetch failed without API key: {str(e)}")
-            # Update remote_url with API key
-            remote_url = construct_remote_url(codehost_url, api_key)
-            # Update the 'origin' remote URL
-            origin_remote.set_url(remote_url)
-            logger.debug(f"Set remote 'origin' URL with API key")
-
-            # Attempt to fetch again with the authenticated URL
-            try:
-                origin_remote.fetch(current_branch)
-                logger.info(f"Pull access confirmed for branch '{current_branch}' with API key")
-                return True
-            except GitCommandError as e:
-                logger.warning(f"Fetch failed with API key: {str(e)}")
-                return False
-
-        logger.info("User does not have pull access to the current branch.")
-        remove_all_remotes(repo)
-        return False
+            logger.warning(f"Fetch failed without auth: {e}")
+            if api_key:
+                auth_url = construct_remote_url(codehost_url, api_key)
+                origin.set_url(auth_url)
+                try:
+                    origin.fetch(current_branch)
+                    return True
+                except GitCommandError as e:
+                    logger.warning(f"Fetch failed with auth: {e}")
+            return False
 
     except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
+        logger.error(f"Error checking pull access: {e}")
         raise
 
 def remove_all_remotes(repo: Repo):

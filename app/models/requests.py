@@ -12,6 +12,7 @@ class AddRepositoryRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
     llm_model_base_url: HttpUrl
+    head: str
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -33,6 +34,7 @@ class LoadRequest(BaseModel):
     llm_model_base_url: HttpUrl
     project_name: str
     ignore_files: Optional[List[str]] = None
+    head: str
 
 class DeleteStoreRequest(BaseModel):
     project_name: str
@@ -50,6 +52,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
     llm_model_base_url: HttpUrl
+    head: str
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):

@@ -39,11 +39,12 @@ class GitCommitManager:
         llm_model_api_key: str,
         llm_model_base_url: HttpUrl,
         embeddings_model_api_key: str,
+        head: str,
         llm_model="gpt-4o-mini",
         embeddings_model="text-embedding-3-large",
         ignore_files: List[str] = [],
         files_embeddings: Dict[str, str] = {},
-        skip_summaries: bool = False
+        skip_summaries: bool = False,
     ):
         self.is_first_run = True
         self.embeddings_model_api_key = embeddings_model_api_key
@@ -72,6 +73,10 @@ class GitCommitManager:
         self.project_name = project_name
         self.git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")
         self.repo = git.Repo(self.git_project_path)  # Initialize the repo object
+
+        logger.info(f"GitCommitManager: Checking out to commit: {head}")
+        self.repo.git.checkout(head)
+
         self.ignore_files = ignore_files
         self.skip_summaries = skip_summaries
 
