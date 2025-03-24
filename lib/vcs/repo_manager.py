@@ -134,11 +134,9 @@ def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = V
         return DeleteStoreResponse(success=False, message=f"Repository for project '{project_name}' does not exist at path: {repo_path}")
 
     git_path = os.path.join(repo_path, "git")
-    repo = Repo(git_path)
-    current_branch = repo.active_branch.name
 
     # Skip push access check if new_repo is True
-    if not new_repo and not check_push_access(codehost_url, repo_path, project_name, current_branch, api_key):
+    if not new_repo and not check_push_access(codehost_url, repo_path, project_name, api_key):
         return DeleteStoreResponse(success=False, message=f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
 
     try:
@@ -245,7 +243,7 @@ def delete_repository(project_name: str):
         logger.error(f"Error deleting repository for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
 
-def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name: str, branch_name: str, api_key: Optional[SecretStr] = None) -> bool:
+def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None) -> bool:
     """
     Check if the user has push access to the specified branch.
 
@@ -272,33 +270,45 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
 
         remote_url = construct_remote_url(codehost_url, api_key)
 
-        # Check if the repository is in a detached HEAD state
+        current_branch = None
+
+        # Handle detached HEAD state
         if repo.head.is_detached:
-            logger.warning(f"Repository '{project_name}' is in a detached HEAD state.")
-            # Handle the case accordingly, e.g., return False or raise a specific exception.
-            if default_branch in repo.branches:
-                logger.info(f"Checking out the default branch '{default_branch}'.")
+            logger.warning(f"Repository '{project_name}' is in detached HEAD state")
+
+            # Try to determine default branch
+            default_branch = None
+            if 'origin' in [r.name for r in repo.remotes]:
+                try:
+                    # Get default branch from origin/HEAD reference
+                    head_ref = repo.remotes.origin.refs.HEAD
+                    default_branch = head_ref.ref.name.split('/')[-1]
+                except Exception as e:
+                    logger.debug(f"Couldn't get default branch from origin: {e}")
+
+            # Fallback to common branch names if needed
+            if not default_branch:
+                for candidate in ['main', 'master']:
+                    if candidate in repo.branches:
+                        default_branch = candidate
+                        break
+
+            # If still no branch found, try any existing branch
+            if not default_branch and repo.branches:
+                default_branch = next(iter(repo.branches)).name
+
+            if default_branch:
+                logger.info(f"Checking out branch '{default_branch}'")
                 repo.git.checkout(default_branch)
                 current_branch = default_branch
             else:
-                logger.error(f"Default branch '{default_branch}' does not exist in the repository.")
+                logger.error("No branches available for checkout")
                 return False
+        else:
+            current_branch = repo.active_branch.name
 
-        #try:
-        #    current_branch = repo.active_branch.name
-        #except (AttributeError, TypeError):
-        #    logger.warning("No active branch found, repo might be in a detached HEAD state.")
-        #    # Checkout the default branch
-        #    if default_branch in repo.branches:
-        #        logger.info(f"Checking out the default branch '{default_branch}'.")
-        #        repo.git.checkout(default_branch)
-        #        current_branch = default_branch
-        #    else:
-        #        logger.error(f"Default branch '{default_branch}' does not exist in the repository.")
-        #        return False
-
-        # Check if 'origin' remote exists
         remote_names = [remote.name for remote in repo.remotes]
+
         if 'origin' in remote_names:
             origin_remote = repo.remote('origin')
         else:
@@ -309,19 +319,20 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
         repo.remotes.origin.set_url(remote_url)
         # Test push to verify if the user has push access (without actual changes)
         try:
-            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
+            repo.remotes.origin.push(current_branch)  # Attempt to push without any new commits
             return True
         except GitCommandError as e:
             logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
             return False
         try:
-            repo.remotes.origin.push(branch_name)  # Attempt to push without any new commits
+            repo.remotes.origin.push(current_branch)  # Attempt to push without any new commits
             return True
         except GitCommandError as e:
             logger.warning(f"Push with no changes failed, user may not have push access: {str(e)}")
             return False
 
         remove_all_remotes(repo)
+
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise
