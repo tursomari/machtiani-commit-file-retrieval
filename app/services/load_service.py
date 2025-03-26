@@ -11,6 +11,8 @@ from lib.utils.utilities import (
     is_locked,
     acquire_lock,
     release_lock,
+    validate_files_embeddings,
+    validate_commits_logs,
 )
 from app.utils import DataDir
 
@@ -44,6 +46,13 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
+        if commits_logs_json:
+            try:
+                validate_commits_logs(commits_logs_json)
+            except AssertionError as e:
+                logger.error(f"Commit logs validation error: {e}")
+                raise
+
         parser = GitCommitManager(
             commits_logs_json,
             project,
@@ -65,6 +74,13 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         #parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
+
+        if parser.commits_logs:
+            try:
+                validate_commits_logs(parser.commits_logs)
+            except AssertionError as e:
+                logger.error(f"Commit logs validation error: {e}")
+                raise
 
         logger.info(f"New commits added: {parser.commits_logs}")
         await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)

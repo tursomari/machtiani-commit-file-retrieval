@@ -9,6 +9,10 @@ from lib.vcs.git_content_manager import GitContentManager
 from app.utils import DataDir
 from lib.ai.llm_model import LlmModel
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from lib.utils.utilities import (
+    validate_files_embeddings,
+    validate_commits_logs,
+)
 
 class FileSummaryGenerator:
     def __init__(
@@ -199,6 +203,13 @@ class FileSummaryGenerator:
                 "summary": summary,
                 "embedding": embedding  # Assuming embedding returns a list
             }
+
+        # Validate the file embeddings object before persisting it.
+        try:
+            validate_files_embeddings(self.existing_file_embeddings)
+        except AssertionError as e:
+            self.logger.error(f"File embeddings validation failed: {e}")
+            raise
 
         try:
             with open(self.files_embeddings_path, 'w') as f:
