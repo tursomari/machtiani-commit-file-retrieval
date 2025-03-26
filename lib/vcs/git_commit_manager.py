@@ -18,12 +18,13 @@ from app.utils import (
 
 from lib.utils.utilities import (
     read_json_file,
+    validate_files_embeddings,
+    validate_commits_logs,
 )
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 # - api key used FileSummaryGenerator
 #   it takes embedding model and llm model api keys separately,
@@ -46,6 +47,11 @@ class GitCommitManager:
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False,
     ):
+        if files_embeddings:
+            validate_files_embeddings(files_embeddings)
+        if commits_logs:  # This is always checked since it's initialized in __init__
+            validate_commits_logs(commits_logs)
+
         self.is_first_run = True
         self.embeddings_model_api_key = embeddings_model_api_key
         self.llm_model_api_key = llm_model_api_key
@@ -175,6 +181,9 @@ class GitCommitManager:
             files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name), "files_embeddings.json")
             existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
 
+            if existing_files_summaries_json:  # Only validate if not empty
+                validate_files_embeddings(existing_files_summaries_json)
+
             file_summary_generator = FileSummaryGenerator(
                 project_name=self.project_name,
                 commit_logs=self.new_commits,
@@ -187,7 +196,17 @@ class GitCommitManager:
             )
 
             self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)
+
+            if self.summary_cache:  # Only validate if not empty
+                validate_files_embeddings(self.summary_cache)
+
             logger.info(f"generated file summaries")
+
+        if self.commits_logs:  # Only validate if not empty
+            validate_commits_logs(self.commits_logs)
+
+        if self.new_commits:  # Only validate if not empty
+            validate_commits_logs(self.new_commits)
 
         async def process_commit(commit):
             if self.skip_summaries:

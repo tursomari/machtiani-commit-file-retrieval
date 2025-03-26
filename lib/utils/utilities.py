@@ -8,10 +8,42 @@ import subprocess
 import logging
 from pydantic import SecretStr, HttpUrl
 from fastapi import HTTPException
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from app.utils import DataDir
+import numbers
 
 logger = logging.getLogger(__name__)
+
+def validate_files_embeddings(embeddings: Dict[str, Dict[str, Any]]) -> None:
+    """Validate the structure of files_embeddings."""
+    assert isinstance(embeddings, dict), "files_embeddings must be a dictionary"
+    for file_path, data in embeddings.items():
+        assert isinstance(file_path, str), "File path must be a string"
+        assert isinstance(data, dict), "File embedding data must be a dictionary"
+        assert "summary" in data, "File embedding must have a 'summary' field"
+        assert isinstance(data["summary"], str), "Summary must be a string"
+        assert "embedding" in data, "File embedding must have an 'embedding' field"
+        assert isinstance(data["embedding"], list), "Embedding must be a list"
+        for num in data["embedding"]:
+            assert isinstance(num, numbers.Number), "Embedding values must be numbers"
+
+def validate_commits_logs(commits: List[Dict[str, Any]]) -> None:
+    """Validate the structure of commits_logs."""
+    assert isinstance(commits, list), "commits_logs must be a list"
+    for commit in commits:
+        assert isinstance(commit, dict), "Each commit must be a dictionary"
+        assert "oid" in commit, "Commit must have an 'oid' field"
+        assert isinstance(commit["oid"], str), "Commit OID must be a string"
+        assert "message" in commit, "Commit must have a 'message' field"
+        assert isinstance(commit["message"], list), "Message must be a list"
+        assert all(isinstance(m, str) for m in commit["message"]), "All messages must be strings"
+        assert "files" in commit, "Commit must have a 'files' field"
+        assert isinstance(commit["files"], list), "Files must be a list"
+        assert all(isinstance(f, str) for f in commit["files"]), "All files must be strings"
+        if "diffs" in commit:
+            assert isinstance(commit["diffs"], dict), "Diffs must be a dictionary"
+        if "summaries" in commit:
+            assert isinstance(commit["summaries"], list), "Summaries must be a list"
 
 def add_safe_directory(git_project_path):
     try:
