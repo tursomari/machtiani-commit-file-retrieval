@@ -3,6 +3,7 @@ import logging
 from typing import Dict, List, Union
 from pydantic import HttpUrl
 from lib.ai.embeddings_model import EmbeddingModel
+from lib.utils.utilities import validate_commits_embeddings
 
 class CommitEmbeddingGenerator:
     def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}):
@@ -21,6 +22,15 @@ class CommitEmbeddingGenerator:
 
         self.existing_commits_embeddings = existing_commits_embeddings if existing_commits_embeddings is not None else {}
         self.files_embeddings_cache = files_embeddings
+
+        if self.existing_commits_embeddings:
+             # Validate the embeddings JSON before returning
+             try:
+                 validate_commits_embeddings(self.existing_commits_embeddings)
+             except AssertionError as e:
+                 self.logger.error(f"Embeddings JSON validation failed: {e}")
+                 raise
+
 
     def _filter_new_commits(self):
         new_commits = [commit for commit in self.commit_logs if commit['oid'] not in self.existing_commits_embeddings]
@@ -136,6 +146,13 @@ class CommitEmbeddingGenerator:
                 "embeddings": commit_data['final_embeddings']
             }
             new_commit_oids.append(commit['oid'])
+
+        # Validate the embeddings JSON before returning
+        try:
+            validate_commits_embeddings(updated_embeddings)
+        except AssertionError as e:
+            self.logger.error(f"Embeddings JSON validation failed: {e}")
+            raise
 
         duration = time.time() - start_time
         self.logger.info(f"Generated embeddings for {len(new_commits_with_files)} commits in {duration:.2f} seconds.")

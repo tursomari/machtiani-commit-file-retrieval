@@ -14,6 +14,29 @@ import numbers
 
 logger = logging.getLogger(__name__)
 
+def validate_commits_embeddings(embeddings: Dict[str, Dict[str, Any]]) -> None:
+    """Validate the structure of embeddings JSON."""
+    assert isinstance(embeddings, dict), "embeddings must be a dictionary"
+    for commit_oid, data in embeddings.items():
+        assert isinstance(commit_oid, str), "Commit OID must be a string"
+        assert isinstance(data, dict), "Embedding data must be a dictionary"
+
+        assert "messages" in data, "Embedding must have a 'messages' field"
+        assert isinstance(data["messages"], list), "Messages must be a list"
+        assert all(isinstance(m, str) for m in data["messages"]), "All messages must be strings"
+
+        assert "embeddings" in data, "Embedding must have an 'embeddings' field"
+        assert isinstance(data["embeddings"], list), "Embeddings must be a list" # embeddings is a list now
+
+        for embedding_vector in data["embeddings"]: # Iterate through each embedding vector
+            assert isinstance(embedding_vector, list), "Each embedding must be a list (vector)"
+            for num in embedding_vector:  # Iterate through numbers in each vector
+                assert isinstance(num, numbers.Number), "Embedding values must be numbers"
+
+        # Assert that the length of messages matches the length of embeddings (number of vectors)
+        assert len(data["messages"]) == len(data["embeddings"]), \
+            "The length of messages must match the number of embedding vectors"
+
 def validate_files_embeddings(embeddings: Dict[str, Dict[str, Any]]) -> None:
     """Validate the structure of files_embeddings."""
     assert isinstance(embeddings, dict), "files_embeddings must be a dictionary"
@@ -206,6 +229,7 @@ def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = N
 
     logger.debug("Using unauthenticated URL.")
     return url_str
+
 
 def repo_exists(project_name: str) -> bool:
     """Check if the git repository for the specified project exists."""
