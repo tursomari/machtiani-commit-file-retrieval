@@ -27,7 +27,8 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             llm_model_base_url=data.llm_model_base_url,
             project_name=data.project_name,
             ignore_files=data.ignore_files,
-            head=data.head
+            head=data.head,
+            use_mock_llm=data.use_mock_llm or False,
         )
 
         # Add the background task to handle loading

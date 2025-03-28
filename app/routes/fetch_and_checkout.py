@@ -39,7 +39,7 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             project_name=project_name,
             ignore_files=data.ignore_files,
             head=data.head,
-            use_mock_llm = data.use_mock.llm,
+            use_mock_llm=data.use_mock_llm or False,
         )
 
         result_load = await handle_load(load_request)

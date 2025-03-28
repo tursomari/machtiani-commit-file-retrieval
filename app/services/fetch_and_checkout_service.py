@@ -19,7 +19,6 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
     api_key = data.api_key
     llm_model_api_key = data.llm_model_api_key
     llm_model_base_url = data.llm_model_base_url
-    use_mock_llm = data.use_mock.llm
 
     if data.vcs_type != VCSType.git:
         raise HTTPException(status_code=400, detail=f"VCS type '{data.vcs_type}' is not supported.")
@@ -38,7 +37,7 @@ async def process_fetch_and_checkout(data: FetchAndCheckoutBranchRequest):
         project_name=project_name,
         ignore_files=data.ignore_files,
         head=data.head,
-        use_mock_llm=use_mock_llm,
+        use_mock_llm = data.use_mock_llm or False
     )
 
     # Count tokens
