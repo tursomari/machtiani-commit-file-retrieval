@@ -25,6 +25,7 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
     head = load_request.head
+    use_mock_llm = load_request.use_mock.llm
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
@@ -61,7 +62,8 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
             embeddings_model_api_key=embeddings_model_api_key,
             llm_model="gpt-4o-mini",
             ignore_files=ignore_files,
-            head=head
+            head=head,
+            use_mock_llm=use_mock_llm,
         )
 
         depth = 15000

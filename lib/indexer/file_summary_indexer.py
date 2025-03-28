@@ -27,6 +27,7 @@ class FileSummaryGenerator:
         existing_files_embeddings=None,
         embeddings_model="text-embedding-3-large",
         llm_model="gpt-4o-mini",
+        use_mock_llm: bool = False,
     ):
         logging.basicConfig(
             level=logging.INFO,
@@ -46,6 +47,7 @@ class FileSummaryGenerator:
         self.llm_model_api_key = llm_model_api_key
         self.llm_model_base_url = str(llm_model_base_url)
         self.embeddings_model_api_key = embeddings_model_api_key
+        self.use_mock_llm = use_mock_llm
 
         self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embedding_model_base_url=llm_model_base_url, embeddings_model=embeddings_model)
 
@@ -101,7 +103,7 @@ class FileSummaryGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
 
-            llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model, base_url=self.llm_model_base_url)
+            llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
             try:
                 return llm_instance.send_prompt(prompt)
             except Exception as e:

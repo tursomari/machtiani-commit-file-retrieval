@@ -26,6 +26,7 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
 
     # Extract the OpenAI API key value
     llm_model_api_key_value = data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None
+    use_mock_llm = data.use_mock.llm
 
     load_request = LoadRequest(
         embeddings_model=None,
@@ -35,7 +36,8 @@ async def process_repository_and_count_tokens(data: AddRepositoryRequest):
         llm_model_base_url=data.llm_model_base_url,
         project_name=data.project_name,
         ignore_files=data.ignore_files,
-        head=data.head
+        head=data.head,
+        use_mock_llm=use_mock_llm,
     )
 
     # Count tokens
@@ -60,6 +62,7 @@ async def count_tokens_load(load_request: LoadRequest):
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
     head = load_request.head
+    use_mock_llm = data.use_mock.llm
 
     projects = DataDir.list_projects()
 
@@ -82,7 +85,8 @@ async def count_tokens_load(load_request: LoadRequest):
         llm_model="gpt-4o-mini",
         ignore_files=ignore_files,
         skip_summaries=True,
-        head=head
+        head=head,
+        use_mock_llm=use_mock_llm,
     )
 
 

@@ -46,6 +46,7 @@ class GitCommitManager:
         ignore_files: List[str] = [],
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False,
+        use_mock_llm: bool = False,
     ):
         if files_embeddings:
             validate_files_embeddings(files_embeddings)
@@ -59,6 +60,7 @@ class GitCommitManager:
         self.llm_model = llm_model
         self.embeddings_model = embeddings_model
         self.summary_cache = files_embeddings
+        self.use_mock_llm = use_mock_llm
         """
         Initialize with a JSON object in the same format as what `get_commits_up_to_depth_or_oid` returns.
         """
@@ -244,7 +246,7 @@ class GitCommitManager:
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"
 
-        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url)
+        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
         try:
             summary = await llm_instance.send_prompt_async(prompt)
             return summary
@@ -257,7 +259,7 @@ class GitCommitManager:
 
         async def generate_message(commit_index, prompt):
             async with sem:
-                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url)
+                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
                 try:
                     message = await llm_instance.send_prompt_async(prompt)
                     self.new_commits[commit_index]['message'].append(message)

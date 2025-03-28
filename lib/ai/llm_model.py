@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class LlmModel:
-    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = 0.0, timeout: int = 3600, max_retries: int = 5):
+    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = 0.0, timeout: int = 3600, max_retries: int = 5, use_mock_llm: bool = False):
         """
         Initialize the LlmModel with a ChatOpenAI instance.
 
@@ -24,6 +24,7 @@ class LlmModel:
             temperature (float): Controls randomness of output (default: 0.0, deterministic).
             timeout (int): Request timeout in seconds (default: 3600).
             max_retries (int): Maximum number of retries for failed requests (default: 5).
+            use_mock_llm (bool): If True, methods will return "foo bar" instead of calling OpenAI.
         """
         self.openai_api_key = api_key
         self.base_url = base_url
@@ -31,6 +32,7 @@ class LlmModel:
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
+        self.use_mock_llm = use_mock_llm
         # Instantiate ChatOpenAI in the constructor
         self.llm = ChatOpenAI(
             openai_api_key=self.openai_api_key,
@@ -51,6 +53,9 @@ class LlmModel:
         Returns:
             str: The response content from the LLM.
         """
+        if self.use_mock_llm:
+            return "foo bar"
+
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
         openai_chain = prompt | self.llm
         openai_response = openai_chain.invoke({"input_text": prompt_text})
@@ -66,6 +71,9 @@ class LlmModel:
         Returns:
             str: The response content from the LLM.
         """
+        if self.use_mock_llm:
+            return "foo bar"
+
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
         openai_chain = prompt | self.llm
         openai_response = await openai_chain.ainvoke({"input_text": prompt_text})
@@ -88,6 +96,10 @@ class LlmModel:
             str: A JSON-formatted string containing each token as it streams.
         """
         # Define the prompt template
+        if self.use_mock_llm:
+            yield json.dumps({"token": "foo bar"})
+            return
+
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
 
         # Initialize the callback handler for streaming
