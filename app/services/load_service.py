@@ -99,7 +99,8 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
             embeddings_model_api_key,
             embeddings_model_base_url=llm_model_base_url,  # Pass the llm_model_base_url here
             existing_commits_embeddings=existing_commits_embeddings_json,
-            files_embeddings=parser.summary_cache
+            files_embeddings=parser.summary_cache,
+            use_mock_llm = load_request.use_mock_llm or False
         )
         updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
 

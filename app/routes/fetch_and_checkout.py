@@ -30,6 +30,7 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             data.api_key
         )
 
+        logger.info(f"Calling fetch-and-checkout with use_mock_llm: {data.use_mock_llm}")
         load_request = LoadRequest(
             embeddings_model=None,
             llm_model=None,

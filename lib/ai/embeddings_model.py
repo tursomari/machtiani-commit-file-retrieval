@@ -20,6 +20,7 @@ class EmbeddingModel:
         self.logger = logging.getLogger(__name__)
 
         self.use_mock_llm = use_mock_llm
+        self.logger.info(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
         if not use_mock_llm:
             # Set up your OpenAI API key and model for embeddings
             self.embeddings_model_api_key = embeddings_model_api_key

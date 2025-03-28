@@ -33,6 +33,7 @@ class LlmModel:
         self.timeout = timeout
         self.max_retries = max_retries
         self.use_mock_llm = use_mock_llm
+        logger.info(f"Constructing LlmModel with use_mock_llm: {self.use_mock_llm}")
         # Instantiate ChatOpenAI in the constructor
         self.llm = ChatOpenAI(
             openai_api_key=self.openai_api_key,

@@ -103,6 +103,7 @@ async def count_tokens_load(load_request: LoadRequest):
         embeddings_model_api_key,
         embeddings_model_base_url=llm_model_base_url,  # Pass the llm_model_base_url here
         existing_commits_embeddings=existing_commits_embeddings_json,
+        use_mock_llm = load_request.use_mock_llm or False
     )
 
     new_commits = await asyncio.to_thread(generator._filter_new_commits)

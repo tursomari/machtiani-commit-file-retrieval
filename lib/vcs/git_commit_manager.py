@@ -194,7 +194,8 @@ class GitCommitManager:
                 embeddings_model_api_key=self.embeddings_model_api_key,
                 git_project_path=self.git_project_path,
                 ignore_files=self.ignore_files,
-                existing_files_embeddings=existing_files_summaries_json
+                existing_files_embeddings=existing_files_summaries_json,
+                use_mock_llm=self.use_mock_llm,
             )
 
             self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)
@@ -246,6 +247,7 @@ class GitCommitManager:
         content = contents_dict[file_path]
         prompt = f"Summarize this {file_path}:\n{content}"
 
+        logger.info(f"Calling summarize_file with use_mock_llm: {self.use_mock_llm}")
         llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
         try:
             summary = await llm_instance.send_prompt_async(prompt)
@@ -259,6 +261,7 @@ class GitCommitManager:
 
         async def generate_message(commit_index, prompt):
             async with sem:
+                logger.info(f"Calling generate_message with use_mock_llm: {self.use_mock_llm}")
                 llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
                 try:
                     message = await llm_instance.send_prompt_async(prompt)

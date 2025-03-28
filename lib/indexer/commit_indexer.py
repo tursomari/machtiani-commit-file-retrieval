@@ -6,18 +6,22 @@ from lib.ai.embeddings_model import EmbeddingModel
 from lib.utils.utilities import validate_commits_embeddings
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}):
+    def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}, use_mock_llm: bool = False):
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.commit_logs = commit_logs
         self.embeddings_model = embeddings_model
         self.embeddings_model_api_key = embeddings_model_api_key
+        self.use_mock_llm = use_mock_llm
 
         # Use EmbeddingModel instead of OpenAIEmbeddings
+
+        self.logger.info(f"Constructing CommitEmbeddingGenerator with use_mock_llm: {self.use_mock_llm}")
         self.embedding_generator = EmbeddingModel(
             embeddings_model_api_key=self.embeddings_model_api_key,
             embedding_model_base_url=embeddings_model_base_url,
-            embeddings_model=self.embeddings_model
+            embeddings_model=self.embeddings_model,
+            use_mock_llm=self.use_mock_llm,
         )
 
         self.existing_commits_embeddings = existing_commits_embeddings if existing_commits_embeddings is not None else {}

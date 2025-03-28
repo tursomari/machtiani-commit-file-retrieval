@@ -49,7 +49,8 @@ class FileSummaryGenerator:
         self.embeddings_model_api_key = embeddings_model_api_key
         self.use_mock_llm = use_mock_llm
 
-        self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embedding_model_base_url=llm_model_base_url, embeddings_model=embeddings_model)
+        self.logger.info(f"Constructing FileSummaryGenerator with use_mock_llm: {self.use_mock_llm}")
+        self.embedding_generator = EmbeddingModel(embeddings_model_api_key=self.embeddings_model_api_key, embedding_model_base_url=llm_model_base_url, embeddings_model=embeddings_model, use_mock_llm=self.use_mock_llm)
 
         self.existing_file_embeddings = existing_files_embeddings if existing_files_embeddings is not None else {}
         self.logger.info(f"Loaded {len(self.existing_file_embeddings)} existing file embeddings.")
@@ -103,6 +104,7 @@ class FileSummaryGenerator:
 
             prompt = f"Summarize this {file_path}:\n{content}"
 
+            self.logger.info(f"Calling _summarize_content with use_mock_llm: {self.use_mock_llm}")
             llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.summary_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
             try:
                 return llm_instance.send_prompt(prompt)
