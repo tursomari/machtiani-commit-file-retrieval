@@ -27,6 +27,10 @@ class EmbeddingModel:
             self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, base_url=str(embedding_model_base_url), model=embeddings_model)
         else:
             self.logger.info("Using mock LLM for embedding generation.")
+            # Load the mock embedding once during initialization
+            self.mock_embedding = self._load_mock_embedding()
+            if not self.mock_embedding:
+                self.logger.error("Failed to load mock embedding. Placeholder embeddings will be empty.")
 
     def _load_mock_embedding(self) -> List[float]:
         """
@@ -43,21 +47,19 @@ class EmbeddingModel:
                 json.dump([0.1, 0.2, 0.3], f)
             self.logger.warning(f"Placeholder embedding file not found at {filepath}. Creating a default one.")
 
-
         try:
             with open(filepath, 'r') as f:
                 embedding = json.load(f)
                 if not isinstance(embedding, list) or not all(isinstance(x, (int, float)) for x in embedding):
                     self.logger.error(f"Invalid format in placeholder embedding file at {filepath}. It should be a list of floats.")
-                    return [] # Return empty embedding in case of error
+                    return []  # Return empty embedding in case of error
                 return embedding
         except FileNotFoundError:
             self.logger.error(f"Placeholder embedding file not found at {filepath}.")
-            return [] # Return empty embedding in case of error
+            return []  # Return empty embedding in case of error
         except json.JSONDecodeError:
             self.logger.error(f"Error decoding JSON from placeholder embedding file at {filepath}. Please ensure it's valid JSON.")
-            return [] # Return empty embedding in case of error
-
+            return []  # Return empty embedding in case of error
 
     def embed_list_of_text(self, texts: List[str]) -> List[List[float]]:
         """
@@ -77,10 +79,10 @@ class EmbeddingModel:
             return []
 
         if self.use_mock_llm:
-            placeholder_embedding = self._load_mock_embedding()
-            if not placeholder_embedding: # Handle case where loading failed, return empty list
+            if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
+                self.logger.error("Mock embedding not available. Returning empty list.")
                 return []
-            embeddings = [placeholder_embedding] * len(texts_to_embed) # Return the same placeholder embedding for all texts
+            embeddings = [self.mock_embedding.copy() for _ in texts_to_embed]  # Create a copy for each text to avoid reference issues
             self.logger.info(f"Using mock embeddings for {len(texts_to_embed)} texts.")
         else:
             # Generate embeddings using OpenAI API
@@ -100,12 +102,13 @@ class EmbeddingModel:
             return []
 
         if self.use_mock_llm:
-            embedding = self._load_mock_embedding()
-            if not embedding: # Handle case where loading failed, return empty list
+            if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
+                self.logger.error("Mock embedding not available. Returning empty list.")
                 return []
             self.logger.info(f"Using mock embedding for the input text.")
+            return self.mock_embedding.copy()  # Return a copy to prevent unintended modifications
         else:
             # Generate embedding using OpenAI API
             embedding = self.embedding_generator.embed_query(text)
             self.logger.info(f"Generated embedding for the input text using OpenAI API.")
-        return embedding
+            return embedding
