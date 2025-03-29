@@ -18,17 +18,19 @@ from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
 
-async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
+async def load_project_data(load_request: LoadRequest):
     llm_model_api_key = load_request.llm_model_api_key
     llm_model_base_url = load_request.llm_model_base_url
     embeddings_model_api_key = load_request.embeddings_model_api_key
     project = load_request.project_name
     ignore_files = load_request.ignore_files or []
     head = load_request.head
+    use_mock_llm = load_request.use_mock_llm or False
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
+    new_commits_file_path = os.path.join(commits_logs_dir_path, "new_commits.json") if use_mock_llm else None
 
     lock_file_path = get_lock_file_path(project)
     lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
@@ -62,20 +64,21 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
             llm_model="gpt-4o-mini",
             ignore_files=ignore_files,
             head=head,
-            use_mock_llm = load_request.use_mock_llm or False
+            use_mock_llm=use_mock_llm
         )
 
         depth = 15000
         logger.info("Adding commits to log...")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth)
-        # amplify_commits will add extra commits and correspsonding embeddings.
 
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
+        # amplify_commits will add extra commits and correspsonding embeddings.
         await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
         #parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
 
+        # Validate and save commits_logs
         if parser.commits_logs:
             try:
                 validate_commits_logs(parser.commits_logs)
@@ -85,6 +88,16 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
 
         logger.info(f"New commits added: {parser.commits_logs}")
         await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)
+
+        # Save and validate new_commits if use_mock_llm is True
+        if use_mock_llm and parser.new_commits:
+            try:
+                validate_commits_logs(parser.new_commits)
+                await asyncio.to_thread(write_json_file, parser.new_commits, new_commits_file_path)
+                logger.info(f"Saved new_commits to {new_commits_file_path}")
+            except AssertionError as e:
+                logger.error(f"New commits validation error: {e}")
+                raise
 
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
@@ -97,10 +110,10 @@ async def load_project_data(load_request: LoadRequest):  # Change to LoadRequest
         generator = CommitEmbeddingGenerator(
             commits_logs_json,
             embeddings_model_api_key,
-            embeddings_model_base_url=llm_model_base_url,  # Pass the llm_model_base_url here
+            embeddings_model_base_url=llm_model_base_url,
             existing_commits_embeddings=existing_commits_embeddings_json,
             files_embeddings=parser.summary_cache,
-            use_mock_llm = load_request.use_mock_llm or False
+            use_mock_llm=use_mock_llm
         )
         updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
 
