@@ -29,8 +29,12 @@ async def load_project_data(load_request: LoadRequest):
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
+
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
-    new_commits_file_path = os.path.join(commits_logs_dir_path, "new_commits.json") if use_mock_llm else None
+
+    # For purposes of token counting if use_mock_llm is true.
+    mock_commits_logs_file_path = os.path.join(commits_logs_dir_path, "mock_commits_logs.json")
+    mock_new_commits_file_path = os.path.join(commits_logs_dir_path, "mock_new_commits.json") if use_mock_llm else None
 
     lock_file_path = get_lock_file_path(project)
     lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
@@ -86,20 +90,25 @@ async def load_project_data(load_request: LoadRequest):
                 logger.error(f"Commit logs validation error: {e}")
                 raise
 
-        logger.info(f"New commits added: {parser.commits_logs}")
-        await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)
-
-        # Save and validate new_commits if use_mock_llm is True
-        if use_mock_llm and parser.new_commits:
+        # Validate and new commits_logs
+        if parser.commits_logs:
             try:
                 validate_commits_logs(parser.new_commits)
-                await asyncio.to_thread(write_json_file, parser.new_commits, new_commits_file_path)
-                logger.info(f"Saved new_commits to {new_commits_file_path}")
             except AssertionError as e:
-                logger.error(f"New commits validation error: {e}")
+                logger.error(f"Commit logs validation error: {e}")
                 raise
 
+        if use_mock_llm:
+                await asyncio.to_thread(write_json_file, parser.commits_logs, mock_commits_logs_file_path)
+                logger.info(f"Saved mock commits_logs to {mock_commits_logs_file_path}")
+                await asyncio.to_thread(write_json_file, parser.new_commits, mock_new_commits_file_path)
+                logger.info(f"Saved mock new commits log to {mock_new_commits_file_path}")
+        else:
+            logger.info(f"New commits added: {parser.commits_logs}")
+            await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)
+
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
+        mock_commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "mock_commits_embeddings.json")
         logger.info(f"{project}'s embedded commit logs file path: {commits_embeddings_file_path}")
 
         # Reload the updated commits logs
@@ -119,7 +128,12 @@ async def load_project_data(load_request: LoadRequest):
 
         logger.info(f"Number of new commit OIDs: {len(new_commit_oids)}")
 
-        await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
+
+
+        if use_mock_llm:
+            await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, mock_commits_embeddings_file_path)
+        else:
+            await asyncio.to_thread(write_json_file, updated_commits_embeddings_json, commits_embeddings_file_path)
 
     finally:
         await release_lock(lock_file_path)
