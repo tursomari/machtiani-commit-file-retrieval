@@ -223,7 +223,8 @@ class FileSummaryGenerator:
             self.logger.error(f"Error saving embeddings to file: {e}")
 
         # Save the file summaries embeddings to a file and commit the changes
-        self.commit_file_summaries_embedding_file()
+        if self.use_mock_llm:
+           self.commit_file_summaries_embedding_file()
 
         duration = time.time() - start_time  # Calculate the duration
         self.logger.info(f"Generated embeddings for {len(new_files)} files in {duration:.2f} seconds.")
