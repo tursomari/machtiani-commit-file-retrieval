@@ -3,6 +3,9 @@ from enum import Enum
 from typing import Optional, List, Dict
 from lib.utils.enums import VCSType
 
+class CountTokenRequest(BaseModel):
+    codehost_url: HttpUrl
+    project_name: str
 
 class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
