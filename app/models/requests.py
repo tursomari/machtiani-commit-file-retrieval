@@ -6,6 +6,8 @@ from lib.utils.enums import VCSType
 class CountTokenRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
+    vcs_type: VCSType = VCSType.git  # Default to "git"
+    api_key: Optional[SecretStr] = None
 
 class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
