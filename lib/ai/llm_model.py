@@ -55,7 +55,7 @@ class LlmModel:
             str: The response content from the LLM.
         """
         if self.use_mock_llm:
-            return "foo bar"
+            return prompt_text
 
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
         openai_chain = prompt | self.llm
@@ -73,7 +73,7 @@ class LlmModel:
             str: The response content from the LLM.
         """
         if self.use_mock_llm:
-            return "foo bar"
+            return prompt_text
 
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
         openai_chain = prompt | self.llm
@@ -96,10 +96,6 @@ class LlmModel:
         Yields:
             str: A JSON-formatted string containing each token as it streams.
         """
-        # Define the prompt template
-        if self.use_mock_llm:
-            yield json.dumps({"token": "foo bar"})
-            return
 
         prompt = PromptTemplate(input_variables=["input_text"], template="{input_text}")
 
