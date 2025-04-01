@@ -14,15 +14,13 @@ async def count_tokens_add_repository(
     data: CountTokenRequest
 ):
 
-    logger.info(f"data.project_name: {data.project_name}")
     project_name = url_to_folder_name(data.project_name)
-    if repo_exists(project_name):
-        raise HTTPException(status_code=400, detail="The project already exists!")
+    logger.info(f"data.project_name: {data.project_name}")
     try:
-        #embedding_tokens, inference_tokens = await process_repository_and_count_tokens(data)
+        embedding_tokens, inference_tokens = await process_repository_and_count_tokens(data)
         return LoadResponse(
-            embedding_tokens=1000,
-            inference_tokens=1000
+            embedding_tokens=embedding_tokens,
+            inference_tokens=inference_tokens
         )
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")

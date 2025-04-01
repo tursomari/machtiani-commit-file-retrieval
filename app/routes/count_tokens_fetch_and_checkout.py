@@ -13,15 +13,14 @@ logger = logging.getLogger(__name__)
 async def count_tokens_fetch_and_checkout(
     data: CountTokenRequest
 ):
+    project_name = url_to_folder_name(data.project_name)
+    logger.info(f"data.project_name: {data.project_name}")
     try:
-        #embedding_tokens, inference_tokens = await process_fetch_and_checkout(data)  # This now returns the token count directly
+        embedding_tokens, inference_tokens = await process_repository_and_count_tokens(data)
         return LoadResponse(
-            embedding_tokens=1000,
-            inference_tokens=1000
+            embedding_tokens=embedding_tokens,
+            inference_tokens=inference_tokens
         )
-    except HTTPException as e:
-        logger.error(f"HTTP Exception: {e.detail}")
-        raise e
     except Exception as e:
-        logger.error("An error occurred while processing token count: %s", str(e))
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
