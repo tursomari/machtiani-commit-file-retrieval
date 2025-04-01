@@ -11,43 +11,44 @@ from fastapi import HTTPException
 from lib.utils.utilities import read_json_file
 from app.models.requests import CountTokenRequest, LoadRequest
 
-
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-
 async def process_repository_and_count_tokens(data: CountTokenRequest):
     # Normalize the project name
-    #data.project_name = url_to_folder_name(data.project_name)
     project_name = url_to_folder_name(data.project_name)
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project_name)
-    commits_embeddings_dir_path = DataDir.COMMITS_EMBEDDINGS.get_path(project_name)
-
-    mock_commits_logs_file_path = os.path.join(commits_logs_dir_path, "mock_commits_logs.json")
     mock_new_commits_file_path = os.path.join(commits_logs_dir_path, "mock_new_commits.json")
-    mock_commits_embeddings_file_path = os.path.join(commits_embeddings_dir_path, "mock_commits_embeddings.json")
 
-    #mock_commits_logs = await asyncio.to_thread(read_json_file, mock_commits_logs_file_path)
-    #mock_new_commits = await asyncio.to_thread(read_json_file, mock_new_commits_file_path)
-    #mock_commits_embeddings = await asyncio.to_thread(read_json_file, mock_commits_embeddings_file_path)
+    # Read the mock_new_commits file
+    mock_new_commits = await asyncio.to_thread(read_json_file, mock_new_commits_file_path)
+    logger.info(f"mock_new_commits: {mock_new_commits}")
 
-    #return mock_commits_logs, mock_new_commits, mock_commits_embeddings
+    # Initialize token counters
+    total_inference_tokens = 0
+    total_embedding_tokens = 0
 
+    # Iterate over each commit and count tokens
+    for commit in mock_new_commits:
+        for message in commit.get("message", []):
+            tokens = count_tokens(message)
+            total_inference_tokens += tokens
+            total_embedding_tokens += tokens  # Assuming the same count for embedding tokens
 
-    #embedding_tokens, inference_token = await count_tokens_load(load_request)  # Pass the dictionary representation
-    embedding_tokens, inference_token = (1000, 1000)
+    logger.info(f"Total Inference Tokens: {total_inference_tokens}")
+    logger.info(f"Total Embedding Tokens: {total_embedding_tokens}")
 
-    # Call delete_store with the necessary parameters
-    #await asyncio.to_thread(
-    #    delete_store,
-    #    codehost_url=data.codehost_url,
-    #    project_name=data.project_name,
-    #    vcs_type=data.vcs_type,
-    #    api_key=data.api_key,
-    #    new_repo=True,
-    #)
+    # Call delete_store with the necessary parameters (if needed)
+    # await asyncio.to_thread(
+    #     delete_store,
+    #     codehost_url=data.codehost_url,
+    #     project_name=data.project_name,
+    #     vcs_type=data.vcs_type,
+    #     api_key=data.api_key,
+    #     new_repo=True,
+    # )
 
-    return embedding_tokens, inference_token
+    return total_embedding_tokens, total_inference_tokens
 
 async def count_tokens_load(load_request: LoadRequest):
     llm_model_api_key = load_request.llm_model_api_key
