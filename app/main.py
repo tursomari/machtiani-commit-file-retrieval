@@ -57,11 +57,13 @@ from app.routes import (
 
 from app.routes.load import handle_load
 
-# Use the logger instead of print
-logger = logging.getLogger("uvicorn")
-logger.info("Application is starting up...")
+logging.getLogger().setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+logger.critical("Application is starting up...")
+
 executor = ProcessPoolExecutor(max_workers=10)
 
 app.include_router(test_pull_access.router)

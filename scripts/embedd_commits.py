@@ -4,7 +4,7 @@ from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.indexer.file_summary_indexer import FileSummaryEmbeddingGenerator  # Import the new module
 from lib.utils.utilities import read_json_file, write_json_file
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 
 OPENAI_API_KEY = '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'
 

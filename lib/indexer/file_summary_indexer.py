@@ -29,11 +29,11 @@ class FileSummaryGenerator:
         llm_model="gpt-4o-mini",
         use_mock_llm: bool = False,
     ):
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%M:%S"  # Only minutes and seconds
-        )
+        #logging.basicConfig(
+        #    level=logging.INFO,
+        #    format="%(asctime)s - %(levelname)s - %(message)s",
+        #    datefmt="%M:%S"  # Only minutes and seconds
+        #)
         self.logger = logging.getLogger(__name__)
 
         self.project_name = project_name

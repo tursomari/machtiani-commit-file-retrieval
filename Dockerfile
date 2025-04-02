@@ -36,6 +36,3 @@ RUN poetry install --no-root --only main
 # Copy the rest of the application code
 COPY . .
 
-# Set a default command to run the FastAPI app
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5070", "--timeout-keep-alive", "1200"]
-

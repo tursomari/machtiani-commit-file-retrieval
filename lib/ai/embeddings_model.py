@@ -16,7 +16,7 @@ class EmbeddingModel:
         :param use_mock_llm: A boolean indicating whether to use a mock LLM for testing, defaults to False.
         """
         # Set up logging
-        logging.basicConfig(level=logging.INFO)
+        #logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
         self.use_mock_llm = use_mock_llm

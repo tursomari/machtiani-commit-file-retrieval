@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Replace this with your FastAPI server URL

@@ -12,7 +12,7 @@ from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from app.utils import DataDir
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
