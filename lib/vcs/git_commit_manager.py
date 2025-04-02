@@ -248,7 +248,7 @@ class GitCommitManager:
         prompt = f"Summarize this {file_path}:\n{content}"
 
         logger.info(f"Calling summarize_file with use_mock_llm: {self.use_mock_llm}")
-        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
+        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm, max_tokens=500)
         try:
             summary = await llm_instance.send_prompt_async(prompt)
             return summary
@@ -262,7 +262,7 @@ class GitCommitManager:
         async def generate_message(commit_index, prompt):
             async with sem:
                 logger.info(f"Calling generate_message with use_mock_llm: {self.use_mock_llm}")
-                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm)
+                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm, max_tokens=200)
                 try:
                     message = await llm_instance.send_prompt_async(prompt)
                     self.new_commits[commit_index]['message'].append(message)

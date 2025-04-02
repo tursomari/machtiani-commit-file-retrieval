@@ -33,7 +33,7 @@ async def process_repository_and_count_tokens(data: CountTokenRequest):
         for message in commit.get("message", []):
             tokens = count_tokens(message)
             total_inference_tokens += tokens
-            total_embedding_tokens += tokens  # Assuming the same count for embedding tokens
+            total_embedding_tokens += 500  # Assuming max token between summary (500) and message (200).
 
     logger.info(f"Total Inference Tokens: {total_inference_tokens}")
     logger.info(f"Total Embedding Tokens: {total_embedding_tokens}")

@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class LlmModel:
-    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = 0.0, timeout: int = 3600, max_retries: int = 5, use_mock_llm: bool = False):
+    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = 0.0, timeout: int = 3600, max_retries: int = 5, use_mock_llm: bool = False, max_tokens: int = None):
         """
         Initialize the LlmModel with a ChatOpenAI instance.
 
@@ -33,6 +33,7 @@ class LlmModel:
         self.timeout = timeout
         self.max_retries = max_retries
         self.use_mock_llm = use_mock_llm
+        self.max_tokens = max_tokens
         logger.info(f"Constructing LlmModel with use_mock_llm: {self.use_mock_llm}")
         # Instantiate ChatOpenAI in the constructor
         self.llm = ChatOpenAI(
@@ -41,7 +42,8 @@ class LlmModel:
             openai_api_base=self.base_url,
             request_timeout=self.timeout,
             max_retries=self.max_retries,
-            temperature=self.temperature
+            temperature=self.temperature,
+            max_tokens=self.max_tokens
         )
 
     def send_prompt(self, prompt_text: str):
@@ -111,6 +113,7 @@ class LlmModel:
             max_retries=self.max_retries,
             streaming=True,
             callbacks=[callback],
+            max_tokens=self.max_tokens
         )
 
         # Format the input text using the prompt template
