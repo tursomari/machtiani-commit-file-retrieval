@@ -1,3 +1,4 @@
+import time
 import git
 import json
 import os
@@ -26,12 +27,6 @@ from lib.utils.utilities import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# - api key used FileSummaryGenerator
-#   it takes embedding model and llm model api keys separately,
-#   also similarly models.
-
-# - send prompt (and async)
-
 class GitCommitManager:
     def __init__(
         self,
@@ -48,6 +43,7 @@ class GitCommitManager:
         skip_summaries: bool = False,
         use_mock_llm: bool = False,
     ):
+        start_time = time.time()
         if files_embeddings:
             validate_files_embeddings(files_embeddings)
         if commits_logs:  # This is always checked since it's initialized in __init__
@@ -87,8 +83,11 @@ class GitCommitManager:
 
         self.ignore_files = ignore_files
         self.skip_summaries = skip_summaries
+        elapsed_time = time.time() - start_time
+        logger.critical(f"Initialization completed in {elapsed_time:.2f} seconds")
 
     def get_commit_info_at_depth(self, repo, depth):
+        start_time = time.time()
         try:
             total_commits = int(repo.git.rev_list('--count', 'HEAD'))
             if depth >= total_commits:
@@ -126,6 +125,8 @@ class GitCommitManager:
             logger.info(f"Files changed in commit {commit.hexsha}: {files}")
 
             if files:
+                elapsed_time = time.time() - start_time
+                logger.critical(f"get_commit_info_at_depth completed in {elapsed_time:.2f} seconds")
                 return {
                     "oid": commit.hexsha,
                     "message": messages,
@@ -141,6 +142,7 @@ class GitCommitManager:
             return None
 
     def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
+        start_time = time.time()
         try:
             repo = git.Repo(repo_path)
             commits = []
@@ -152,6 +154,8 @@ class GitCommitManager:
                 for n, commit in enumerate(self.commits_logs):
                     if commit['oid'] == self.stop_oid:
                         logger.info(f"Found stop_oid {self.stop_oid} at index {n}.")
+                        elapsed_time = time.time() - start_time
+                        logger.critical(f"get_commits_up_to_depth_or_oid completed in {elapsed_time:.2f} seconds")
                         return self.commits_logs[:n + 1]  # Return commits up to the found stop_oid
                 logger.warning(f"stop_oid {self.stop_oid} not found in the existing commits.")
 
@@ -166,6 +170,8 @@ class GitCommitManager:
                 else:
                     logger.info(f"No file changes for commit at depth {i}, skipping...")
                     break
+            elapsed_time = time.time() - start_time
+            logger.critical(f"get_commits_up_to_depth_or_oid completed in {elapsed_time:.2f} seconds")
             return commits
 
         except Exception as e:
@@ -173,15 +179,29 @@ class GitCommitManager:
             return []
 
     async def add_commits_and_summaries_to_log(self, repo_path, max_depth):
+        start_time = time.time()
+        logger.critical("Starting add_commits_and_summaries_to_log")
+
         # Retrieve new commits from the repository
+        retrieve_start_time = time.time()
         all_new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
+        retrieve_elapsed_time = time.time() - retrieve_start_time
+        logger.critical(f"Retrieved new commits in {retrieve_elapsed_time:.2f} seconds")
+
         # Filter out commits that already exist in the current commit log
+        filter_start_time = time.time()
         existing_oids = {commit['oid'] for commit in self.commits_logs}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
+        filter_elapsed_time = time.time() - filter_start_time
+        logger.critical(f"Filtered commits in {filter_elapsed_time:.2f} seconds")
 
         if self.skip_summaries is False and self.is_first_run is True:
             files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name), "files_embeddings.json")
+
+            read_json_start_time = time.time()
             existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
+            read_json_elapsed_time = time.time() - read_json_start_time
+            logger.critical(f"Read JSON file in {read_json_elapsed_time:.2f} seconds")
 
             if existing_files_summaries_json:  # Only validate if not empty
                 validate_files_embeddings(existing_files_summaries_json)
@@ -198,12 +218,15 @@ class GitCommitManager:
                 use_mock_llm=self.use_mock_llm,
             )
 
+            generate_start_time = time.time()
             self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)
+            generate_elapsed_time = time.time() - generate_start_time
+            logger.critical(f"Generated file summaries in {generate_elapsed_time:.2f} seconds")
 
             if self.summary_cache:  # Only validate if not empty
                 validate_files_embeddings(self.summary_cache)
 
-            logger.info(f"generated file summaries")
+            logger.info("Generated file summaries")
 
         if self.commits_logs:  # Only validate if not empty
             validate_commits_logs(self.commits_logs)
@@ -217,18 +240,27 @@ class GitCommitManager:
             else:
                 files = commit.get('files', [])
                 # Run all file summarizations concurrently for this commit
-                commit['summaries'] = await asyncio.gather(
-                    *(self.summarize_file(file) for file in files)
-                )
+                summarize_start_time = time.time()
+                commit['summaries'] = await asyncio.gather(*(self.summarize_file(file) for file in files))
+                summarize_elapsed_time = time.time() - summarize_start_time
+                logger.critical(f"Summarized files for commit {commit['oid']} in {summarize_elapsed_time:.2f} seconds")
 
         # Process each new commit concurrently
+        process_commits_start_time = time.time()
         await asyncio.gather(*(process_commit(commit) for commit in self.new_commits))
+        process_commits_elapsed_time = time.time() - process_commits_start_time
+        logger.critical(f"Processed all commits in {process_commits_elapsed_time:.2f} seconds")
 
         # Prepend the new commits to the existing log
+        prepend_start_time = time.time()
         logger.info(f"Existing commits in logs: {self.commits_logs}")
-        self.commits_logs = self.new_commits + self.commits_logs
+        self.commites_logs = self.new_commits + self.commits_logs
+        prepend_elapsed_time = time.time() - prepend_start_time
+        logger.critical(f"Prepended new commits in {prepend_elapsed_time:.2f} seconds")
 
         logger.info(f"Added new commits: {self.new_commits}")
+        elapsed_time = time.time() - start_time
+        logger.critical(f"add_commits_and_summaries_to_log completed in {elapsed_time:.2f} seconds")
 
     async def summarize_file(self, file_path: str):
         logger.info(f"Summary cache {self.summary_cache}")
@@ -257,6 +289,7 @@ class GitCommitManager:
             return f"Error generating summary: {e}"
 
     async def amplify_commits(self, base_prompt, temperature, per_file=False):
+        start_time = time.time()
         sem = asyncio.Semaphore(10)  # Adjust based on API limits
 
         async def generate_message(commit_index, prompt):
@@ -293,8 +326,11 @@ class GitCommitManager:
         if tasks:
             await asyncio.gather(*tasks)
         logger.info(f"Amplified new commits: {self.new_commits}")
+        elapsed_time = time.time() - start_time
+        logger.critical(f"amplify_commits completed in {elapsed_time:.2f} seconds")
 
     def is_file_deleted(self, file_path, commit_oid):
+        start_time = time.time()
         """
         Check if a file was deleted in the history of the given commit.
 
@@ -312,6 +348,8 @@ class GitCommitManager:
             for parent in commit.parents:
                 if file_path in parent.stats['files']:
                     return False  # File exists in the parent commit
+            elapsed_time = time.time() - start_time
+            logger.critical(f"is_file_deleted completed in {elapsed_time:.2f} seconds")
             return True  # File was deleted
 
         except Exception as e:
@@ -319,6 +357,7 @@ class GitCommitManager:
             return False  # Default to False if there's an error
 
     def get_files_from_commits(self, oid):
+        start_time = time.time()
         for commit in self.commits_logs:
             if commit.get('oid') == oid:
                 files = commit.get('files', [])
@@ -328,10 +367,13 @@ class GitCommitManager:
                         existing_files.append(file)
                     else:
                         logger.info(f"File {file} was deleted. Skipping.")
+                elapsed_time = time.time() - start_time
+                logger.critical(f"get_files_from_commits completed in {elapsed_time:.2f} seconds")
                 return existing_files
         return []
 
     def count_tokens_in_files(self, new_commits, project_name: str, ignore_files: List[str]):
+        start_time = time.time()
         """
         Count tokens in all files changed in new commits.
         :param new_commits: List of new commits.
@@ -361,5 +403,6 @@ class GitCommitManager:
                 token_counts[file_path] = tokens
                 logger.info(f"Counted {tokens} tokens in file: {file_path}")
 
+        elapsed_time = time.time() - start_time
+        logger.critical(f"count_tokens_in_files completed in {elapsed_time:.2f} seconds")
         return token_counts
-
