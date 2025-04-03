@@ -86,6 +86,9 @@ class GitCommitManager:
         elapsed_time = time.time() - start_time
         logger.critical(f"Initialization completed in {elapsed_time:.2f} seconds")
 
+        self.semaphore = asyncio.Semaphore(20)  # Control concurrent LLM requests
+        self.file_read_semaphore = asyncio.Semaphore(100)  # Control file I/O concurrency
+
     def get_commit_info_at_depth(self, repo, depth):
         start_time = time.time()
         try:
@@ -182,111 +185,102 @@ class GitCommitManager:
         start_time = time.time()
         logger.critical("Starting add_commits_and_summaries_to_log")
 
-        # Retrieve new commits from the repository
-        retrieve_start_time = time.time()
-        all_new_commits = self.get_commits_up_to_depth_or_oid(repo_path, max_depth)
-        retrieve_elapsed_time = time.time() - retrieve_start_time
-        logger.critical(f"Retrieved new commits in {retrieve_elapsed_time:.2f} seconds")
-
-        # Filter out commits that already exist in the current commit log
-        filter_start_time = time.time()
+        # Retrieve and filter commits
+        all_new_commits = await asyncio.to_thread(self.get_commits_up_to_depth_or_oid, repo_path, max_depth)
         existing_oids = {commit['oid'] for commit in self.commits_logs}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
-        filter_elapsed_time = time.time() - filter_start_time
-        logger.critical(f"Filtered commits in {filter_elapsed_time:.2f} seconds")
 
-        if self.skip_summaries is False and self.is_first_run is True:
-            files_summaries_file_path = os.path.join(DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name), "files_embeddings.json")
-
-            read_json_start_time = time.time()
+        # Handle first-run summaries if needed
+        if not self.skip_summaries and self.is_first_run:
+            files_summaries_file_path = os.path.join(
+                DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name),
+                "files_embeddings.json"
+            )
             existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
-            read_json_elapsed_time = time.time() - read_json_start_time
-            logger.critical(f"Read JSON file in {read_json_elapsed_time:.2f} seconds")
 
-            if existing_files_summaries_json:  # Only validate if not empty
+            if existing_files_summaries_json:
                 validate_files_embeddings(existing_files_summaries_json)
 
-            file_summary_generator = FileSummaryGenerator(
-                project_name=self.project_name,
-                commit_logs=self.new_commits,
-                llm_model_api_key=self.llm_model_api_key,
-                llm_model_base_url=self.llm_model_base_url,
-                embeddings_model_api_key=self.embeddings_model_api_key,
-                git_project_path=self.git_project_path,
-                ignore_files=self.ignore_files,
-                existing_files_embeddings=existing_files_summaries_json,
-                use_mock_llm=self.use_mock_llm,
+            self.summary_cache = await asyncio.to_thread(
+                FileSummaryGenerator(
+                    project_name=self.project_name,
+                    commit_logs=self.new_commits,
+                    llm_model_api_key=self.llm_model_api_key,
+                    llm_model_base_url=self.llm_model_base_url,
+                    embeddings_model_api_key=self.embeddings_model_api_key,
+                    git_project_path=self.git_project_path,
+                    ignore_files=self.ignore_files,
+                    existing_files_embeddings=existing_files_summaries_json,
+                    use_mock_llm=self.use_mock_llm,
+                ).generate
             )
 
-            generate_start_time = time.time()
-            self.summary_cache = await asyncio.to_thread(file_summary_generator.generate)
-            generate_elapsed_time = time.time() - generate_start_time
-            logger.critical(f"Generated file summaries in {generate_elapsed_time:.2f} seconds")
+        # Process all files across all commits with maximum concurrency
+        if not self.skip_summaries:
+            await self._process_all_files_concurrently()
 
-            if self.summary_cache:  # Only validate if not empty
-                validate_files_embeddings(self.summary_cache)
-
-            logger.info("Generated file summaries")
-
-        if self.commits_logs:  # Only validate if not empty
-            validate_commits_logs(self.commits_logs)
-
-        if self.new_commits:  # Only validate if not empty
-            validate_commits_logs(self.new_commits)
-
-        async def process_commit(commit):
-            if self.skip_summaries:
-                commit['summaries'] = []
-            else:
-                files = commit.get('files', [])
-                # Run all file summarizations concurrently for this commit
-                summarize_start_time = time.time()
-                commit['summaries'] = await asyncio.gather(*(self.summarize_file(file) for file in files))
-                summarize_elapsed_time = time.time() - summarize_start_time
-                logger.critical(f"Summarized files for commit {commit['oid']} in {summarize_elapsed_time:.2f} seconds")
-
-        # Process each new commit concurrently
-        process_commits_start_time = time.time()
-        await asyncio.gather(*(process_commit(commit) for commit in self.new_commits))
-        process_commits_elapsed_time = time.time() - process_commits_start_time
-        logger.critical(f"Processed all commits in {process_commits_elapsed_time:.2f} seconds")
-
-        # Prepend the new commits to the existing log
-        prepend_start_time = time.time()
-        logger.info(f"Existing commits in logs: {self.commits_logs}")
-        self.commites_logs = self.new_commits + self.commits_logs
-        prepend_elapsed_time = time.time() - prepend_start_time
-        logger.critical(f"Prepended new commits in {prepend_elapsed_time:.2f} seconds")
-
-        logger.info(f"Added new commits: {self.new_commits}")
+        # Update commit logs
+        self.commits_logs = self.new_commits + self.commits_logs
         elapsed_time = time.time() - start_time
-        logger.critical(f"add_commits_and_summaries_to_log completed in {elapsed_time:.2f} seconds")
+        logger.critical(f"Completed in {elapsed_time:.2f} seconds")
+
+    async def _process_all_files_concurrently(self):
+        """Process all files across all commits with optimized concurrency"""
+        tasks = []
+
+        for commit in self.new_commits:
+            if not commit.get('files'):
+                commit['summaries'] = []
+                continue
+
+            # Pre-allocate summary list
+            commit['summaries'] = [None] * len(commit['files'])
+
+            # Create tasks for each file
+            for idx, file_path in enumerate(commit['files']):
+                tasks.append(self._process_single_file(commit, idx, file_path))
+
+        # Run all file processing tasks with controlled concurrency
+        await asyncio.gather(*tasks)
+
+    async def _process_single_file(self, commit, file_index, file_path):
+        """Process a single file and store result in the commit's summaries list"""
+        try:
+            summary = await self.summarize_file(file_path)
+            commit['summaries'][file_index] = summary
+        except Exception as e:
+            logger.error(f"Error processing file {file_path}: {e}")
+            commit['summaries'][file_index] = f"Error: {e}"
 
     async def summarize_file(self, file_path: str):
-        logger.info(f"Summary cache {self.summary_cache}")
-        # Use caching only if it's the first run
-        logger.info(f"summarize file path {file_path}")
-        if self.is_first_run:
-            if file_path in self.summary_cache:
-               logger.info(f"Using cached summary for {file_path}")
-               return self.summary_cache[file_path]['summary']
+        """Optimized file summarization with caching and concurrency control"""
+        # Check cache first
+        if self.is_first_run and file_path in self.summary_cache:
+            return self.summary_cache[file_path]['summary']
 
-        contents_dict = retrieve_file_contents(self.project_name, [FilePathEntry(path=file_path)], self.ignore_files)
-        if file_path not in contents_dict or not contents_dict[file_path].strip():
-            logger.warning(f"No text content to summarize for file: {file_path}")
+        # Async file read with concurrency control
+        async with self.file_read_semaphore:
+            contents_dict = await asyncio.to_thread(
+                retrieve_file_contents,
+                self.project_name,
+                [FilePathEntry(path=file_path)],
+                self.ignore_files
+            )
+
+        if not contents_dict.get(file_path, "").strip():
             return "eddf150cd15072ba4a8474209ec090fedd4d79e4"
 
-        content = contents_dict[file_path]
-        prompt = f"Summarize this {file_path}:\n{content}"
-
-        logger.info(f"Calling summarize_file with use_mock_llm: {self.use_mock_llm}")
-        llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm, max_tokens=500)
-        try:
-            summary = await llm_instance.send_prompt_async(prompt)
-            return summary
-        except Exception as e:
-            logger.error(f"Error generating summary for {file_path}: {e}")
-            return f"Error generating summary: {e}"
+        # Process with LLM with concurrency control
+        async with self.semaphore:
+            llm = LlmModel(
+                api_key=self.llm_model_api_key,
+                model=self.llm_model,
+                base_url=self.llm_model_base_url,
+                use_mock_llm=self.use_mock_llm,
+                max_tokens=500
+            )
+            prompt = f"Summarize this {file_path}:\n{contents_dict[file_path]}"
+            return await llm.send_prompt_async(prompt)
 
     async def amplify_commits(self, base_prompt, temperature, per_file=False):
         start_time = time.time()
