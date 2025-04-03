@@ -89,10 +89,9 @@ class GitCommitManager:
         self.semaphore = asyncio.Semaphore(20)  # Control concurrent LLM requests
         self.file_read_semaphore = asyncio.Semaphore(100)  # Control file I/O concurrency
 
-    def get_commit_info_at_depth(self, repo, depth):
+    def get_commit_info_at_depth(self, repo, depth, total_commits):
         start_time = time.time()
         try:
-            total_commits = int(repo.git.rev_list('--count', 'HEAD'))
             if depth >= total_commits:
                 return None
 
@@ -149,6 +148,7 @@ class GitCommitManager:
         try:
             repo = git.Repo(repo_path)
             commits = []
+            total_commits = int(repo.git.rev_list('--count', 'HEAD'))
 
             # Start with the first commit and compare OIDs
             if self.commits_logs and self.stop_oid != self.commits_logs[0]['oid']:
@@ -164,7 +164,7 @@ class GitCommitManager:
 
             # If no matching stop_oid is found in the existing commits, proceed as usual
             for i in range(max_depth):
-                commit_info = self.get_commit_info_at_depth(repo, i)
+                commit_info = self.get_commit_info_at_depth(repo, i, total_commits)
                 if commit_info:
                     if commit_info['oid'] == self.stop_oid:
                         break
