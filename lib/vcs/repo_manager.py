@@ -109,16 +109,16 @@ def add_repository(data: AddRepositoryRequest):
 
 def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = VCSType.git, api_key: Optional[SecretStr] = None,  new_repo: bool = False) -> Dict[str, str]:
     """
-    Deletes the specified store and cleans up associated files after checking for push access,
+    Deletes the specified store and cleans up associated files after checking for pull access,
     unless `new_repo` is set to True.
 
     :param codehost_url: The URL of the code host (e.g., GitHub).
     :param project_name: The name of the project to delete.
-    :param ignore_files: List of files to ignore during operations.
+    :param ignore_files: List of files to ignore during operations. # Note: ignore_files is defined but not used in the original code
     :param vcs_type: The type of version control system (default: git).
     :param api_key: Optional GitHub API key for authentication.
-    :param llm_model_api_key: Optional OpenAI API key for additional operations.
-    :param new_repo: If True, skip checking push access before deletion (default: False).
+    :param llm_model_api_key: Optional OpenAI API key for additional operations. # Note: llm_model_api_key is defined but not used in the original code
+    :param new_repo: If True, skip checking pull access before deletion (default: False).
     :return: A message indicating success or failure in deletion.
     """
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
@@ -128,20 +128,39 @@ def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = V
     if not os.path.exists(store_path):
         return DeleteStoreResponse(success=False, message=f"Store for project '{project_name}' does not exist at path: {store_path}")
 
-    # Check for push access before deletion if new_repo is False
+    # Check for pull access before deletion if new_repo is False
     repo_path = DataDir.REPO.get_path(project_name)
     if not os.path.exists(repo_path):
-        return DeleteStoreResponse(success=False, message=f"Repository for project '{project_name}' does not exist at path: {repo_path}")
+        # If the repo path doesn't exist, we can still potentially delete the store path if it exists.
+        # However, the access check cannot be performed. Depending on desired behavior,
+        # one might choose to proceed or return an error.
+        # Current logic implies the repo must exist for the check. Let's keep that.
+        return DeleteStoreResponse(success=False, message=f"Repository for project '{project_name}' does not exist at path: {repo_path}, cannot perform access check.")
 
-    git_path = os.path.join(repo_path, "git")
+    git_path = os.path.join(repo_path, "git") # Assuming git_path check isn't strictly needed if repo_path exists
 
-    # Skip push access check if new_repo is True
-    if not new_repo and not check_push_access(codehost_url, repo_path, project_name, api_key):
-        return DeleteStoreResponse(success=False, message=f"User does not have push access to the branch '{current_branch}'. Deletion aborted.")
+    # Changed check_push_access to check_pull_access and updated the error message accordingly
+    if not new_repo and not check_pull_access(codehost_url, repo_path, project_name, api_key):
+        # Note: The original error message mentioned 'current_branch', which isn't available in this scope.
+        # Making the message more general.
+        return DeleteStoreResponse(success=False, message=f"User does not have pull access to the repository. Deletion aborted.")
+    # --- MODIFICATION END ---
 
     try:
-        # Remove the entire project directory and its contents
+        # Remove the entire project directory and its contents (assuming store_path is the root project data dir)
+        # If store_path is *just* the vector store, you might want separate deletion logic
+        # for repo_path if that's intended. The function name `delete_store` suggests
+        # only the store is deleted, but the repo check implies a link.
+        # Let's assume deleting store_path is the correct action based on the function name.
         shutil.rmtree(store_path)  # This will delete the directory and all its contents
+        logger.info(f"Store for project '{project_name}' deleted successfully from path: {store_path}")
+
+        # Optional: Also delete the repository clone if desired when deleting the store
+        # repo_parent_path = DataDir.REPO.get_path(project_name)
+        # if os.path.exists(repo_parent_path):
+        #    shutil.rmtree(repo_parent_path)
+        #    logger.info(f"Repository clone for project '{project_name}' deleted successfully from path: {repo_parent_path}")
+
         return DeleteStoreResponse(success=True, message=f"Store for project '{project_name}' deleted successfully.")
     except OSError as e:
         logger.error(f"Error deleting store for project '{project_name}': {e}")
@@ -252,6 +271,10 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
     :return: True if push access is granted, False otherwise.
     """
 
+    return True
+    # Making work for 'single user' mode.
+    # In order to count tokens, it must be able to delete the dry-run repo on first sync.
+    # And the user won't be able to have it deleted if the user doesn't own the repo.
     full_path = os.path.join(destination_path, "git")
     url_str = str(codehost_url)
 
