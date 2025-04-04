@@ -89,14 +89,10 @@ class GitCommitManager:
         self.semaphore = asyncio.Semaphore(20)  # Control concurrent LLM requests
         self.file_read_semaphore = asyncio.Semaphore(100)  # Control file I/O concurrency
 
-    def get_commit_info_at_depth(self, repo, depth, total_commits):
+    def get_commit_info(self, commit):
         start_time = time.time()
         try:
-            if depth >= total_commits:
-                return None
-
-            commit = repo.commit(f'HEAD~{depth}')
-            logger.info(f"Processing commit {commit.hexsha} at depth {depth}")
+            logger.info(f"Processing commit {commit.hexsha}")
 
             message = commit.message.strip()
             files = []
@@ -104,43 +100,39 @@ class GitCommitManager:
             diffs_info = {}
 
             if commit.parents:
-                # Inverts the commits so additions are subtractions, and vice versa
-                #diffs = commit.diff(commit.parents[0], create_patch=True)
-
-                diffs = commit.parents[0].diff(commit, create_patch=True)
+                parent = commit.parents[0]
+                diffs = parent.diff(commit, create_patch=True)
             else:
                 NULL_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
                 diffs = commit.diff(NULL_TREE, create_patch=True)
 
-
             for diff in diffs:
-                # Use the non-None path, whether it's a_path or b_path
                 file_path = diff.a_path if diff.a_path is not None else diff.b_path
                 files.append(file_path)
                 diffs_info[file_path] = {
                     'diff': diff.diff.decode('utf-8') if diff.diff else '',
                     'changes': {
-                        'added': diff.change_type == 'A',  # If the file is added
-                        'deleted': diff.change_type == 'D',  # If the file is deleted
+                        'added': diff.change_type == 'A',
+                        'deleted': diff.change_type == 'D',
                     }
                 }
             logger.info(f"Files changed in commit {commit.hexsha}: {files}")
 
             if files:
                 elapsed_time = time.time() - start_time
-                logger.critical(f"get_commit_info_at_depth completed in {elapsed_time:.2f} seconds")
+                logger.info(f"get_commit_info completed in {elapsed_time:.2f} seconds")
                 return {
                     "oid": commit.hexsha,
                     "message": messages,
                     "files": files,
-                    "diffs": diffs_info  # Include diffs in the returned info
+                    "diffs": diffs_info
                 }
             else:
                 logger.info(f"No file changes for commit {commit.hexsha}, skipping...")
                 return None
 
         except Exception as e:
-            logger.error(f"Error processing commit at depth {depth}: {e}")
+            logger.error(f"Error processing commit {commit.hexsha}: {e}")
             return None
 
     def get_commits_up_to_depth_or_oid(self, repo_path, max_depth):
@@ -148,37 +140,37 @@ class GitCommitManager:
         try:
             repo = git.Repo(repo_path)
             commits = []
-            total_commits = int(repo.git.rev_list('--count', 'HEAD'))
 
-            # Start with the first commit and compare OIDs
+            # Precompute commits list once
+            commits_list = list(repo.iter_commits('HEAD', max_count=max_depth))
+            total_commits = len(commits_list)
+
+            # Existing stop_oid check logic remains the same
             if self.commits_logs and self.stop_oid != self.commits_logs[0]['oid']:
-                logger.info(f"Looking for stop_oid {self.stop_oid} in the existing commit list.")
-                # Iterate through existing commits to find a match
-                for n, commit in enumerate(self.commits_logs):
-                    if commit['oid'] == self.stop_oid:
-                        logger.info(f"Found stop_oid {self.stop_oid} at index {n}.")
-                        elapsed_time = time.time() - start_time
-                        logger.critical(f"get_commits_up_to_depth_or_oid completed in {elapsed_time:.2f} seconds")
-                        return self.commits_logs[:n + 1]  # Return commits up to the found stop_oid
-                logger.warning(f"stop_oid {self.stop_oid} not found in the existing commits.")
+                logger.info(f"Looking for stop_oid {self.stop_oid} in existing commits")
+                for n, existing_commit in enumerate(self.commits_logs):
+                    if existing_commit['oid'] == self.stop_oid:
+                        logger.info(f"Found stop_oid at index {n}")
+                        return self.commits_logs[:n+1]
 
-            # If no matching stop_oid is found in the existing commits, proceed as usual
-            for i in range(max_depth):
-                commit_info = self.get_commit_info_at_depth(repo, i, total_commits)
-                if commit_info:
-                    if commit_info['oid'] == self.stop_oid:
-                        break
-                    logger.info(f"Added OID {commit_info['oid']}")
-                    commits.append(commit_info)
-                else:
-                    logger.info(f"No file changes for commit at depth {i}, skipping...")
+            # Process precomputed commits
+            for commit in commits_list:
+                commit_info = self.get_commit_info(commit)
+                if not commit_info:
+                    logger.info("Reached commit with no file changes, stopping")
                     break
+                if commit_info['oid'] == self.stop_oid:
+                    break
+                commits.append(commit_info)
+                if len(commits) >= max_depth:
+                    break
+
             elapsed_time = time.time() - start_time
-            logger.critical(f"get_commits_up_to_depth_or_oid completed in {elapsed_time:.2f} seconds")
+            logger.critical(f"Processed {len(commits)} commits in {elapsed_time:.2f} seconds")
             return commits
 
         except Exception as e:
-            logger.error(f"Error accessing the repository: {e}")
+            logger.error(f"Error accessing repository: {e}")
             return []
 
     async def add_commits_and_summaries_to_log(self, repo_path, max_depth):
