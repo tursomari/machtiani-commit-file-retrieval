@@ -10,6 +10,7 @@ class CountTokenRequest(BaseModel):
     api_key: Optional[SecretStr] = None
 
 class AmplificationLevel(str, Enum):
+    OFF = "off"
     LOW = "low"
     MID = "mid"
     HIGH = "high"

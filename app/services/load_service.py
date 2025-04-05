@@ -79,12 +79,17 @@ async def load_project_data(load_request: LoadRequest):
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
         # amplify_commits will add extra commits and correspsonding embeddings.
 
-        # Use the amplification_level parameter as needed
-        if amplification_level == AmplificationLevel.LOW:
+        # You call amplify consecutively, with variating settings, to amplify as much as you want.
+        if amplification_level == AmplificationLevel.OFF:
             pass
+        elif amplification_level == AmplificationLevel.LOW:
+            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
         elif amplification_level == AmplificationLevel.MID:
             await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
         elif amplification_level == AmplificationLevel.HIGH:
+            # Same as MID for now.
+            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
             await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
