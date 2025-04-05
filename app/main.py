@@ -50,7 +50,6 @@ from app.routes import (
     file_paths,
     count_tokens_load as route_count_tokens_load,
     count_tokens_add_repository,
-    count_tokens_fetch_and_checkout,
     count_tokens_generate_response,
     delete_store,
 )
@@ -77,7 +76,6 @@ app.include_router(retrieve_file_contents.router)
 app.include_router(file_paths.router)
 app.include_router(route_count_tokens_load.router)
 app.include_router(count_tokens_add_repository.router)
-app.include_router(count_tokens_fetch_and_checkout.router)
 app.include_router(count_tokens_generate_response.router)
 app.include_router(delete_store.router)
 
