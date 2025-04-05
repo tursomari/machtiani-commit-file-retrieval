@@ -27,6 +27,7 @@ async def load_project_data(load_request: LoadRequest):
     head = load_request.head
     use_mock_llm = load_request.use_mock_llm or False
     amplification_level = load_request.amplification_level
+    depth_level = load_request.depth_level # Extract depth_level
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
@@ -72,9 +73,8 @@ async def load_project_data(load_request: LoadRequest):
             use_mock_llm=use_mock_llm
         )
 
-        depth = 10_000
-        logger.info("Adding commits to log...")
-        await parser.add_commits_and_summaries_to_log(git_project_path, depth)
+        logger.info(f"Adding commits to log with depth: {depth_level}")
+        await parser.add_commits_and_summaries_to_log(git_project_path, depth_level)
 
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
         # amplify_commits will add extra commits and correspsonding embeddings.

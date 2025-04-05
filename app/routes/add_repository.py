@@ -30,7 +30,8 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             ignore_files=data.ignore_files,
             head=data.head,
             use_mock_llm=data.use_mock_llm or False,
-            amplification_level=data.amplification_level
+            amplification_level=data.amplification_level,
+            depth_level=data.depth_level
         )
 
         # Add the background task to handle loading

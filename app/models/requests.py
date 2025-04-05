@@ -1,7 +1,10 @@
-from pydantic import BaseModel, HttpUrl, SecretStr, validator
+from pydantic import BaseModel, HttpUrl, SecretStr, validator, Field
 from enum import Enum
 from typing import Optional, List, Dict
 from lib.utils.enums import VCSType
+
+# Default depth for commit history fetching
+DEFAULT_DEPTH_LEVEL = 10000
 
 class CountTokenRequest(BaseModel):
     codehost_url: HttpUrl
@@ -26,6 +29,7 @@ class AddRepositoryRequest(BaseModel):
     head: str
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
+    depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0) # Added depth_level
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -50,6 +54,7 @@ class LoadRequest(BaseModel):
     head: str
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
+    depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0)
 
 class DeleteStoreRequest(BaseModel):
     project_name: str
@@ -70,6 +75,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     head: str
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
+    depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0)
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):
