@@ -315,32 +315,57 @@ class GitCommitManager:
         elapsed_time = time.time() - start_time
         logger.critical(f"amplify_commits completed in {elapsed_time:.2f} seconds")
 
-    def is_file_deleted(self, file_path, commit_oid):
+    def is_file_deleted(self, file_path):
         start_time = time.time()
         """
-        Check if a file was deleted in the history of the given commit.
+        Check if a file exists in the current worktree.
 
-        :param repo: The Git repository object.
         :param file_path: The file path to check.
-        :param commit_oid: The OID of the commit to check against.
-        :return: True if the file was deleted, False otherwise.
+        :return: True if the file does not exist in the worktree, False otherwise.
         """
         try:
-            commit = self.repo.commit(commit_oid)
-            # Check if the file exists in the commit
-            if file_path in commit.stats['files']:
-                return False  # File exists in this commit
-            # Check parent commits to see if it was deleted
-            for parent in commit.parents:
-                if file_path in parent.stats['files']:
-                    return False  # File exists in the parent commit
+            # Get the correct worktree path (parent of .git directory)
+            full_path = os.path.join(self.git_project_path, file_path)
+
+            # Check if the file exists in the worktree
+            file_exists = os.path.exists(full_path)
+
             elapsed_time = time.time() - start_time
-            logger.critical(f"is_file_deleted completed in {elapsed_time:.2f} seconds")
-            return True  # File was deleted
+            return not file_exists
 
         except Exception as e:
-            logger.error(f"Error checking if file {file_path} was deleted: {e}")
+            logger.error(f"Error checking file {file_path}: {e}")
             return False  # Default to False if there's an error
+
+    #def is_file_deleted(self, file_path, commit_oid):
+    #    start_time = time.time()
+    #    """
+    #    Check if a file was deleted in the history of the given commit.
+
+    #    :param repo: The Git repository object.
+    #    :param file_path: The file path to check.
+    #    :param commit_oid: The OID of the commit to check against.
+    #    :return: True if the file was deleted, False otherwise.
+    #    """
+    #    try:
+    #        commit = self.repo.commit(commit_oid)
+
+    #        # Check if the file exists in the commit
+    #        if file_path in commit.tree:
+    #            return False  # File exists in this commit
+
+    #        # Check parent commits to see if it was deleted
+    #        for parent in commit.parents:
+    #            if file_path in parent.tree:
+    #                return False  # File exists in the parent commit
+
+    #        elapsed_time = time.time() - start_time
+    #        logger.critical(f"is_file_deleted completed in {elapsed_time:.2f} seconds")
+    #        return True  # File was deleted
+
+    #    except Exception as e:
+    #        logger.error(f"Error checking if file {file_path} was deleted: {e}")
+    #        return False  # Default to False if there's an error
 
     def get_files_from_commits(self, oid):
         start_time = time.time()
@@ -349,10 +374,10 @@ class GitCommitManager:
                 files = commit.get('files', [])
                 existing_files = []
                 for file in files:
-                    if not self.is_file_deleted(file, oid):
+                    if not self.is_file_deleted(file):
                         existing_files.append(file)
                     else:
-                        logger.info(f"File {file} was deleted. Skipping.")
+                        logger.debug(f"File {file} was deleted. Skipping.")
                 elapsed_time = time.time() - start_time
                 logger.critical(f"get_files_from_commits completed in {elapsed_time:.2f} seconds")
                 return existing_files
