@@ -149,7 +149,8 @@ class GitCommitManager:
             if self.commits_logs and self.stop_oid != self.commits_logs[0]['oid']:
                 logger.info(f"Looking for stop_oid {self.stop_oid} in existing commits")
                 for n, existing_commit in enumerate(self.commits_logs):
-                    if existing_commit['oid'] == self.stop_oid:
+
+                    if existing_commit['oid'] is not None and existing_commit['oid'] == self.stop_oid:
                         logger.info(f"Found stop_oid at index {n}")
                         return self.commits_logs[:n+1]
 
@@ -157,9 +158,9 @@ class GitCommitManager:
             for commit in commits_list:
                 commit_info = self.get_commit_info(commit)
                 if not commit_info:
-                    logger.info("Reached commit with no file changes, stopping")
-                    break
-                if commit_info['oid'] == self.stop_oid:
+                    logger.warning(f"Skipping commit {commit.hexsha} due to condition in get_commit_info (e.g., no file changes)")
+                    continue # Skip to the next commit instead of stopping
+                if commit_info['oid'] is not None and commit_info['oid'] == self.stop_oid:
                     break
                 commits.append(commit_info)
                 if len(commits) >= max_depth:

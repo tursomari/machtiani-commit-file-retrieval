@@ -72,7 +72,7 @@ async def load_project_data(load_request: LoadRequest):
             use_mock_llm=use_mock_llm
         )
 
-        depth = 15000
+        depth = 10_000
         logger.info("Adding commits to log...")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth)
 
