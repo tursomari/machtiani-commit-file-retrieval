@@ -1,7 +1,7 @@
 import os
 import asyncio
 import logging
-from app.models.requests import LoadRequest  # Import LoadRequest model
+from app.models.requests import LoadRequest, AmplificationLevel  # Import LoadRequest model
 from lib.vcs.git_commit_manager import GitCommitManager
 from lib.indexer.commit_indexer import CommitEmbeddingGenerator
 from lib.utils.utilities import (
@@ -26,6 +26,7 @@ async def load_project_data(load_request: LoadRequest):
     ignore_files = load_request.ignore_files or []
     head = load_request.head
     use_mock_llm = load_request.use_mock_llm or False
+    amplification_level = load_request.amplification_level
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
@@ -77,8 +78,14 @@ async def load_project_data(load_request: LoadRequest):
 
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
         # amplify_commits will add extra commits and correspsonding embeddings.
-        await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
-        #parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
+
+        # Use the amplification_level parameter as needed
+        if amplification_level == AmplificationLevel.LOW:
+            pass
+        elif amplification_level == AmplificationLevel.MID:
+            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+        elif amplification_level == AmplificationLevel.HIGH:
+            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
 
         logger.info("Finished adding commits to log.")
 

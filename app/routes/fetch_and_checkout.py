@@ -41,6 +41,7 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             ignore_files=data.ignore_files,
             head=data.head,
             use_mock_llm=data.use_mock_llm or False,
+            amplification_level=data.amplification_level
         )
 
         result_load = await handle_load(load_request)

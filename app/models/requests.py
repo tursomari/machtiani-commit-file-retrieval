@@ -9,6 +9,11 @@ class CountTokenRequest(BaseModel):
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
 
+class AmplificationLevel(str, Enum):
+    LOW = "low"
+    MID = "mid"
+    HIGH = "high"
+
 class AddRepositoryRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
@@ -19,6 +24,7 @@ class AddRepositoryRequest(BaseModel):
     llm_model_base_url: HttpUrl
     head: str
     use_mock_llm: Optional[bool] = False
+    amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
 
     @validator('api_key')
     def validate_api_key(cls, v):
@@ -42,6 +48,7 @@ class LoadRequest(BaseModel):
     ignore_files: Optional[List[str]] = None
     head: str
     use_mock_llm: Optional[bool] = False
+    amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
 
 class DeleteStoreRequest(BaseModel):
     project_name: str
@@ -61,6 +68,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     llm_model_base_url: HttpUrl
     head: str
     use_mock_llm: Optional[bool] = False
+    amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):
