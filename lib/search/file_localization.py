@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import os
 import json
+import logging
 from pathlib import Path
 from lib.ai.llm_model import LlmModel # Assuming LlmModel is correctly importable
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class FileLocalizer:
     """
@@ -106,7 +110,7 @@ Please make sure all file paths are relative to the root directory of the provid
                     rel_path_str = ''
             except ValueError:
                  # Should not happen if os.walk starts within root_dir, but handle defensively
-                 print(f"Warning: Could not compute relative path for {current_path}")
+                 logger.critical(f"Could not compute relative path for {current_path}")
                  continue
 
 
@@ -217,7 +221,7 @@ Please make sure all file paths are relative to the root directory of the provid
                  # Normalize path separators for consistency (optional but good practice)
                  valid_files.append(os.path.normpath(file_path))
             else:
-                print(f"Warning: Ignoring potentially invalid line from LLM output: '{file_path}'")
+                logger.warning(f"Ignoring potentially invalid line from LLM output: '{file_path}'")
 
 
         return valid_files
@@ -243,9 +247,9 @@ Please make sure all file paths are relative to the root directory of the provid
                     relative_path_str = str(Path(file_path_str)) # Keep original relative form
                     existing_files.append(relative_path_str)
                 else:
-                    print(f"Warning: Suggested file '{file_path_str}' does not exist or is not a file in the repository at '{full_path}'.")
+                    logger.warning(f"Suggested file '{file_path_str}' does not exist or is not a file in the repository at '{full_path}'.")
             except OSError as e:
-                print(f"Warning: Error checking suggested file '{file_path_str}': {e}")
+                logger.critical(f"Error checking suggested file '{file_path_str}': {e}")
 
 
         return existing_files
@@ -268,24 +272,24 @@ Please make sure all file paths are relative to the root directory of the provid
         )
 
         if mock_response is not None:
-            print("--- Using Mock Response ---")
+            logger.info("Using Mock Response")
             model_output = mock_response
         elif self.llm.use_mock_llm:
              # Use the mock generation from LlmModel if use_mock_llm was True
-             print("--- Using LlmModel Mock Generation ---")
+             logger.info("Using LlmModel Mock Generation")
              model_output = self.llm.send_prompt(prompt) # Assuming mock generate works
-             print(f"Mock Output:\n{model_output}")
+             logger.info(f"Mock Output:\n{model_output}")
         else:
             # Call the actual LLM via the LlmModel instance
-            print("--- Calling LLM ---")
+            logger.info("Calling LLM")
             try:
                 # Assuming LlmModel has a method like 'generate' or 'invoke'
                 # Adjust the method name and arguments as per LlmModel's interface
                 model_output = self.llm.send_prompt(prompt) # Or self.llm.invoke(prompt), etc.
-                print("--- LLM Response Received ---")
-                # print(model_output) # Optional: print raw response for debugging
+                logger.info("LLM Response Received")
+                logger.info(model_output)
             except Exception as e:
-                print(f"Error calling LLM: {e}")
+                logger.critical(f"Error calling LLM: {e}")
                 return [], prompt # Return empty list on error
 
         # Parse the model output

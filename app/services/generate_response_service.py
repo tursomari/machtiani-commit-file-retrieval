@@ -99,33 +99,39 @@ async def infer_file_service(
     logger.info("Inferred files from commits: %s", [file.path for file in inferred_commit_files])
 
     # Instantiate FileLocalizer
-    project_source_dir = DataDir.PROJECT_SOURCE.get_path(project)
+    project_source_dir = os.path.join(DataDir.REPO.get_path(project), "git")
+
     file_localizer = FileLocalizer(
         problem_statement=prompt,
         root_dir=project_source_dir,
         api_key=llm_model_api_key,
         model=model.value,
-        base_url=llm_model_base_url,
+        base_url=str(llm_model_base_url),
         use_mock_llm=False,
         max_tokens=500,
     )
 
     # Get localized files using executor
-    localized_files, _ = await loop.run_in_executor(None, file_localizer.localize_files)
-    localized_file_entries = [FilePathEntry(path=fp) for fp in localized_files]
+    try:
+        localized_files, _ = await loop.run_in_executor(None, file_localizer.localize_files)
+        localized_file_entries = [FilePathEntry(path=fp) for fp in localized_files]
 
-    # Create response for localized files
-    if localized_file_entries:
-        localized_response = FileSearchResponse(
-            oid="file_localizer",  # Placeholder since no commit
-            similarity=0.0,  # Placeholder similarity score
-            file_paths=localized_file_entries,
-            embedding_model=model.value,
-            mode=mode.value,
-            path_type='localization'  # New path type
-        )
-        responses.append(localized_response)
-        inferred_commit_files.extend(localized_file_entries)
+        # Create response for localized files
+        if localized_file_entries:
+            localized_response = FileSearchResponse(
+                oid="file_localizer",  # Placeholder since no commit
+                similarity=0.0,  # Placeholder similarity score
+                file_paths=localized_file_entries,
+                embedding_model=model.value,
+                mode=mode.value,
+                path_type='localization'  # New path type
+            )
+            responses.append(localized_response)
+            inferred_commit_files.extend(localized_file_entries)
 
-    logger.info("Combined inferred files: %s", [file.path for file in inferred_commit_files])
+        logger.info("Combined inferred files: %s", [file.path for file in inferred_commit_files])
+    except Exception as e:
+        logger.critical(f"Error in file localization: {e}")
+        raise RuntimeError(f"Error in file localization: {e}")
+
     return responses
