@@ -273,7 +273,7 @@ Please make sure all file paths are relative to the root directory of the provid
         elif self.llm.use_mock_llm:
              # Use the mock generation from LlmModel if use_mock_llm was True
              print("--- Using LlmModel Mock Generation ---")
-             model_output = self.llm.generate(prompt) # Assuming mock generate works
+             model_output = self.llm.send_prompt(prompt) # Assuming mock generate works
              print(f"Mock Output:\n{model_output}")
         else:
             # Call the actual LLM via the LlmModel instance
@@ -281,7 +281,7 @@ Please make sure all file paths are relative to the root directory of the provid
             try:
                 # Assuming LlmModel has a method like 'generate' or 'invoke'
                 # Adjust the method name and arguments as per LlmModel's interface
-                model_output = self.llm.generate(prompt) # Or self.llm.invoke(prompt), etc.
+                model_output = self.llm.send_prompt(prompt) # Or self.llm.invoke(prompt), etc.
                 print("--- LLM Response Received ---")
                 # print(model_output) # Optional: print raw response for debugging
             except Exception as e:
