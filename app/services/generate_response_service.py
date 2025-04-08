@@ -1,7 +1,8 @@
 import os
 import asyncio
 import logging
-from typing import List
+import fnmatch  # Import fnmatch
+from typing import List, Tuple  # Import Tuple
 from pydantic import ValidationError, HttpUrl
 from app.utils import retrieve_file_contents
 from app.models.responses import FileSearchResponse, FileContentResponse
@@ -13,9 +14,8 @@ from lib.search.file_localization import FileLocalizer
 from app.utils import DataDir
 
 # Set up logging
-#logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
-
 
 async def retrieve_file_contents_service(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> FileContentResponse:
     """Service method to retrieve file contents."""
@@ -35,6 +35,43 @@ async def retrieve_file_contents_service(project_name: str, file_paths: List[Fil
 
     return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
 
+# Helper function for filtering
+def _filter_and_log_ignored_files(
+    file_paths: List[FilePathEntry],
+    ignore_patterns: List[str],
+    source_description: str  # e.g., "commit <oid>" or "localization"
+) -> Tuple[List[FilePathEntry], List[FilePathEntry]]:
+    """
+    Filters a list of FilePathEntry objects based on ignore patterns and logs ignored files.
+    Returns a tuple: (kept_files, ignored_files_logged).
+    """
+    if not ignore_patterns:
+        return file_paths, []  # No filtering needed
+
+    kept_files = []
+    ignored_files_logged = []
+    for entry in file_paths:
+        file_path = entry.path
+        is_ignored = False
+        for pattern in ignore_patterns:
+            if fnmatch.fnmatch(file_path, pattern):
+                is_ignored = True
+                break  # Matched an ignore pattern
+
+        if is_ignored:
+            ignored_files_logged.append(entry)
+        else:
+            kept_files.append(entry)
+
+    if ignored_files_logged:
+        ignored_paths = [entry.path for entry in ignored_files_logged]
+        logger.info(
+            f"{source_description}: Filtered out {len(ignored_paths)} ignored files "
+            f"matching patterns in {ignore_patterns}. Ignored: {ignored_paths}"
+        )
+
+    return kept_files, ignored_files_logged
+
 async def infer_file_service(
     prompt: str,
     project: str,
@@ -48,7 +85,7 @@ async def infer_file_service(
     head: str
 ) -> List[FileSearchResponse]:
     """Service method to infer file matches."""
-    responses = []
+    final_responses = []  # Changed variable name to avoid confusion
     project = url_to_folder_name(project)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
@@ -62,7 +99,7 @@ async def infer_file_service(
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-    logger.info("infer_file_service calls GitCommitManager: {head}")
+    logger.info(f"infer_file_service calls GitCommitManager with head: {head}")  # Use f-string
     parser = GitCommitManager(
         commits_logs_json,
         project,
@@ -71,32 +108,40 @@ async def infer_file_service(
         embeddings_model_api_key=embeddings_model_api_key,
         head=head,
         llm_model=model,
-        ignore_files=ignore_files,
+        ignore_files=ignore_files,  # Pass ignore_files here if needed by parser logic
         skip_summaries=True,
     )
 
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
     loop = asyncio.get_event_loop()
-    inferred_commit_files = []  # To hold inferred files from commits
+    all_inferred_files_paths_before_ignore_filter = []  # For logging combined list before filter
 
     for match in closest_commit_matches:
-        file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
-        closest_file_paths: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in file_paths]
+        # Get raw file paths from the commit
+        raw_file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
+        # Convert to FilePathEntry objects
+        commit_file_entries: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in raw_file_paths]
+        all_inferred_files_paths_before_ignore_filter.extend(commit_file_entries)  # Add before filtering
 
-        response = FileSearchResponse(
-            oid=match["oid"],
-            similarity=match["similarity"],
-            file_paths=closest_file_paths,
-            embedding_model=model.value,
-            mode=mode.value,
-            path_type='commit'
+        # Filter based on ignore_files patterns
+        source_desc = f"Commit {match['oid']}"
+        filtered_commit_file_entries, _ = _filter_and_log_ignored_files(
+            commit_file_entries, ignore_files, source_desc
         )
 
-        if closest_file_paths:
-            responses.append(response)
-            inferred_commit_files.extend(closest_file_paths)
+        # Create response only if there are files left after filtering
+        if filtered_commit_file_entries:
+            response = FileSearchResponse(
+                oid=match["oid"],
+                similarity=match["similarity"],
+                file_paths=filtered_commit_file_entries,  # Use filtered list
+                embedding_model=model.value,
+                mode=mode.value,
+                path_type='commit'
+            )
+            final_responses.append(response)
 
-    logger.info("Inferred files from commits: %s", [file.path for file in inferred_commit_files])
+    logger.info("Inferred files from commits (before ignore filter): %s", [file.path for file in all_inferred_files_paths_before_ignore_filter])
 
     # Instantiate FileLocalizer
     project_source_dir = os.path.join(DataDir.REPO.get_path(project), "git")
@@ -113,25 +158,36 @@ async def infer_file_service(
 
     # Get localized files using executor
     try:
-        localized_files, _ = await loop.run_in_executor(None, file_localizer.localize_files)
-        localized_file_entries = [FilePathEntry(path=fp) for fp in localized_files]
+        localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
+        localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
+        logger.info("Inferred files from localization (before ignore filter): %s", [entry.path for entry in localized_file_entries_unfiltered])
 
-        # Create response for localized files
-        if localized_file_entries:
+        # Filter localized files based on ignore_files patterns
+        source_desc = "Localization"
+        filtered_localized_entries, _ = _filter_and_log_ignored_files(
+            localized_file_entries_unfiltered, ignore_files, source_desc
+        )
+
+        # Create response for localized files if any remain after filtering
+        if filtered_localized_entries:
             localized_response = FileSearchResponse(
                 oid="file_localizer",  # Placeholder since no commit
                 similarity=0.0,  # Placeholder similarity score
-                file_paths=localized_file_entries,
+                file_paths=filtered_localized_entries,  # Use filtered list
                 embedding_model=model.value,
                 mode=mode.value,
-                path_type='localization'  # New path type
+                path_type='localization'
             )
-            responses.append(localized_response)
-            inferred_commit_files.extend(localized_file_entries)
+            final_responses.append(localized_response)
 
-        logger.info("Combined inferred files: %s", [file.path for file in inferred_commit_files])
+        # Log combined *final* file paths after all filtering
+        final_inferred_paths = []
+        for resp in final_responses:
+            final_inferred_paths.extend([entry.path for entry in resp.file_paths])
+        logger.info("Combined inferred files (after ignore filter): %s", final_inferred_paths)
+
     except Exception as e:
-        logger.critical(f"Error in file localization: {e}")
-        raise RuntimeError(f"Error in file localization: {e}")
+        logger.critical(f"Error in file localization or subsequent filtering: {e}")
+        raise RuntimeError(f"Error in file localization or filtering: {e}")
 
-    return responses
+    return final_responses
