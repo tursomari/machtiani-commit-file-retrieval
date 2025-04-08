@@ -14,7 +14,7 @@ from lib.search.file_localization import FileLocalizer
 from app.utils import DataDir
 
 # Set up logging
-# logging.basicConfig(level=logging.DEBUG)  # Keep commented if configured elsewhere
+logging.basicConfig(level=logging.INFO)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
 
 async def retrieve_file_contents_service(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> FileContentResponse:

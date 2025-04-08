@@ -6,7 +6,7 @@ from typing import List, Dict
 from lib.utils.enums import FilePathEntry
 
 # Set up logging
-#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define the base path
@@ -190,42 +190,42 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
     file_contents = {}
     repo_path = DataDir.REPO.get_path(project_name)
 
+    logger.info(f"Retrieving contents for project: {project_name}")
+    logger.info(f"Repo path resolved as: {repo_path}")
+    logger.info(f"Ignore files: {ignore_files}")
+    logger.info(f"File paths: {[entry.path for entry in file_paths]}")
+
     for entry in file_paths:
         full_path = os.path.join(repo_path, "git", entry.path)
-
         logger.debug(f"Checking file: {full_path}")
 
-        # Skip files that are in the ignore list
         if entry.path in ignore_files:
-            logger.warning(f"Skipping ignored file: {full_path}")
-            continue  # Skip ignored files
+            logger.warning(f"Skipping ignored file: {entry.path}")
+            continue
 
-        # Check if the file exists before any further processing
         if not os.path.isfile(full_path):
             logger.error(f"File not found: {full_path}")
-            continue  # Skip if the file does not exist
+            continue
 
-        # Check if the file is a text file
         try:
             if not is_not_common_binary_type(full_path):
-                logger.warning(f"Skipping non-text file: {full_path}")
-                continue  # Skip non-text files
+                logger.warning(f"Skipping binary file: {entry.path}")
+                continue
         except Exception as e:
-            logger.error(f"Error determining file type for {full_path}: {e}")
-            continue  # Skip files that cause errors in type checking
+            logger.error(f"Error detecting mime type for {entry.path}: {e}")
+            continue
 
         try:
-            with open(full_path, 'r', encoding='utf-8') as file:  # Specify utf-8 encoding
-                content = file.read()
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
                 file_contents[entry.path] = content
-                logger.debug(f"Retrieved content from file: {full_path}")
+                logger.info(f"Successfully read file: {entry.path}")
         except UnicodeDecodeError as e:
-            logger.warning(f"Skipping file due to codec error: {full_path} - {e}")
-            continue  # Skip files that raise codec errors
+            logger.warning(f"Unicode decode error in {entry.path}: {e}")
         except IOError as e:
-            logger.error(f"Error reading file {full_path}: {e}")
-            continue  # Continue to the next file on IOError
+            logger.error(f"I/O error reading {entry.path}: {e}")
 
+    logger.info(f"Total files retrieved: {len(file_contents)}")
     return file_contents
 
 def count_tokens(text: str) -> int:

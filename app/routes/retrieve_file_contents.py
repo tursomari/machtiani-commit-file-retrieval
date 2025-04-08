@@ -11,6 +11,7 @@ from lib.utils.enums import FilePathEntry
 from app.services.generate_response_service import retrieve_file_contents_service  # Import the service
 
 router = APIRouter()
+logging.basicConfig(level=logging.INFO)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
 
 @router.post("/retrieve-file-contents/", response_model=FileContentResponse)

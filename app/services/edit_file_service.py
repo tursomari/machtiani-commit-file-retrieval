@@ -6,9 +6,11 @@ from pydantic import HttpUrl
 
 from app.utils import retrieve_file_contents
 from lib.utils.enums import FilePathEntry
+from lib.utils.utilities import url_to_folder_name
 from lib.ai.llm_model import LlmModel
 from lib.edit.edit import edit_file_async
 
+logging.basicConfig(level=logging.INFO)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
 
 async def edit_file_service(
@@ -28,6 +30,9 @@ async def edit_file_service(
         errors: list of strings
     """
     ignore_files = ignore_files or []
+    project_name = url_to_folder_name(project_name)
+    if not project_name.strip():
+        raise HTTPException(status_code=400, detail="Project name cannot be empty.")
 
     # Retrieve the file content
     file_entry = FilePathEntry(path=file_path)
