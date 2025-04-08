@@ -14,7 +14,7 @@ class FileLocalizer:
     """
 
     obtain_relevant_files_prompt = """
-Please look through the following GitHub problem description and Repository structure and provide a list of files that one would need to edit to fix the problem.
+Please look through the following GitHub problem description and Repository structure and provide a list of files that may be relevant.
 
 ### GitHub Problem Description ###
 {problem_statement}
@@ -38,7 +38,7 @@ If no files seem relevant, return:
 No relevant files found.
 ```
 
-Please make sure all file paths are relative to the root directory of the provided repository structure.
+Please make sure all the possibly relevant file paths are relative to the root directory of the provided repository structure.
 """
 
     def __init__(
@@ -74,7 +74,7 @@ Please make sure all file paths are relative to the root directory of the provid
         """
         self.problem_statement = problem_statement
         self.root_dir = Path(root_dir)
-        self.exclude_dirs = ['.git', '.venv', 'venv', 'env', 'virtualenv', 'lib', 'lib64', 'node_modules', '__pycache__']
+        self.exclude_dirs = ['.git', '.venv', 'venv', 'env', 'virtualenv', 'lib64', 'node_modules', '__pycache__']
         self.structure = self._get_project_structure()
 
         # Initialize LlmModel using the arguments passed to this constructor
@@ -270,6 +270,8 @@ Please make sure all file paths are relative to the root directory of the provid
             problem_statement=self.problem_statement,
             structure=structure_display
         )
+        logger.info("LLM Prompt Sending")
+        logger.info(prompt)
 
         if mock_response is not None:
             logger.info("Using Mock Response")
