@@ -52,6 +52,7 @@ from app.routes import (
     count_tokens_add_repository,
     count_tokens_generate_response,
     delete_store,
+    file_edit,
 )
 
 from app.routes.load import handle_load
@@ -78,6 +79,7 @@ app.include_router(route_count_tokens_load.router)
 app.include_router(count_tokens_add_repository.router)
 app.include_router(count_tokens_generate_response.router)
 app.include_router(delete_store.router)
+app.include_router(file_edit.router)
 
 app.get("/health")
 async def health_check():
