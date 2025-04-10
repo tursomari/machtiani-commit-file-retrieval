@@ -12,7 +12,7 @@ router = APIRouter()
 async def count_tokens_generate_response(
     prompt: str = Body(..., description="The prompt to search for"),
     project: str = Body(..., description="The project to search"),
-    mode: str = Body(..., description="Search mode: chat, commit, or super"),
+    mode: str = Body(..., description="Search mode: chat, pure-chat, or default"),
     model: str = Body(..., description="The embedding model used"),
     match_strength: str = Body(..., description="The strength of the match"),
 ):

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @router.get("/file-paths/", response_model=FileSearchResponse)
 async def get_file_paths(
     prompt: str = Query(..., description="The prompt to search for"),
-    mode: SearchMode = Query(..., description="Search mode: pure-chat, commit, or super"),
+    mode: SearchMode = Query(..., description="Search mode: chat, pure-chat, or default"),
     model: EmbeddingModel = Query(..., description="The embedding model used")
 ) -> FileSearchResponse:
     if not prompt.strip():

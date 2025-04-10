@@ -3,9 +3,10 @@ from enum import Enum
 from typing import Optional, List, Dict
 
 class SearchMode(str, Enum):
+    chat = "chat"
     pure_chat = "pure-chat"
     commit = "commit"
-    super = "super"
+    default = "default"
 
 class MatchStrength(Enum):
     HIGH = "high"
