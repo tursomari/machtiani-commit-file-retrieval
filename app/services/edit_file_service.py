@@ -129,8 +129,8 @@ async def edit_file_service(
             cmd = [
                 'diff',
                 '--unified=3',
-                f'--label={file_path}',
-                f'--label={file_path}',
+                f'--label=a/{file_path}',
+                f'--label=b/{file_path}',
                 orig_path,
                 updated_path
             ]
