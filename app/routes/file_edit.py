@@ -36,8 +36,7 @@ async def file_edit(
             model_name=model,
             ignore_files=ignore_files
         )
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File edit failed: {e}")
 

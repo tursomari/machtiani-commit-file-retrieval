@@ -52,8 +52,11 @@ async def edit_file_service(
         logger.error(f"Error retrieving file content: {e}")
         raise RuntimeError(f"Failed to retrieve file content: {e}")
 
+
     if file_path not in contents_dict:
-        raise FileNotFoundError(f"File '{file_path}' not found or not accessible.")
+        error_msg = f"File '{file_path}' not found or not accessible."
+        logger.error(error_msg)
+        return ("", [error_msg])
 
     content = contents_dict[file_path]
 
@@ -100,8 +103,11 @@ async def edit_file_service(
                 logger.error(f"Error retrieving original file content: {e}")
                 raise RuntimeError(f"Failed to retrieve file content: {e}")
 
+
             if file_path not in original_contents_dict:
-                raise FileNotFoundError(f"File '{file_path}' not found or not accessible.")
+                error_msg = f"File '{file_path}' not found or not accessible."
+                logger.error(error_msg)
+                return ("", [error_msg])
 
             original_content = original_contents_dict[file_path]
 
