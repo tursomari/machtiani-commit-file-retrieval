@@ -186,8 +186,9 @@ def edit_file(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List
     edits = parse_result
     updated_content, errors, success_count = apply_edits(content, edits)
 
-    if success_count == 0:
-        logger.info("No successful edits, attempting entire file fallback.")
+    # Change this condition to check for any errors, not just zero successes
+    if errors:  # Changed from: if success_count == 0
+        logger.info("Some edits failed, attempting entire file fallback.")
         fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
         fallback_response = llm.send_prompt(fallback_prompt)
         updated_full = parse_entire_file_update(fallback_response)
@@ -197,7 +198,7 @@ def edit_file(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List
             return updated_full, []
         else:
             logger.error("Fallback entire file update failed.")
-            errors.append("Fallback update failed. No edits applied.")
+            errors.append("Fallback update failed after partial edit application.")
 
     return updated_content, errors
 
@@ -219,8 +220,9 @@ async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tup
     edits = parse_result
     updated_content, errors, success_count = apply_edits(content, edits)
 
-    if success_count == 0:
-        logger.info("No successful edits, attempting entire file fallback (async).")
+    # Change this condition to check for any errors, not just zero successes
+    if errors:  # Changed from: if success_count == 0
+        logger.info("Some edits failed, attempting entire file fallback (async).")
         fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
         fallback_response = await llm.send_prompt_async(fallback_prompt)
         updated_full = parse_entire_file_update(fallback_response)
@@ -230,6 +232,6 @@ async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tup
             return updated_full, []
         else:
             logger.error("Fallback entire file update failed.")
-            errors.append("Fallback update failed. No edits applied.")
+            errors.append("Fallback update failed after partial edit application.")
 
     return updated_content, errors
