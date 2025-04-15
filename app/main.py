@@ -28,7 +28,8 @@ from lib.utils.utilities import (
     acquire_lock,
     release_lock
 )
-from app.utils import DataDir, retrieve_file_contents, count_tokens
+from app.utils import DataDir, retrieve_file_contents, count_tokens, add_all_existing_repos_as_safe
+
 from typing import Optional, List, Dict
 from lib.utils.enums import (
     SearchMode,
@@ -63,6 +64,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 logger.critical("Application is starting up...")
+
+add_all_existing_repos_as_safe("/data/users/repositories/")
 
 executor = ProcessPoolExecutor(max_workers=10)
 

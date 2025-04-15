@@ -1,4 +1,5 @@
 import os
+import subprocess
 import logging
 import magic
 from enum import Enum
@@ -232,3 +233,44 @@ def count_tokens(text: str) -> int:
     # Simple estimation: 1 token is approximately 4 characters (including spaces)
     return len(text) // 4 + 1
 
+def add_git_safe_directory(path: str):
+    """
+    Ensures the given path is added to git's global safe.directory config.
+    """
+    try:
+        # Check if it's already set
+        result = subprocess.run(
+            ["git", "config", "--global", "--get-all", "safe.directory"],
+            capture_output=True, text=True, check=False,
+            cwd=path
+        )
+        already_set = False
+        if result.returncode == 0:
+            dirs = result.stdout.strip().split('\n')
+            already_set = path in dirs
+        if not already_set:
+            subprocess.run(
+                ["git", "config", "--global", "--add", "safe.directory", path],
+                cwd=path,
+                check=True
+            )
+            logging.info(f"Added {path} to git safe.directory")
+        else:
+            logging.info(f"{path} already present in git safe.directory")
+    except Exception as e:
+        logging.error(f"Failed to add {path} to git safe.directory: {e}")
+
+def add_all_existing_repos_as_safe(base_path: str):
+    """
+    Traverse all first-level dirs under base_path, and add <base>/<dir>/repo/git as safe.directory if .git exists.
+    """
+    if not os.path.isdir(base_path):
+        logging.warning(f"Base path does not exist: {base_path}")
+        return
+
+    for project in os.listdir(base_path):
+        project_path = os.path.join(base_path, project)
+        repo_git_path = os.path.join(project_path, "repo", "git")
+        git_dir = os.path.join(repo_git_path, ".git")
+        if os.path.isdir(repo_git_path) and os.path.isdir(git_dir):
+            add_git_safe_directory(repo_git_path)
