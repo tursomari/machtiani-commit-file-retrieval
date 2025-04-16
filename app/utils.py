@@ -189,10 +189,11 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
     file_contents = {}
     repo_path = DataDir.REPO.get_path(project_name)
 
+
     logger.info(f"Retrieving contents for project: {project_name}")
-    logger.info(f"Repo path resolved as: {repo_path}")
-    logger.info(f"Ignore files: {ignore_files}")
-    logger.info(f"File paths: {[entry.path for entry in file_paths]}")
+    logger.debug(f"Repo path resolved as: {repo_path}")
+    logger.debug(f"Ignore files: {ignore_files}")
+    logger.debug(f"File paths: {[entry.path for entry in file_paths]}")
 
     for entry in file_paths:
         full_path = os.path.join(repo_path, "git", entry.path)
@@ -218,7 +219,8 @@ def retrieve_file_contents(project_name: str, file_paths: List[FilePathEntry], i
             with open(full_path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 file_contents[entry.path] = content
-                logger.info(f"Successfully read file: {entry.path}")
+
+                logger.debug(f"Successfully read file: {entry.path}")
         except UnicodeDecodeError as e:
             logger.warning(f"Unicode decode error in {entry.path}: {e}")
         except IOError as e:

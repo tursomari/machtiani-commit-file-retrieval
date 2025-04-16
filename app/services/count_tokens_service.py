@@ -20,9 +20,12 @@ async def process_repository_and_count_tokens(data: CountTokenRequest):
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project_name)
     mock_new_commits_file_path = os.path.join(commits_logs_dir_path, "mock_new_commits.json")
 
+
+    logger.critical("Starting token count processing for repository '%s'", project_name)
+
     # Read the mock_new_commits file
     mock_new_commits = await asyncio.to_thread(read_json_file, mock_new_commits_file_path)
-    logger.info(f"mock_new_commits: {mock_new_commits}")
+    logger.debug("mock_new_commits content: %s", mock_new_commits)
 
     # Initialize token counters
     total_inference_tokens = 0
@@ -35,8 +38,11 @@ async def process_repository_and_count_tokens(data: CountTokenRequest):
             total_inference_tokens += tokens
             total_embedding_tokens += 500  # Assuming max token between summary (500) and message (200).
 
-    logger.info(f"Total Inference Tokens: {total_inference_tokens}")
-    logger.info(f"Total Embedding Tokens: {total_embedding_tokens}")
+
+    logger.info("Total Inference Tokens: %d", total_inference_tokens)
+    logger.info("Total Embedding Tokens: %d", total_embedding_tokens)
+
+    logger.critical("Completed token count processing for repository '%s'", project_name)
 
     # Call delete_store with the necessary parameters (if needed)
     # await asyncio.to_thread(
@@ -62,12 +68,13 @@ async def count_tokens_load(load_request: LoadRequest):
 
     all_new_commits = []
 
+
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
-    logger.info(f"{project}'s git repo path: {git_project_path}")
+    logger.debug("%s's git repo path: %s", project, git_project_path)
 
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
     commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
-    logger.info(f"{project}'s commit logs file path: {commits_logs_file_path}")
+    logger.debug("%s's commit logs file path: %s", project, commits_logs_file_path)
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
     parser = GitCommitManager(
@@ -84,8 +91,11 @@ async def count_tokens_load(load_request: LoadRequest):
     )
 
 
+
     depth = 1000
+    logger.critical("Starting commit processing and summarization for project '%s' (depth %d)", project, depth)
     await parser.add_commits_and_summaries_to_log(git_project_path, depth)
+    logger.critical("Completed commit processing for project '%s'", project)
 
     new_commits_string = parser.new_commits
 
@@ -102,8 +112,9 @@ async def count_tokens_load(load_request: LoadRequest):
         use_mock_llm = load_request.use_mock_llm or False
     )
 
+
     new_commits = await asyncio.to_thread(generator._filter_new_commits)
-    logger.info(f"new commits:\n{new_commits}")
+    logger.debug("New commits to process: %s", new_commits)
 
     # Ensure you have the correct new commits to count tokens
     if not new_commits:
@@ -124,7 +135,12 @@ async def count_tokens_load(load_request: LoadRequest):
 
     # Check if total token count exceeds the limit
     max_token_count = 3_000_000
+
     if total_inference_tokens > max_token_count:
+        logger.critical(
+            "Token count limit exceeded: %d tokens, maximum allowed is %d",
+            total_inference_tokens, max_token_count
+        )
         raise HTTPException(
             status_code=400,
             detail=f"Operation would be {total_inference_tokens} input tokens, exceeded maximum usage of {max_token_count}."

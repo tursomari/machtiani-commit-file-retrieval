@@ -24,5 +24,6 @@ async def count_tokens_generate_response(
             inference_tokens=inference_tokens
         )
     except Exception as e:
-        logger.error(f"An error occurred while counting tokens: {str(e)}")
+
+        logger.error("Error counting tokens for prompt: %s", str(e))
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")

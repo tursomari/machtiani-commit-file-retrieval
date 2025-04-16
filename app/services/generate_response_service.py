@@ -166,7 +166,8 @@ async def infer_file_service(
     # Get localized files using executor
 
     try:
-        logger.critical("Starting file localization for prompt: '%s'...", prompt)
+        logger.critical("Starting file localization")
+        logger.debug("Starting file localization for prompt: '%s'...", prompt)
         localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
         logger.debug("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
         localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]

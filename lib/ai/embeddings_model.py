@@ -20,13 +20,15 @@ class EmbeddingModel:
         self.logger = logging.getLogger(__name__)
 
         self.use_mock_llm = use_mock_llm
-        self.logger.info(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
+
+        self.logger.debug(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
         if not use_mock_llm:
             # Set up your OpenAI API key and model for embeddings
             self.embeddings_model_api_key = embeddings_model_api_key
             self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, base_url=str(embedding_model_base_url), model=embeddings_model)
         else:
-            self.logger.info("Using mock LLM for embedding generation.")
+
+            self.logger.debug("Using mock LLM for embedding generation.")
             # Load the mock embedding once during initialization
             self.mock_embedding = self._load_mock_embedding()
             if not self.mock_embedding:
@@ -83,11 +85,13 @@ class EmbeddingModel:
                 self.logger.error("Mock embedding not available. Returning empty list.")
                 return []
             embeddings = [self.mock_embedding.copy() for _ in texts_to_embed]  # Create a copy for each text to avoid reference issues
-            self.logger.info(f"Using mock embeddings for {len(texts_to_embed)} texts.")
+
+            self.logger.debug(f"Using mock embeddings for {len(texts_to_embed)} texts.")
         else:
             # Generate embeddings using OpenAI API
             embeddings = self.embedding_generator.embed_documents(texts_to_embed)
-            self.logger.info(f"Generated embeddings for {len(texts_to_embed)} texts using OpenAI API.")
+
+            self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using OpenAI API.")
         return embeddings
 
     def embed_text(self, text: str) -> List[float]:
@@ -105,10 +109,12 @@ class EmbeddingModel:
             if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
                 self.logger.error("Mock embedding not available. Returning empty list.")
                 return []
-            self.logger.info(f"Using mock embedding for the input text.")
+
+            self.logger.debug(f"Using mock embedding for the input text.")
             return self.mock_embedding.copy()  # Return a copy to prevent unintended modifications
         else:
             # Generate embedding using OpenAI API
             embedding = self.embedding_generator.embed_query(text)
-            self.logger.info(f"Generated embedding for the input text using OpenAI API.")
+
+            self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
             return embedding

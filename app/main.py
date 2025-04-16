@@ -99,5 +99,6 @@ async def health_check():
 @app.on_event("shutdown")
 def shutdown():
     """ Shutdown the executor when the application terminates. """
-    logger.info("Shutting down the executor.")
+
+    logger.critical("Shutting down the executor.")
     executor.shutdown(wait=True)
