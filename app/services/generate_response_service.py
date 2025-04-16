@@ -13,8 +13,6 @@ from lib.search.commit_embedding_matcher import CommitEmbeddingMatcher
 from lib.search.file_localization import FileLocalizer
 from app.utils import DataDir
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
 
 async def retrieve_file_contents_service(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> FileContentResponse:
@@ -22,15 +20,21 @@ async def retrieve_file_contents_service(project_name: str, file_paths: List[Fil
     retrieved_file_paths = []
     contents = {}
 
+
     try:
+        logger.critical("Starting file content retrieval for project '%s'...", project_name)
         file_contents = await asyncio.to_thread(retrieve_file_contents, project_name, file_paths, ignore_files)
+        logger.critical("Completed file content retrieval for project '%s'", project_name)
 
         for path in file_contents.keys():
             retrieved_file_paths.append(path)
 
+
     except ValidationError as e:
+        logger.critical("Validation error retrieving files for project '%s': %s", project_name, e)
         raise ValueError(f"Validation error: {e}")
     except Exception as e:
+        logger.critical("Critical error retrieving files for project '%s': %s", project_name, e)
         raise RuntimeError(f"Error retrieving file contents: {e}")
 
     return FileContentResponse(contents=file_contents, retrieved_file_paths=retrieved_file_paths)
@@ -112,7 +116,10 @@ async def infer_file_service(
         skip_summaries=True,
     )
 
+
+    logger.critical("Searching for commits closely matching prompt: '%s'...", prompt)
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
+    logger.critical("Found %d commit(s) matching prompt '%s'", len(closest_commit_matches), prompt)
     loop = asyncio.get_event_loop()
     all_inferred_files_paths_before_ignore_filter = []  # For logging combined list before filter
 
@@ -157,8 +164,11 @@ async def infer_file_service(
     )
 
     # Get localized files using executor
+
     try:
+        logger.critical("Starting file localization for prompt: '%s'...", prompt)
         localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
+        logger.critical("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
         localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
         logger.info("Inferred files from localization (before ignore filter): %s", [entry.path for entry in localized_file_entries_unfiltered])
 
@@ -187,7 +197,8 @@ async def infer_file_service(
         logger.info("Combined inferred files (after ignore filter): %s", final_inferred_paths)
 
     except Exception as e:
-        logger.critical(f"Error in file localization or subsequent filtering: {e}")
+
+        logger.critical("Critical error during file localization for prompt '%s': %s", prompt, e)
         raise RuntimeError(f"Error in file localization or filtering: {e}")
 
     return final_responses

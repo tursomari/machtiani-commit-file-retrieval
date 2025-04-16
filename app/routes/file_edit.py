@@ -7,7 +7,6 @@ from app.services.edit_file_service import edit_file_service
 
 router = APIRouter()
 
-logging.basicConfig(level=logging.INFO)  # Keep commented if configured elsewhere
 logger = logging.getLogger(__name__)
 
 @router.post("/file-edit/")

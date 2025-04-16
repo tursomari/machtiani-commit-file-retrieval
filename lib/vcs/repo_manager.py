@@ -21,8 +21,6 @@ import subprocess
 from urllib.parse import urlparse
 import logging
 
-# Configure logging
-#logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def async_exists(path: str) -> bool:

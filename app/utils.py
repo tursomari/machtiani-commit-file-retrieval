@@ -6,8 +6,6 @@ from enum import Enum
 from typing import List, Dict
 from lib.utils.enums import FilePathEntry
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define the base path

@@ -14,9 +14,7 @@ from lib.utils.utilities import url_to_folder_name
 from lib.ai.llm_model import LlmModel
 from lib.edit.edit import edit_file_async
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 async def edit_file_service(
     project_name: str,

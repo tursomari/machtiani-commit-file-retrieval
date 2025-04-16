@@ -9,8 +9,6 @@ from pydantic import HttpUrl
 import logging
 import asyncio  # Import asyncio for asynchronous operations
 
-# Set up logging
-#logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:

@@ -58,7 +58,15 @@ from app.routes import (
 
 from app.routes.load import handle_load
 
-logging.getLogger().setLevel(logging.CRITICAL)
+# Get log level from environment variable, default to INFO
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+
+# Configure root logger
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI()

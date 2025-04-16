@@ -23,8 +23,6 @@ from lib.utils.utilities import (
     validate_commits_logs,
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GitCommitManager:
