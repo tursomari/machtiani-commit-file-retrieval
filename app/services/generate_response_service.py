@@ -117,9 +117,9 @@ async def infer_file_service(
     )
 
 
-    logger.critical("Searching for commits closely matching prompt: '%s'...", prompt)
+    logger.debug("Searching for commits closely matching prompt: '%s'...", prompt)
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
-    logger.critical("Found %d commit(s) matching prompt '%s'", len(closest_commit_matches), prompt)
+    logger.debug("Found %d commit(s) matching prompt '%s'", len(closest_commit_matches), prompt)
     loop = asyncio.get_event_loop()
     all_inferred_files_paths_before_ignore_filter = []  # For logging combined list before filter
 
@@ -170,7 +170,7 @@ async def infer_file_service(
         localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
         logger.critical("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
         localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
-        logger.info("Inferred files from localization (before ignore filter): %s", [entry.path for entry in localized_file_entries_unfiltered])
+        logger.debug("Inferred files from localization (before ignore filter): %s", [entry.path for entry in localized_file_entries_unfiltered])
 
         # Filter localized files based on ignore_files patterns
         source_desc = "Localization"
@@ -194,7 +194,7 @@ async def infer_file_service(
         final_inferred_paths = []
         for resp in final_responses:
             final_inferred_paths.extend([entry.path for entry in resp.file_paths])
-        logger.info("Combined inferred files (after ignore filter): %s", final_inferred_paths)
+        logger.debug("Combined inferred files (after ignore filter): %s", final_inferred_paths)
 
     except Exception as e:
 
