@@ -197,9 +197,28 @@ async def release_lock(lock_file_path: str):
     if os.path.exists(lock_file_path):
         await asyncio.to_thread(os.remove, lock_file_path)
 
+
 def get_lock_file_path(project_name: str) -> str:
     """Get the path for the lock file based on the project name."""
     return os.path.join(DataDir.STORE.get_path(project_name), "repo.lock")
+
+def delete_all_repo_lock_files(base_path: str):
+    """
+    Deletes all repo.lock files in each project directory under the given base path.
+    """
+    if not os.path.isdir(base_path):
+        logging.warning(f"Base path does not exist: {base_path}")
+        return
+
+    for project in os.listdir(base_path):
+        project_path = os.path.join(base_path, project)
+        lock_file_path = os.path.join(project_path, "repo.lock")
+        if os.path.isfile(lock_file_path):
+            try:
+                os.remove(lock_file_path)
+                logging.info(f"Deleted lock file: {lock_file_path}")
+            except Exception as e:
+                logging.error(f"Failed to delete lock file {lock_file_path}: {e}")
 
 def construct_remote_url(codehost_url: HttpUrl, api_key: Optional[SecretStr] = None) -> str:
     """

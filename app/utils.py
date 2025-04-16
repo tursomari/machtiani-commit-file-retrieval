@@ -260,6 +260,7 @@ def add_git_safe_directory(path: str):
     except Exception as e:
         logging.error(f"Failed to add {path} to git safe.directory: {e}")
 
+
 def add_all_existing_repos_as_safe(base_path: str):
     """
     Traverse all first-level dirs under base_path, and add <base>/<dir>/repo/git as safe.directory if .git exists.
@@ -274,3 +275,21 @@ def add_all_existing_repos_as_safe(base_path: str):
         git_dir = os.path.join(repo_git_path, ".git")
         if os.path.isdir(repo_git_path) and os.path.isdir(git_dir):
             add_git_safe_directory(repo_git_path)
+
+def delete_all_repo_lock_files(base_path: str):
+    """
+    Deletes all repo.lock files in each project directory under the given base path.
+    """
+    if not os.path.isdir(base_path):
+        logging.warning(f"Base path does not exist: {base_path}")
+        return
+
+    for project in os.listdir(base_path):
+        project_path = os.path.join(base_path, project)
+        lock_file_path = os.path.join(project_path, "repo.lock")
+        if os.path.isfile(lock_file_path):
+            try:
+                os.remove(lock_file_path)
+                logging.info(f"Deleted lock file: {lock_file_path}")
+            except Exception as e:
+                logging.error(f"Failed to delete lock file {lock_file_path}: {e}")
