@@ -41,9 +41,11 @@ async def load_project_data(load_request: LoadRequest):
     lock_file_path = get_lock_file_path(project)
     lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
 
+
     if lock_file_exists:
         elapsed_hours = int(lock_time_duration // 3600)
         elapsed_minutes = int((lock_time_duration % 3600) // 60)
+        logger.critical(f"Operation locked for project '{project}'. Lock active for {elapsed_hours}h {elapsed_minutes}m.")
         raise RuntimeError(f"Operation is locked for project '{project}'. Please try again later. Lock has been active for {elapsed_hours} hours and {elapsed_minutes} minutes.")
 
     await acquire_lock(lock_file_path)
@@ -57,8 +59,9 @@ async def load_project_data(load_request: LoadRequest):
         if commits_logs_json:
             try:
                 validate_commits_logs(commits_logs_json)
+
             except AssertionError as e:
-                logger.error(f"Commit logs validation error: {e}")
+                logger.critical(f"Commit logs validation error: {e}")
                 raise
 
         parser = GitCommitManager(
@@ -73,24 +76,25 @@ async def load_project_data(load_request: LoadRequest):
             use_mock_llm=use_mock_llm
         )
 
-        logger.info(f"Adding commits to log with depth: {depth_level}")
+
+        logger.critical(f"Starting to add commits and summaries with depth {depth_level}.")
         await parser.add_commits_and_summaries_to_log(git_project_path, depth_level)
+        logger.critical("Completed adding commits and summaries.")
+
 
         base_prompt = "Based on the diff, create a concise and informative git commit message. Diff details:\n\n"
-        # amplify_commits will add extra commits and correspsonding embeddings.
 
-        # You call amplify consecutively, with variating settings, to amplify as much as you want.
-        if amplification_level == AmplificationLevel.OFF:
-            pass
-        elif amplification_level == AmplificationLevel.LOW:
-            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
-        elif amplification_level == AmplificationLevel.MID:
-            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
-            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
-        elif amplification_level == AmplificationLevel.HIGH:
-            # Same as MID for now.
-            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
-            await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
+        if amplification_level != AmplificationLevel.OFF:
+            logger.critical(f"Starting commit amplification at {amplification_level} level.")
+            if amplification_level == AmplificationLevel.LOW:
+                await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+            elif amplification_level == AmplificationLevel.MID:
+                await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+                await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
+            elif amplification_level == AmplificationLevel.HIGH:
+                await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=False)
+                await parser.amplify_commits(base_prompt=base_prompt, temperature=0.0, per_file=True)
+            logger.critical("Commit amplification completed.")
 
         logger.info("Finished adding commits to log.")
 
@@ -98,8 +102,9 @@ async def load_project_data(load_request: LoadRequest):
         if parser.commits_logs:
             try:
                 validate_commits_logs(parser.commits_logs)
+
             except AssertionError as e:
-                logger.error(f"Commit logs validation error: {e}")
+                logger.critical(f"New commits validation error: {e}")
                 raise
 
         # Validate and new commits_logs
@@ -136,7 +141,10 @@ async def load_project_data(load_request: LoadRequest):
             files_embeddings=parser.summary_cache,
             use_mock_llm=use_mock_llm
         )
+
+        logger.critical("Generating commit embeddings...")
         updated_commits_embeddings_json, new_commit_oids = await asyncio.to_thread(generator.generate_embeddings)
+        logger.critical("Commit embeddings generated.")
 
         logger.info(f"Number of new commit OIDs: {len(new_commit_oids)}")
 
