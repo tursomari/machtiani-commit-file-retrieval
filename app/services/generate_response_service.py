@@ -15,20 +15,26 @@ from app.utils import DataDir
 
 logger = logging.getLogger(__name__)
 
-async def retrieve_file_contents_service(project_name: str, file_paths: List[FilePathEntry], ignore_files: List[str]) -> FileContentResponse:
+async def retrieve_file_contents_service(
+    project_name: str,
+    file_paths: List[FilePathEntry],
+    ignore_files: List[str]
+) -> FileContentResponse:
     """Service method to retrieve file contents."""
     retrieved_file_paths = []
     contents = {}
-
 
     try:
         logger.critical("Starting file content retrieval for project '%s'...", project_name)
         file_contents = await asyncio.to_thread(retrieve_file_contents, project_name, file_paths, ignore_files)
         logger.critical("Completed file content retrieval for project '%s'", project_name)
 
+        if not file_contents:
+            logger.warning("No file contents retrieved for project '%s' with provided file paths: %s", project_name,
+le_paths)
+
         for path in file_contents.keys():
             retrieved_file_paths.append(path)
-
 
     except ValidationError as e:
         logger.critical("Validation error retrieving files for project '%s': %s", project_name, e)
