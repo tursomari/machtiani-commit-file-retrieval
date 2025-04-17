@@ -1,5 +1,7 @@
+
 import re
 import logging
+from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Union
 from lib.ai.llm_model import LlmModel
 
@@ -91,6 +93,29 @@ Here is an example:
 ```
 
 Please note that the *ENTIRE_UPDATED_FILE* block REQUIRES PROPER INDENTATION. It should be exactly like the original file, but with the changes per the instructions only.
+"""
+
+file_create_prompt = """
+We are currently determining which new files need to be created based on the following instructions:
+
+--- BEGIN INSTRUCTIONS ---
+{instructions}
+--- END INSTRUCTIONS ---
+
+List the relative file paths (from the repository root) of any files that should be created
+because they are referenced or implied by these instructions but do not exist yet.
+Return your answer wrapped in triple backticks, one path per line, for example:
+
+```
+src/new_module.py
+tests/test_new_module.py
+```
+
+If no new files need to be created, return exactly:
+
+```
+No files to create.
+```
 """
 
 def parse_search_replace(response: str) -> Union[List[Dict[str, str]], str]:
@@ -200,6 +225,7 @@ def edit_file(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List
             logger.error("Fallback entire file update failed.")
             errors.append("Fallback update failed after partial edit application.")
 
+
     return updated_content, errors
 
 
@@ -235,3 +261,83 @@ async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tup
             errors.append("Fallback update failed after partial edit application.")
 
     return updated_content, errors
+
+
+def find_files_to_create(
+    llm: LlmModel,
+    instructions: str,
+    root_dir: Union[str, Path] = "."
+) -> Tuple[List[str], List[str]]:
+    """
+    Identify files that need to be created based on instructions.
+
+    Args:
+        llm: LLM model to query
+        instructions: User instructions
+        root_dir: Root directory for file paths
+
+    Returns:
+        Tuple of (files_to_create, errors)
+    """
+    # Prepare the prompt
+    prompt = file_create_prompt.format(instructions=instructions)
+
+    # Get response from LLM
+    logger.info("Querying LLM for files to create")
+    response = llm.send_prompt(prompt)
+    logger.debug(f"LLM response for file creation:\n{response}")
+
+    # Parse file paths from response
+    suggested_paths = parse_file_create(response)
+
+    # Check which files don't exist
+    root = Path(root_dir)
+    to_create = []
+    errors = []
+
+    for path in suggested_paths:
+        full_path = root / path
+        if not full_path.exists():
+            to_create.append(path)
+        else:
+            msg = f"File '{path}' already exists"
+            logger.info(msg)
+            errors.append(msg)
+
+    return to_create, errors
+
+
+async def find_files_to_create_async(
+    llm: LlmModel,
+    instructions: str,
+    root_dir: Union[str, Path] = "."
+) -> Tuple[List[str], List[str]]:
+    """
+    Async version of find_files_to_create.
+    """
+    # Prepare the prompt
+    prompt = file_create_prompt.format(instructions=instructions)
+
+    # Get response from LLM
+    logger.info("Querying LLM for files to create (async)")
+    response = await llm.send_prompt_async(prompt)
+    logger.debug(f"LLM response for file creation:\n{response}")
+
+    # Parse file paths from response
+    suggested_paths = parse_file_create(response)
+
+    # Check which files don't exist
+    root = Path(root_dir)
+    to_create = []
+    errors = []
+
+    for path in suggested_paths:
+        full_path = root / path
+        if not full_path.exists():
+            to_create.append(path)
+        else:
+            msg = f"File '{path}' already exists"
+            logger.info(msg)
+            errors.append(msg)
+
+    return to_create, errors
