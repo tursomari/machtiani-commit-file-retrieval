@@ -96,14 +96,16 @@ Please note that the *ENTIRE_UPDATED_FILE* block REQUIRES PROPER INDENTATION. It
 """
 
 file_create_prompt = """
-We are currently determining which new files need to be created based on the following instructions:
+We are currently determining which new files need to be created based on the following conversation:
 
 --- BEGIN INSTRUCTIONS ---
 {instructions}
 --- END INSTRUCTIONS ---
 
-List the relative file paths (from the repository root) of any files that should be created
-because they are referenced or implied by these instructions but do not exist yet.
+List the relative file paths (from the repository root) of any files that should be created that the instructions suggests should be created.
+
+IMPORTANT: ignore and files in the section `Retrieved File Paths`. Only focus on the conversation and if the Assistant implies or states that any files should be created or files that they created that didn't exist before.
+
 Return your answer wrapped in triple backticks, one path per line, for example:
 
 ```
