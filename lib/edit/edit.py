@@ -341,3 +341,26 @@ async def find_files_to_create_async(
             errors.append(msg)
 
     return to_create, errors
+
+def parse_file_create(response: str) -> List[str]:
+    """
+    Parses LLM response for new file paths to create from triple backtick block.
+    Returns list of file paths or empty list if "No files to create".
+    """
+    # Look for triple backtick block
+    code_block = re.search(r'```(?:\s*)(.*?)```', response, re.DOTALL)
+    if not code_block:
+        return []
+
+    content = code_block.group(1).strip()
+    if content.lower() == "no files to create.":
+        return []
+
+    # Split lines and clean up
+    paths = []
+    for line in content.split('\n'):
+        line = line.strip()
+        if line and not line.lower().startswith("no files"):
+            paths.append(line)
+
+    return paths
