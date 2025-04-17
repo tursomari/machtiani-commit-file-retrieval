@@ -1,8 +1,8 @@
+
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import HttpUrl
 from typing import List, Dict
 import logging
-
 
 from app.services.new_files_service import new_files_service
 
@@ -22,10 +22,15 @@ async def new_files(
     """
     Call new_files_service to identify and create new files based on instructions.
     """
+    logger.info("Received request to create new files")
+    logger.debug(f"Project: {project}, Instructions: {instructions[:100]}...")  # Log the first 100 characters of instructions
+
     if not instructions.strip():
+        logger.warning("Empty instructions provided")
         raise HTTPException(status_code=400, detail="Instructions cannot be empty.")
 
     try:
+        logger.info("Calling new_files_service")
         new_content, new_file_paths, errors = await new_files_service(
             project_name=project,
             instructions=instructions,
@@ -35,9 +40,15 @@ async def new_files(
             ignore_files=ignore_files
         )
 
+        logger.info(f"Identified {len(new_file_paths)} new files to create")
+        if errors:
+            logger.warning(f"Errors encountered: {errors}")
+
     except Exception as e:
+        logger.error(f"File creation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"File creation failed: {e}")
 
+    logger.info("Returning response")
     return {
         "new_content": new_content,
         "new_file_paths": new_file_paths,

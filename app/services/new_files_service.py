@@ -30,6 +30,7 @@ Present your answer in this format:
 ======= ENTIRE_UPDATED_FILE
 """
 
+
 async def new_files_service(
     project_name: str,
     instructions: str,
@@ -38,73 +39,74 @@ async def new_files_service(
     model_name: str,
     ignore_files: List[str] = None
 ) -> Tuple[Dict[str, str], List[str], List[str]]:
-    """
-    Identify files that need to be created based on instructions and generate content for them.
-
-    Returns:
-        new_content: dict mapping file paths to their generated content
-        new_file_paths: list of file paths to create
-        errors: list of errors encountered
-    """
+    logger.info(f"Initializing new file service for project: {project_name}")
     ignore_files = ignore_files or []
     project_name = url_to_folder_name(project_name)
     if not project_name.strip():
+        logger.error("Empty project name provided")
         raise HTTPException(status_code=400, detail="Project name cannot be empty.")
 
-    # Instantiate LLM
-    llm = LlmModel(
-        api_key=llm_model_api_key,
-        base_url=str(llm_model_base_url),
-        model=model_name
-    )
-
-    # Calculate the root directory for the project
-    root_dir = os.path.join(DataDir.REPOS, project_name, "git")
-
-    # Find files to create
     try:
+        llm = LlmModel(
+            api_key=llm_model_api_key,
+            base_url=str(llm_model_base_url),
+            model=model_name
+        )
+        logger.debug(f"LLM Model initialized: {model_name}")
+    except Exception as e:
+        logger.error(f"Failed to initialize LLM Model: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to initialize LLM Model: {e}")
+
+    root_dir = os.path.join(DataDir.REPO.get_path(project_name), "git")
+    logger.info(f"Project root directory: {root_dir}")
+
+    try:
+        logger.info("Finding files to create...")
         file_paths, find_errors = await find_files_to_create_async(
             llm,
             instructions,
             root_dir=root_dir
         )
+        logger.info(f"Identified {len(file_paths)} files to create")
+        if find_errors:
+            logger.warning(f"Errors during file identification: {find_errors}")
     except Exception as e:
-        logger.exception("Error in find_files_to_create_async")
+        logger.error(f"Error in find_files_to_create_async: {e}", exc_info=True)
         raise HTTPException(500, f"Failed to identify new files: {e}")
 
     if not file_paths:
+        logger.info("No files to create")
         return {}, [], find_errors or ["No files to create were identified."]
 
-    # Generate content for each file
     new_contents = {}
     gen_errors = []
 
     for file_path in file_paths:
         try:
-            # Create a prompt specifically for generating this file's content
+            logger.info(f"Generating content for {file_path}...")
             prompt = new_file_content_prompt.format(
                 instructions=instructions,
                 file_path=file_path
             )
+            logger.debug(f"Prompt: {prompt[:100]}...")  # Log the first 100 characters of the prompt
 
-            # Send prompt to LLM
             response = await llm.send_prompt_async(prompt)
+            logger.debug(f"Received response for {file_path}: {response[:100]}...")  # Log the first 100 characters of the response
 
-            # Parse the response to extract the file content
             content = parse_entire_file_update(response)
-
             if content is None:
                 error_msg = f"Failed to generate valid content for {file_path}"
                 logger.error(error_msg)
                 gen_errors.append(error_msg)
             else:
                 new_contents[file_path] = content
+                logger.info(f"Successfully generated content for {file_path}")
         except Exception as e:
             error_msg = f"Failed to generate content for {file_path}: {str(e)}"
-            logger.error(error_msg)
+            logger.error(error_msg, exc_info=True)
             gen_errors.append(error_msg)
 
-    # Combine all errors
     all_errors = find_errors + gen_errors
+    logger.info(f"Total errors encountered: {len(all_errors)}")
 
     return new_contents, file_paths, all_errors
