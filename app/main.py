@@ -39,6 +39,7 @@ from lib.utils.enums import (
     FilePathEntry,
     VCSType,
 )
+
 from app.routes import (
     test_pull_access,
     get_project_info,
@@ -55,6 +56,7 @@ from app.routes import (
     count_tokens_generate_response,
     delete_store,
     file_edit,
+    new_files,
 )
 
 from app.routes.load import handle_load
@@ -80,6 +82,7 @@ delete_all_repo_lock_files("/data/users/repositories/")
 
 executor = ProcessPoolExecutor(max_workers=10)
 
+
 app.include_router(test_pull_access.router)
 app.include_router(check_repo_lock.router)
 app.include_router(get_file_summary.router)
@@ -94,6 +97,7 @@ app.include_router(count_tokens_add_repository.router)
 app.include_router(count_tokens_generate_response.router)
 app.include_router(delete_store.router)
 app.include_router(file_edit.router)
+app.include_router(new_files.router)
 
 app.get("/health")
 async def health_check():
