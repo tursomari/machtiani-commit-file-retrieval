@@ -27,14 +27,21 @@ class DeleteStoreResponse(BaseModel):
     success: bool
     message: str
 
+
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
-    branch_name: str
+    branch_name: Optional[str] = None  # Now optional
+    commit_oid: str  # New mandatory parameter
     ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
+    llm_model_base_url: Optional[str] = None
+    head: Optional[bool] = None
+    use_mock_llm: Optional[bool] = False
+    amplification_level: Optional[int] = None
+    depth_level: Optional[int] = None
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):
@@ -42,9 +49,11 @@ class FetchAndCheckoutBranchRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
+
 class FetchAndCheckoutResponse(BaseModel):
     message: str
-    branch_name: str
+    branch_name: Optional[str] = None  # Now optional
+    commit_oid: str  # Add the commit_oid field
     project_name: str
 
 class FileSummaryResponse(BaseModel):

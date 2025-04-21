@@ -165,6 +165,7 @@ def delete_store(codehost_url: HttpUrl, project_name: str, vcs_type: VCSType = V
         raise HTTPException(status_code=500, detail=f"Failed to delete the store: {str(e)}")
 
 
+
 def fetch_and_checkout_branch(
     codehost_url: HttpUrl,
     destination_path: str,
@@ -225,6 +226,118 @@ def fetch_and_checkout_branch(
 
         logger.info(f"Pulling latest changes for branch '{branch_name}'")
         origin_remote.pull(branch_name)
+
+        repo.git.config('--global', '--add', 'safe.directory', full_path)
+
+        # Remove all remotes after successful fetch and checkout
+        remove_all_remotes(repo)
+
+    except GitCommandError as e:
+        logger.error(f"Git command failed: {str(e)}")
+        raise
+    except ValueError as ve:
+        logger.error(f"Value error: {str(ve)}")
+        raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {str(e)}")
+        raise
+
+def fetch_and_checkout_commit(
+    codehost_url: HttpUrl,
+    destination_path: str,
+    project_name: str,
+    commit_oid: str,
+    api_key: Optional[SecretStr] = None
+):
+    full_path = os.path.join(destination_path, "git")
+
+    try:
+        add_safe_directory(full_path)
+
+        if not os.path.exists(full_path):
+            logger.info(f"Repository not found at {full_path}.")
+            return
+
+        repo = Repo(full_path)
+        remote_url = construct_remote_url(codehost_url, api_key)
+
+        # Check if 'origin' remote exists
+        remote_names = [remote.name for remote in repo.remotes]
+        if 'origin' in remote_names:
+            origin_remote = repo.remote('origin')
+        else:
+            origin_remote = repo.create_remote('origin', remote_url)
+            logger.info("Created new 'origin' remote.")
+
+        # Set the URL for the 'origin' remote
+        origin_remote.set_url(remote_url)
+
+        success = False
+
+        # Try to find the commit locally first
+        try:
+            commit = repo.commit(commit_oid)
+            logger.info(f"Found commit {commit_oid} locally.")
+            repo.git.checkout(commit_oid)
+            logger.info(f"Successfully checked out commit {commit_oid}.")
+            success = True
+        except GitCommandError as e:
+            logger.info(f"Commit {commit_oid} not found locally. Trying to fetch it.")
+
+        if not success:
+            # Fetch all branches to try to find the commit
+            logger.info("Fetching all branches from remote...")
+            origin_remote.fetch('--all')
+
+            # Try again to checkout the commit after fetching
+            try:
+                commit = repo.commit(commit_oid)
+                logger.info(f"Found commit {commit_oid} after fetching.")
+                repo.git.checkout(commit_oid)
+                logger.info(f"Successfully checked out commit {commit_oid}.")
+                success = True
+            except GitCommandError as e:
+                logger.info(f"Commit {commit_oid} not found after fetching all branches.")
+
+        if not success:
+            # If still not found, try to find which remote branch contains the commit
+            try:
+                # Run 'git branch -r --contains <commit_oid>' to find remote branches containing the commit
+                result = repo.git.branch('-r', '--contains', commit_oid)
+                if result:
+                    # Parse the result to get the remote branch names
+                    remote_branches = [branch.strip() for branch in result.split('\n')]
+                    if remote_branches:
+                        # Take the first remote branch that contains the commit
+                        remote_branch = remote_branches[0].strip()
+                        logger.info(f"Found remote branch {remote_branch} containing commit {commit_oid}.")
+
+                        # Extract the branch name from the remote reference (e.g., 'origin/main' -> 'main')
+                        branch_name = remote_branch.split('/', 1)[1] if '/' in remote_branch else remote_branch
+
+                        # Fetch and checkout the specific branch
+                        origin_remote.fetch(branch_name)
+
+                        # Create local branch tracking the remote branch if it doesn't exist
+                        if branch_name not in repo.heads:
+                            repo.create_head(branch_name, remote_branch)
+                            repo.heads[branch_name].set_tracking_branch(origin_remote.refs[branch_name])
+
+                        # Checkout the branch
+                        repo.heads[branch_name].checkout()
+
+                        # Then checkout the specific commit
+                        repo.git.checkout(commit_oid)
+                        logger.info(f"Successfully checked out commit {commit_oid} from branch {branch_name}.")
+                        success = True
+
+                if not success:
+                    # If we get here, we couldn't find the commit in any remote branch
+                    raise Exception(f"Commit {commit_oid} not found in any remote branch after fetching all branches.")
+
+            except GitCommandError as e:
+                logger.error(f"Failed to find remote branches containing commit {commit_oid}: {str(e)}")
+                raise
 
         repo.git.config('--global', '--add', 'safe.directory', full_path)
 

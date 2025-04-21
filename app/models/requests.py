@@ -66,7 +66,8 @@ class DeleteStoreRequest(BaseModel):
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
     project_name: str
-    branch_name: str
+    branch_name: Optional[str] = None  # Now optional
+    commit_oid: str  # New mandatory parameter
     ignore_files: List[str] = []  # Default to an empty list
     vcs_type: VCSType = VCSType.git  # Default to "git"
     api_key: Optional[SecretStr] = None
