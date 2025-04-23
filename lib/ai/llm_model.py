@@ -95,7 +95,7 @@ class LlmModel:
         if self.use_mock_llm:
             logger.debug(f"Using mock LLM for sync prompt: {prompt_text[:50]}...")
             # Return a simple mock response, maybe based on the prompt length or content
-            return f"Mock response for: {prompt_text[:100]}"
+            return prompt_text
 
         messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": prompt_text}]
         request_params = self._prepare_request_params(messages=messages)
@@ -126,7 +126,7 @@ class LlmModel:
             logger.debug(f"Using mock LLM for async prompt: {prompt_text[:50]}...")
             # Simulate async operation slightly
             await asyncio.sleep(0.01)
-            return f"Mock async response for: {prompt_text[:100]}"
+            return prompt_text
 
         messages: list[ChatCompletionMessageParam] = [{"role": "user", "content": prompt_text}]
         request_params = self._prepare_request_params(messages=messages)
