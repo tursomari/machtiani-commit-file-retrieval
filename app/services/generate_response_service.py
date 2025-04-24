@@ -95,7 +95,7 @@ async def infer_file_service(
     head: str
 ) -> List[FileSearchResponse]:
     """Service method to infer file matches."""
-    final_responses = []  # Changed variable name to avoid confusion
+
     project = url_to_folder_name(project)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
@@ -122,90 +122,91 @@ async def infer_file_service(
         skip_summaries=True,
     )
 
-
     logger.debug("Searching for commits closely matching prompt: '%s'...", prompt)
     closest_commit_matches = await matcher.find_closest_commits(prompt, match_strength, top_n=5)
     logger.debug("Found %d commit(s) matching prompt '%s'", len(closest_commit_matches), prompt)
     loop = asyncio.get_event_loop()
-    all_inferred_files_paths_before_ignore_filter = []  # For logging combined list before filter
 
-    for match in closest_commit_matches:
-        # Get raw file paths from the commit
-        raw_file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
-        # Convert to FilePathEntry objects
-        commit_file_entries: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in raw_file_paths]
-        all_inferred_files_paths_before_ignore_filter.extend(commit_file_entries)  # Add before filtering
+    # --- Begin concurrent file retrieval from commits and localization ---
 
-        # Filter based on ignore_files patterns
-        source_desc = f"Commit {match['oid']}"
-        filtered_commit_file_entries, _ = _filter_and_log_ignored_files(
-            commit_file_entries, ignore_files, source_desc
-        )
-
-        # Create response only if there are files left after filtering
-        if filtered_commit_file_entries:
-            response = FileSearchResponse(
-                oid=match["oid"],
-                similarity=match["similarity"],
-                file_paths=filtered_commit_file_entries,  # Use filtered list
-                embedding_model=model.value,
-                mode=mode.value,
-                path_type='commit'
+    async def commit_files():
+        responses = []
+        all_inferred_files_paths_before_ignore_filter = []
+        for match in closest_commit_matches:
+            raw_file_paths = await loop.run_in_executor(None, parser.get_files_from_commits, match["oid"])
+            commit_file_entries: List[FilePathEntry] = [FilePathEntry(path=fp) for fp in raw_file_paths]
+            all_inferred_files_paths_before_ignore_filter.extend(commit_file_entries)
+            filtered_commit_file_entries, _ = _filter_and_log_ignored_files(
+                commit_file_entries, ignore_files, f"Commit {match['oid']}"
             )
-            final_responses.append(response)
+            if filtered_commit_file_entries:
+                response = FileSearchResponse(
+                    oid=match["oid"],
+                    similarity=match["similarity"],
+                    file_paths=filtered_commit_file_entries,
+                    embedding_model=model.value,
+                    mode=mode.value,
+                    path_type='commit'
+                )
+                responses.append(response)
+        logger.info("Inferred files from commits (before ignore filter): %s",
+                     [file.path for file in all_inferred_files_paths_before_ignore_filter])
+        return responses
 
-    logger.info("Inferred files from commits (before ignore filter): %s", [file.path for file in all_inferred_files_paths_before_ignore_filter])
+    async def localization_files():
+        responses = []
+        try:
+            project_source_dir = os.path.join(DataDir.REPO.get_path(project), "git")
 
-    # Instantiate FileLocalizer
-    project_source_dir = os.path.join(DataDir.REPO.get_path(project), "git")
-
-    file_localizer = FileLocalizer(
-        problem_statement=prompt,
-        root_dir=project_source_dir,
-        api_key=llm_model_api_key,
-        model=model.value,
-        base_url=str(llm_model_base_url),
-        use_mock_llm=False,
-        max_tokens=500,
-    )
-
-    # Get localized files using executor
-
-    try:
-        logger.critical("Starting file localization")
-        logger.debug("Starting file localization for prompt: '%s'...", prompt)
-        localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
-        logger.debug("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
-        localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
-        logger.debug("Inferred files from localization (before ignore filter): %s", [entry.path for entry in localized_file_entries_unfiltered])
-
-        # Filter localized files based on ignore_files patterns
-        source_desc = "Localization"
-        filtered_localized_entries, _ = _filter_and_log_ignored_files(
-            localized_file_entries_unfiltered, ignore_files, source_desc
-        )
-
-        # Create response for localized files if any remain after filtering
-        if filtered_localized_entries:
-            localized_response = FileSearchResponse(
-                oid="file_localizer",  # Placeholder since no commit
-                similarity=0.0,  # Placeholder similarity score
-                file_paths=filtered_localized_entries,  # Use filtered list
-                embedding_model=model.value,
-                mode=mode.value,
-                path_type='localization'
+            file_localizer = FileLocalizer(
+                problem_statement=prompt,
+                root_dir=project_source_dir,
+                api_key=llm_model_api_key,
+                model=model.value,
+                base_url=str(llm_model_base_url),
+                use_mock_llm=False,
+                max_tokens=500,
             )
-            final_responses.append(localized_response)
 
-        # Log combined *final* file paths after all filtering
-        final_inferred_paths = []
-        for resp in final_responses:
-            final_inferred_paths.extend([entry.path for entry in resp.file_paths])
-        logger.debug("Combined inferred files (after ignore filter): %s", final_inferred_paths)
+            logger.critical("Starting file localization")
+            logger.debug("Starting file localization for prompt: '%s'...", prompt)
+            localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
+            logger.debug("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
+            localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
+            logger.debug("Inferred files from localization (before ignore filter): %s",
+                         [entry.path for entry in localized_file_entries_unfiltered])
 
-    except Exception as e:
+            filtered_localized_entries, _ = _filter_and_log_ignored_files(
+                localized_file_entries_unfiltered, ignore_files, "Localization"
+            )
 
-        logger.critical("Critical error during file localization for prompt '%s': %s", prompt, e)
-        raise RuntimeError(f"Error in file localization or filtering: {e}")
+            if filtered_localized_entries:
+                localized_response = FileSearchResponse(
+                    oid="file_localizer",
+                    similarity=0.0,
+                    file_paths=filtered_localized_entries,
+                    embedding_model=model.value,
+                    mode=mode.value,
+                    path_type='localization'
+                )
+                responses.append(localized_response)
+
+        except Exception as e:
+            logger.critical("Critical error during file localization for prompt '%s': %s", prompt, e)
+            raise RuntimeError(f"Error in file localization or filtering: {e}")
+        return responses
+
+    # Launch both paths concurrently
+    commit_task = commit_files()
+    localization_task = localization_files()
+    commit_responses, loc_responses = await asyncio.gather(commit_task, localization_task)
+
+    final_responses = commit_responses + loc_responses
+
+    # Log combined *final* file paths after all filtering
+    final_inferred_paths = []
+    for resp in final_responses:
+        final_inferred_paths.extend([entry.path for entry in resp.file_paths])
+    logger.debug("Combined inferred files (after ignore filter): %s", final_inferred_paths)
 
     return final_responses
