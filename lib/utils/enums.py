@@ -7,6 +7,7 @@ class SearchMode(str, Enum):
     pure_chat = "pure-chat"
     commit = "commit"
     default = "default"
+    answer_only = "answer-only"
 
 class MatchStrength(Enum):
     HIGH = "high"
