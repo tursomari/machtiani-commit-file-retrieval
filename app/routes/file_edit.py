@@ -26,6 +26,7 @@ async def file_edit(
         raise HTTPException(status_code=400, detail="Instructions cannot be empty.")
 
     try:
+
         updated_content, errors = await edit_file_service(
             project_name=project,
             file_path=file_path,
@@ -34,6 +35,9 @@ async def file_edit(
             llm_model_base_url=llm_model_base_url,
             model_name=model,
             ignore_files=ignore_files
+        )
+        logger.info(
+            f"File edit requested for project='{project}', file='{file_path}'. Errors: {errors if errors else 'none'}"
         )
 
     except Exception as e:
