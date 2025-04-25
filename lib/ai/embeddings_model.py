@@ -1,35 +1,53 @@
+
 import logging
 from typing import List
 from pydantic import HttpUrl
 from langchain_openai import OpenAIEmbeddings
 import json
 import os
+from sentence_transformers import SentenceTransformer
+
 
 class EmbeddingModel:
-    def __init__(self, embeddings_model_api_key: str, embedding_model_base_url: HttpUrl, embeddings_model="text-embedding-3-large", use_mock_llm: bool = False):
+    def __init__(
+        self,
+        embeddings_model_api_key: str,
+        embedding_model_base_url: HttpUrl,
+        embeddings_model: str = "all-MiniLM-L6-v2",   # <<<<<<<<<<<< DEFAULT CHANGED HERE
+        use_mock_llm: bool = False
+    ):
         """
         Initialize the EmbeddingModel for generating embeddings.
 
         :param embeddings_model_api_key: The API key for accessing the embeddings model.
         :param embedding_model_base_url: The base URL for the embeddings model API.
-        :param embeddings_model: The OpenAI model to use for generating embeddings.
-        :param use_mock_llm: A boolean indicating whether to use a mock LLM for testing, defaults to False.
+        :param embeddings_model: The model to use for generating embeddings.
+        :param use_mock_llm: Whether to use a mock LLM for testing (only returns placeholder embedding)
         """
-        # Set up logging
-        #logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-
         self.use_mock_llm = use_mock_llm
+        self.embeddings_model = embeddings_model
 
         self.logger.debug(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
-        if not use_mock_llm:
-            # Set up your OpenAI API key and model for embeddings
-            self.embeddings_model_api_key = embeddings_model_api_key
-            self.embedding_generator = OpenAIEmbeddings(openai_api_key=self.embeddings_model_api_key, base_url=str(embedding_model_base_url), model=embeddings_model)
-        else:
 
+        if not use_mock_llm:
+            if embeddings_model == "text-embedding-3-large":
+                # Use OpenAI for this specific model
+                self.embeddings_model_api_key = embeddings_model_api_key
+                self.embedding_generator = OpenAIEmbeddings(
+                    openai_api_key=self.embeddings_model_api_key,
+                    base_url=str(embedding_model_base_url),
+                    model=embeddings_model
+                )
+            else:
+                # Use passed or default SentenceTransformer model
+                # If someone provides a different local/remote st model name, use it
+                self.sentence_transformer = SentenceTransformer(
+                    f'data/users/models/{embeddings_model}'
+                    if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
+                )
+        else:
             self.logger.debug("Using mock LLM for embedding generation.")
-            # Load the mock embedding once during initialization
             self.mock_embedding = self._load_mock_embedding()
             if not self.mock_embedding:
                 self.logger.error("Failed to load mock embedding. Placeholder embeddings will be empty.")
@@ -87,11 +105,16 @@ class EmbeddingModel:
             embeddings = [self.mock_embedding.copy() for _ in texts_to_embed]  # Create a copy for each text to avoid reference issues
 
             self.logger.debug(f"Using mock embeddings for {len(texts_to_embed)} texts.")
-        else:
-            # Generate embeddings using OpenAI API
-            embeddings = self.embedding_generator.embed_documents(texts_to_embed)
 
-            self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using OpenAI API.")
+        else:
+            if self.embeddings_model == "text-embedding-3-large":
+                # Generate embeddings using OpenAI API
+                embeddings = self.embedding_generator.embed_documents(texts_to_embed)
+                self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using OpenAI API.")
+            else:
+                # Generate embeddings using SentenceTransformer
+                embeddings = self.sentence_transformer.encode(texts_to_embed).tolist()
+                self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using SentenceTransformer.")
         return embeddings
 
     def embed_text(self, text: str) -> List[float]:
@@ -112,9 +135,14 @@ class EmbeddingModel:
 
             self.logger.debug(f"Using mock embedding for the input text.")
             return self.mock_embedding.copy()  # Return a copy to prevent unintended modifications
-        else:
-            # Generate embedding using OpenAI API
-            embedding = self.embedding_generator.embed_query(text)
 
-            self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
+        else:
+            if self.embeddings_model == "text-embedding-3-large":
+                # Generate embedding using OpenAI API
+                embedding = self.embedding_generator.embed_query(text)
+                self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
+            else:
+                # Generate embedding using SentenceTransformer
+                embedding = self.sentence_transformer.encode(text).tolist()
+                self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding

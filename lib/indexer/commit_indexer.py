@@ -6,7 +6,8 @@ from lib.ai.embeddings_model import EmbeddingModel
 from lib.utils.utilities import validate_commits_embeddings
 
 class CommitEmbeddingGenerator:
-    def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="text-embedding-3-large", files_embeddings: Dict[str, str] = {}, use_mock_llm: bool = False):
+
+    def __init__(self, commit_logs, embeddings_model_api_key: str, embeddings_model_base_url: HttpUrl, existing_commits_embeddings=None, embeddings_model="all-MiniLM-L6-v2", files_embeddings: Dict[str, str] = {}, use_mock_llm: bool = False):
         #logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.commit_logs = commit_logs
