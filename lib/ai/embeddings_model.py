@@ -148,7 +148,7 @@ class EmbeddingModel:
                 self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using OpenAI API.")
             else:
                 # Generate embeddings using SentenceTransformer
-                embeddings = self.sentence_transformer.encode(texts_to_embed).tolist()
+                embeddings = self.sentence_transformer.encode(texts_to_embed, normalize_embeddings=True).tolist()
                 self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using SentenceTransformer.")
         return embeddings
 
@@ -180,7 +180,7 @@ class EmbeddingModel:
             else:
                 text_to_embed = self._truncate_text_to_max_tokens(text)
                 # Generate embedding using SentenceTransformer
-                embedding = self.sentence_transformer.encode(text_to_embed).tolist()
+                embedding = self.sentence_transformer.encode(text_to_embed, normalize_embeddings=True).tolist()
                 self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding
 
