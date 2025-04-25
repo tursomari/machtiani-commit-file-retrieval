@@ -178,9 +178,16 @@ class EmbeddingModel:
                 embedding = self.embedding_generator.embed_query(text)
                 self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
             else:
+
                 text_to_embed = self._truncate_text_to_max_tokens(text)
                 # Generate embedding using SentenceTransformer
                 embedding = self.sentence_transformer.encode(text_to_embed, normalize_embeddings=True).tolist()
+
+                # Ensure embedding is a flat list of floats
+                if isinstance(embedding, list) and embedding and isinstance(embedding[0], list):
+                    self.logger.debug("Flattening embedding from 2D to 1D list")
+                    embedding = embedding[0]
+
                 self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding
 
