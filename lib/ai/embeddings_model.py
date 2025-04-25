@@ -5,7 +5,9 @@ from pydantic import HttpUrl
 from langchain_openai import OpenAIEmbeddings
 import json
 import os
+
 from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer  # Import AutoTokenizer
 
 
 class EmbeddingModel:
@@ -42,10 +44,14 @@ class EmbeddingModel:
             else:
                 # Use passed or default SentenceTransformer model
                 # If someone provides a different local/remote st model name, use it
-                self.sentence_transformer = SentenceTransformer(
-                    f'data/users/models/{embeddings_model}'
-                    if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
-                )
+
+                # Use passed or default SentenceTransformer model
+                # If someone provides a different local/remote st model name, use it
+                model_path = f'data/users/models/{embeddings_model}' if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
+                self.sentence_transformer = SentenceTransformer(model_path)
+                # Load the tokenizer for the all-MiniLM-L6-v2 model
+                if embeddings_model == "all-MiniLM-L6-v2":
+                    self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
         else:
             self.logger.debug("Using mock LLM for embedding generation.")
             self.mock_embedding = self._load_mock_embedding()
@@ -117,6 +123,7 @@ class EmbeddingModel:
                 self.logger.debug(f"Generated embeddings for {len(texts_to_embed)} texts using SentenceTransformer.")
         return embeddings
 
+
     def embed_text(self, text: str) -> List[float]:
         """
         Generate an embedding for a single text input.
@@ -146,3 +153,28 @@ class EmbeddingModel:
                 embedding = self.sentence_transformer.encode(text).tolist()
                 self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding
+
+    def count_tokens(self, text: str) -> int:
+        """
+        Count how many tokens the given text would use when processed by the all-MiniLM-L6-v2 model.
+
+        :param text: The input text to count tokens for
+        :return: The number of tokens in the text according to all-MiniLM-L6-v2's tokenizer
+        """
+        if not isinstance(text, str) or not text.strip():
+            self.logger.info("Invalid input: text must be a non-empty string.")
+            return 0
+
+
+        if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
+            try:
+                # Use the tokenizer to count tokens
+                tokens = self.tokenizer.tokenize(text)
+                return len(tokens)
+            except Exception as e:
+                self.logger.warning(f"Failed to count tokens for all-MiniLM-L6-v2: {str(e)}")
+                # Fall back to simple whitespace-based estimation if tokenization fails
+                return len(text.split())
+
+        self.logger.warning("Cannot get exact token count - not using the all-MiniLM-L6-v2 model. Returning approximate word count.")
+        return len(text.split())
