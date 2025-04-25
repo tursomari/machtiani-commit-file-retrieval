@@ -26,9 +26,11 @@ class EmbeddingModel:
         :param embeddings_model: The model to use for generating embeddings.
         :param use_mock_llm: Whether to use a mock LLM for testing (only returns placeholder embedding)
         """
+
         self.logger = logging.getLogger(__name__)
         self.use_mock_llm = use_mock_llm
         self.embeddings_model = embeddings_model
+        self.max_tokens = 512  # Maximum token limit for all-MiniLM-L6-v2
 
         self.logger.debug(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
 
@@ -57,6 +59,26 @@ class EmbeddingModel:
             self.mock_embedding = self._load_mock_embedding()
             if not self.mock_embedding:
                 self.logger.error("Failed to load mock embedding. Placeholder embeddings will be empty.")
+
+
+    def _truncate_text_to_max_tokens(self, text: str) -> str:
+        """
+        Truncate the text to fit within the maximum token limit.
+
+        :param text: The input text to be truncated.
+        :return: The truncated text.
+        """
+        if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
+            try:
+                tokens = self.tokenizer.tokenize(text)
+                if len(tokens) > self.max_tokens:
+                    truncated_tokens = tokens[:self.max_tokens]
+                    truncated_text = self.tokenizer.convert_tokens_to_string(truncated_tokens)
+                    self.logger.debug(f"Text truncated to {self.max_tokens} tokens.")
+                    return truncated_text
+            except Exception as e:
+                self.logger.warning(f"Failed to truncate text: {str(e)}")
+        return text
 
     def _load_mock_embedding(self) -> List[float]:
         """
@@ -98,11 +120,15 @@ class EmbeddingModel:
             self.logger.info("No texts provided for embedding.")
             return []
 
-        # Ensure that all texts are non-empty strings
-        texts_to_embed = [text for text in texts if isinstance(text, str) and text.strip()]
+
+        # Truncate and validate texts
+        texts_to_embed = [self._truncate_text_to_max_tokens(text) for text in texts if isinstance(text, str) and text.strip()]
         if not texts_to_embed:
             self.logger.info("All provided texts are empty or invalid.")
             return []
+
+
+        text_to_embed = self._truncate_text_to_max_tokens(text)
 
         if self.use_mock_llm:
             if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
