@@ -30,8 +30,7 @@ async def retrieve_file_contents_service(
         logger.critical("Completed file content retrieval for project '%s'", project_name)
 
         if not file_contents:
-            logger.warning("No file contents retrieved for project '%s' with provided file paths: %s", project_name,
-le_paths)
+            logger.warning("No file contents retrieved for project '%s' with provided file paths: %s", project_name, file_paths)
 
         for path in file_contents.keys():
             retrieved_file_paths.append(path)
