@@ -43,16 +43,23 @@ class EmbeddingModel:
                     model=embeddings_model
                 )
             else:
-                # Use passed or default SentenceTransformer model
-                # If someone provides a different local/remote st model name, use it
 
-                # Use passed or default SentenceTransformer model
-                # If someone provides a different local/remote st model name, use it
-                model_path = f'/data/users/models/{embeddings_model}' if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
-                self.sentence_transformer = SentenceTransformer(model_path)
-                # Load the tokenizer for the all-MiniLM-L6-v2 model
+                # Use HuggingFace directly for all-MiniLM-L6-v2 instead of local path
                 if embeddings_model == "all-MiniLM-L6-v2":
-                    self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+                    model_name = 'sentence-transformers/all-MiniLM-L6-v2'
+
+                    # You can optionally set a specific cache directory
+                    cache_dir = "/data/users/models/cache"
+                    os.makedirs(cache_dir, exist_ok=True)
+
+                    self.logger.info(f"Loading model from HuggingFace with caching at {cache_dir}")
+                    # Change cache_dir to cache_folder
+                    self.sentence_transformer = SentenceTransformer(model_name, cache_folder=cache_dir)
+                    self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
+                else:
+                    # For any other model, load it normally
+                    self.sentence_transformer = SentenceTransformer(embeddings_model)
+                    self.tokenizer = AutoTokenizer.from_pretrained(embeddings_model)
         else:
             self.logger.debug("Using mock LLM for embedding generation.")
             self.mock_embedding = self._load_mock_embedding()
