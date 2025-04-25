@@ -12,7 +12,7 @@ import asyncio  # Import asyncio for asynchronous operations
 logger = logging.getLogger(__name__)
 
 class CommitEmbeddingMatcher:
-    def __init__(self, commits_embedding_filepath: str, embeddings_model_api_key: str, embedding_model_base_url: HttpUrl, embeddings_model: str = "text-embedding-3-large"):
+    def __init__(self, commits_embedding_filepath: str, embeddings_model_api_key: str, embedding_model_base_url: HttpUrl, embeddings_model: str = "all-MiniLM-L6-v2"):
         # Set up your OpenAI API key
         if embeddings_model_api_key:
             self.embeddings_model_api_key = embeddings_model_api_key

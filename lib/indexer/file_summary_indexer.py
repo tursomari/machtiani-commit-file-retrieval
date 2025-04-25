@@ -25,7 +25,7 @@ class FileSummaryGenerator:
         git_project_path: str,
         ignore_files: list = None,
         existing_files_embeddings=None,
-        embeddings_model="text-embedding-3-large",
+        embeddings_model="all-MiniLM-L6-v2",
         llm_model="gpt-4o-mini",
         use_mock_llm: bool = False,
     ):

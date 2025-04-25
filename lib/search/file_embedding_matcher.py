@@ -11,7 +11,7 @@ import asyncio  # Import asyncio for asynchronous operations
 logger = logging.getLogger(__name__)
 
 class FileEmbeddingMatcher:
-    def __init__(self, embeddings_file: str, api_key: str, model: str = "text-embedding-3-large"):
+    def __init__(self, embeddings_file: str, api_key: str, model: str = "all-MiniLM-L6-v2"):
         # Set up your OpenAI API key
         if api_key:
             self.llm_model_api_key = api_key

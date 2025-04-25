@@ -35,7 +35,7 @@ class GitCommitManager:
         embeddings_model_api_key: str,
         head: str,
         llm_model="gpt-4o-mini",
-        embeddings_model="text-embedding-3-large",
+        embeddings_model="all-MiniLM-L6-v2",
         ignore_files: List[str] = [],
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False,
