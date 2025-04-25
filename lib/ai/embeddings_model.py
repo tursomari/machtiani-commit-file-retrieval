@@ -1,4 +1,3 @@
-
 import logging
 from typing import List
 from pydantic import HttpUrl
@@ -49,11 +48,11 @@ class EmbeddingModel:
 
                 # Use passed or default SentenceTransformer model
                 # If someone provides a different local/remote st model name, use it
-                model_path = f'data/users/models/{embeddings_model}' if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
+                model_path = f'/data/users/models/{embeddings_model}' if embeddings_model == "all-MiniLM-L6-v2" else embeddings_model
                 self.sentence_transformer = SentenceTransformer(model_path)
                 # Load the tokenizer for the all-MiniLM-L6-v2 model
                 if embeddings_model == "all-MiniLM-L6-v2":
-                    self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+                    self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         else:
             self.logger.debug("Using mock LLM for embedding generation.")
             self.mock_embedding = self._load_mock_embedding()
@@ -127,9 +126,6 @@ class EmbeddingModel:
             self.logger.info("All provided texts are empty or invalid.")
             return []
 
-
-        text_to_embed = self._truncate_text_to_max_tokens(text)
-
         if self.use_mock_llm:
             if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
                 self.logger.error("Mock embedding not available. Returning empty list.")
@@ -175,8 +171,9 @@ class EmbeddingModel:
                 embedding = self.embedding_generator.embed_query(text)
                 self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
             else:
+                text_to_embed = self._truncate_text_to_max_tokens(text)
                 # Generate embedding using SentenceTransformer
-                embedding = self.sentence_transformer.encode(text).tolist()
+                embedding = self.sentence_transformer.encode(text_to_embed).tolist()
                 self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding
 
