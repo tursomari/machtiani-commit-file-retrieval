@@ -1,5 +1,7 @@
 import os
+
 from fastapi import FastAPI, Query, HTTPException, Body, BackgroundTasks
+import subprocess
 from pydantic import ValidationError, SecretStr, HttpUrl
 import asyncio
 from concurrent.futures import ProcessPoolExecutor
@@ -74,8 +76,29 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+
 logger.critical("Application is starting up...")
 
+# Add code to clone the model repository if not exists
+models_dir = "/data/users/models/"
+model_path = os.path.join(models_dir, "all-MiniLM-L6-v2")
+
+# Ensure models directory exists
+os.makedirs(models_dir, exist_ok=True)
+
+# Check if model already exists
+if not os.path.exists(model_path):
+    logger.info(f"Cloning all-MiniLM-L6-v2 model into {model_path}")
+    try:
+        subprocess.run(
+            ["git", "clone", "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2", model_path],
+            check=True
+        )
+        logger.info("Model cloned successfully")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to clone model: {str(e)}")
+else:
+    logger.info(f"Model already exists at {model_path}, skipping clone")
 
 add_all_existing_repos_as_safe("/data/users/repositories/")
 delete_all_repo_lock_files("/data/users/repositories/")
