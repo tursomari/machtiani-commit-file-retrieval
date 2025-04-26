@@ -28,8 +28,9 @@ class EmbeddingModel:
 
         self.logger = logging.getLogger(__name__)
         self.use_mock_llm = use_mock_llm
+
         self.embeddings_model = embeddings_model
-        self.max_tokens = 512  # Maximum token limit for all-MiniLM-L6-v2
+        self.max_tokens = 510  # 512 - 2 for additional safety margin
 
         self.logger.debug(f"Constructing EmbeddingModel with use_mock_llm: {self.use_mock_llm}")
 
@@ -67,6 +68,7 @@ class EmbeddingModel:
                 self.logger.error("Failed to load mock embedding. Placeholder embeddings will be empty.")
 
 
+
     def _truncate_text_to_max_tokens(self, text: str) -> str:
         """
         Truncate the text to fit within the maximum token limit.
@@ -76,14 +78,42 @@ class EmbeddingModel:
         """
         if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
             try:
-                tokens = self.tokenizer.tokenize(text)
-                if len(tokens) > self.max_tokens:
-                    truncated_tokens = tokens[:self.max_tokens]
-                    truncated_text = self.tokenizer.convert_tokens_to_string(truncated_tokens)
-                    self.logger.debug(f"Text truncated to {self.max_tokens} tokens.")
+                # Use token_ids for more accurate tokenization
+                input_ids = self.tokenizer.encode(text, add_special_tokens=False)
+                token_count = len(input_ids)
+
+                self.logger.debug(f"Text contains {token_count} tokens (max: {self.max_tokens})")
+
+                if token_count > self.max_tokens:
+                    # Account for special tokens ([CLS] and [SEP]) in SentenceTransformer
+                    effective_max = self.max_tokens - 2
+
+                    # Truncate input_ids and decode back to text
+                    truncated_ids = input_ids[:effective_max]
+                    truncated_text = self.tokenizer.decode(truncated_ids)
+
+                    self.logger.info(f"Text truncated from {token_count} to {effective_max} tokens")
                     return truncated_text
+                else:
+                    self.logger.debug(f"No truncation needed, token count {token_count} is within limit")
             except Exception as e:
-                self.logger.warning(f"Failed to truncate text: {str(e)}")
+                self.logger.warning(f"Failed to truncate text using encode/decode: {str(e)}")
+
+                # Fallback to tokenize method
+                try:
+                    tokens = self.tokenizer.tokenize(text)
+                    token_count = len(tokens)
+
+                    if token_count > self.max_tokens:
+                        effective_max = self.max_tokens - 2
+                        truncated_tokens = tokens[:effective_max]
+                        truncated_text = self.tokenizer.convert_tokens_to_string(truncated_tokens)
+
+                        self.logger.info(f"Fallback: Text truncated from {token_count} to {effective_max} tokens")
+                        return truncated_text
+                except Exception as e2:
+                    self.logger.warning(f"Fallback tokenization also failed: {str(e2)}")
+
         return text
 
     def _load_mock_embedding(self) -> List[float]:
@@ -127,11 +157,26 @@ class EmbeddingModel:
             return []
 
 
+
         # Truncate and validate texts
         texts_to_embed = [self._truncate_text_to_max_tokens(text) for text in texts if isinstance(text, str) and text.strip()]
         if not texts_to_embed:
             self.logger.info("All provided texts are empty or invalid.")
             return []
+
+        # Add safety check for token lengths
+        if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
+            for i, text in enumerate(texts_to_embed):
+                try:
+                    token_count = len(self.tokenizer.encode(text, add_special_tokens=True))
+                    self.logger.debug(f"Text {i} token count after initial truncation: {token_count}")
+
+                    if token_count > self.max_tokens:
+                        self.logger.warning(f"Text {i} still exceeds max tokens: {token_count} > {self.max_tokens}. Forcing truncation.")
+                        input_ids = self.tokenizer.encode(text, add_special_tokens=False)
+                        texts_to_embed[i] = self.tokenizer.decode(input_ids[:self.max_tokens-2])
+                except Exception as e:
+                    self.logger.warning(f"Failed to check tokens for text {i}: {str(e)}")
 
         if self.use_mock_llm:
             if not hasattr(self, 'mock_embedding') or not self.mock_embedding:
@@ -179,7 +224,20 @@ class EmbeddingModel:
                 self.logger.debug(f"Generated embedding for the input text using OpenAI API.")
             else:
 
+
                 text_to_embed = self._truncate_text_to_max_tokens(text)
+
+                # Add safety check before encoding
+                if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
+                    try:
+                        token_count = len(self.tokenizer.encode(text_to_embed, add_special_tokens=True))
+                        if token_count > self.max_tokens:
+                            self.logger.warning(f"Text still exceeds max tokens after truncation ({token_count} > {self.max_tokens}). Forcing truncation.")
+                            input_ids = self.tokenizer.encode(text_to_embed, add_special_tokens=False)
+                            text_to_embed = self.tokenizer.decode(input_ids[:self.max_tokens-2])
+                    except Exception as e:
+                        self.logger.warning(f"Error checking token count: {str(e)}")
+
                 # Generate embedding using SentenceTransformer
                 embedding = self.sentence_transformer.encode(text_to_embed, normalize_embeddings=True).tolist()
 
@@ -190,6 +248,7 @@ class EmbeddingModel:
 
                 self.logger.debug(f"Generated embedding for the input text using SentenceTransformer.")
             return embedding
+
 
     def count_tokens(self, text: str) -> int:
         """
@@ -202,16 +261,24 @@ class EmbeddingModel:
             self.logger.info("Invalid input: text must be a non-empty string.")
             return 0
 
-
         if self.embeddings_model == "all-MiniLM-L6-v2" and not self.use_mock_llm:
             try:
-                # Use the tokenizer to count tokens
-                tokens = self.tokenizer.tokenize(text)
-                return len(tokens)
+                # Include special tokens for accurate count
+                token_count = len(self.tokenizer.encode(text, add_special_tokens=True))
+                self.logger.debug(f"Token count (with special tokens): {token_count}")
+                return token_count
             except Exception as e:
-                self.logger.warning(f"Failed to count tokens for all-MiniLM-L6-v2: {str(e)}")
-                # Fall back to simple whitespace-based estimation if tokenization fails
-                return len(text.split())
+                self.logger.warning(f"Failed to count tokens using encode: {str(e)}")
 
-        self.logger.warning("Cannot get exact token count - not using the all-MiniLM-L6-v2 model. Returning approximate word count.")
-        return len(text.split())
+                # Fallback to tokenize + special tokens
+                try:
+                    token_count = len(self.tokenizer.tokenize(text)) + 2  # +2 for [CLS] and [SEP]
+                    self.logger.debug(f"Token count (tokenize + special tokens): {token_count}")
+                    return token_count
+                except Exception as e2:
+                    self.logger.warning(f"Tokenize method failed: {str(e2)}")
+
+        # Fallback to simple approximation
+        word_count = len(text.split())
+        self.logger.warning(f"Using word count as approximation: {word_count}")
+        return word_count
