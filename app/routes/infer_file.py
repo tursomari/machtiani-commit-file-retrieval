@@ -17,7 +17,7 @@ async def infer_file(
     prompt: str = Body(..., description="The prompt to search for"),
     project: str = Body(..., description="The project to search"),
     mode: SearchMode = Body(..., description="Search mode: chat, pure-chat, or default"),
-    model: EmbeddingModel = Body(..., description="The embedding model used"),
+    model: str = Body(..., description="The model used used for inference, actually"),
     match_strength: MatchStrength = Body(..., description="The strength of the match"),
     llm_model_base_url: HttpUrl = Body(..., description="OpenAI API key"),
     llm_model_api_key: str = Body(..., description="OpenAI API key"),

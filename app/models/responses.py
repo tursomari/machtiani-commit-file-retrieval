@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from pydantic import BaseModel, HttpUrl, SecretStr, validator
 from enum import Enum
-from lib.utils.enums import VCSType, FilePathEntry, EmbeddingModel, SearchMode
+from lib.utils.enums import VCSType, FilePathEntry, SearchMode
 from typing import Optional, List, Dict
 
 class AddRepositoryResponse(BaseModel):
@@ -64,7 +64,7 @@ class FileSearchResponse(BaseModel):
     oid: str
     similarity: float
     file_paths: List[FilePathEntry]
-    embedding_model: EmbeddingModel
+    embedding_model: str
     mode: SearchMode
     path_type: str
 

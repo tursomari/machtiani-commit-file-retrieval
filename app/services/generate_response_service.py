@@ -95,6 +95,9 @@ async def infer_file_service(
 ) -> List[FileSearchResponse]:
     """Service method to infer file matches."""
 
+    logger.info(f"llm key: {llm_model_api_key}")
+    logger.info(f"llm base_url: {str(llm_model_base_url)}")
+
     project = url_to_folder_name(project)
 
     commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")
@@ -143,7 +146,7 @@ async def infer_file_service(
                     oid=match["oid"],
                     similarity=match["similarity"],
                     file_paths=filtered_commit_file_entries,
-                    embedding_model=model.value,
+                    embedding_model=model,
                     mode=mode.value,
                     path_type='commit'
                 )
@@ -161,7 +164,7 @@ async def infer_file_service(
                 problem_statement=prompt,
                 root_dir=project_source_dir,
                 api_key=llm_model_api_key,
-                model=model.value,
+                model=model,
                 base_url=str(llm_model_base_url),
                 use_mock_llm=False,
                 max_tokens=500,
@@ -184,7 +187,7 @@ async def infer_file_service(
                     oid="file_localizer",
                     similarity=0.0,
                     file_paths=filtered_localized_entries,
-                    embedding_model=model.value,
+                    embedding_model=model,
                     mode=mode.value,
                     path_type='localization'
                 )
