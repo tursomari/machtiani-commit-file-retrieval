@@ -14,13 +14,15 @@ class MatchStrength(Enum):
     MID = "mid"
     LOW = "low"
 
+    # The adjusted, normalized scoring takes care of this,
+    # So just let anything with a positive score through.
     def get_min_similarity(self) -> float:
         if self == MatchStrength.HIGH:
-            return 0.40
+            return 0.01
         elif self == MatchStrength.MID:
-            return 0.30
+            return 0.01
         else:
-            return 0.20
+            return 0.01
 
 class EmbeddingModel(str, Enum):
     gpt_4o = "gpt-4o"
