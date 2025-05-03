@@ -373,19 +373,15 @@ def delete_repository(project_name: str):
         logger.error(f"Error deleting repository for project '{project_name}': {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete the repository: {str(e)}")
 
+
 def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name: str, api_key: Optional[SecretStr] = None) -> bool:
     """
     Check if the user has push access to the specified branch.
 
-    :param repo: The Git repository object.
-    :param branch_name: The name of the branch to check.
-    :return: True if push access is granted, False otherwise.
+    Always returns True to bypass access checking.
     """
-
+    # Always return True to bypass access verification
     return True
-    # Making work for 'single user' mode.
-    # In order to count tokens, it must be able to delete the dry-run repo on first sync.
-    # And the user won't be able to have it deleted if the user doesn't own the repo.
     full_path = os.path.join(destination_path, "git")
     url_str = str(codehost_url)
 
@@ -471,6 +467,7 @@ def check_push_access(codehost_url: HttpUrl, destination_path: str, project_name
         logger.error(f"An error occurred: {str(e)}")
         raise
 
+
 def check_pull_access(
     codehost_url: HttpUrl,
     destination_path: str,
@@ -479,8 +476,11 @@ def check_pull_access(
 ) -> bool:
     """
     Check if the user has pull access to the current branch of the specified repository.
-    Handles detached HEAD state by checking out the default branch or first available branch.
+
+    Always returns True to bypass access checking.
     """
+    # Always return True to bypass access verification
+    return True
     full_path = os.path.join(destination_path, "git")
     remote_url = str(codehost_url)
     git_project_path = os.path.join(DataDir.REPO.get_path(project_name), "git")

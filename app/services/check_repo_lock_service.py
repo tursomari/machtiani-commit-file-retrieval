@@ -15,6 +15,7 @@ from lib.utils.utilities import (
 
 logger = logging.getLogger(__name__)
 
+
 async def check_repo_lock(
     codehost_url: HttpUrl,
 ):
@@ -22,11 +23,8 @@ async def check_repo_lock(
     project_name = url_to_folder_name(str(codehost_url))  # Use the URL to create the folder name
 
     repo_info = await get_repo_info_async(str(codehost_url))
-    ## Check for push access
-    #has_push_access = await asyncio.to_thread(check_push_access, codehost_url, DataDir.REPO.get_path(project_name), project_name, repo_info['current_branch'], api_key)
-
-    #if not has_push_access:
-    #    raise Exception("User does not have push access to the repository.")
+    # Push access is always granted as check_push_access now returns True
+    # has_push_access = True
 
     lock_file_path = get_lock_file_path(project_name)
 
