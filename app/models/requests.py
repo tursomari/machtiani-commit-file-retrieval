@@ -30,6 +30,7 @@ class AddRepositoryRequest(BaseModel):
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
     depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0) # Added depth_level
+    llm_threads: int
 
     @validator('api_key')
     def validate_api_key(cls, v):

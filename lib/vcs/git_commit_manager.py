@@ -40,7 +40,7 @@ class GitCommitManager:
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False,
         use_mock_llm: bool = False,
-        llm_threads: int = None,  # Add this parameter
+        llm_threads: int = 20,
     ):
         start_time = time.time()
         if files_embeddings:
@@ -85,11 +85,24 @@ class GitCommitManager:
         elapsed_time = time.time() - start_time
         logger.critical(f"Initialization completed in {elapsed_time:.2f} seconds")
 
-        # Store the thread count and use it for semaphores
-        self.llm_threads = llm_threads
-        thread_count = llm_threads or 20  # Default to 20 if not specified
-        self.semaphore = asyncio.Semaphore(thread_count)  # Control concurrent LLM requests
-        self.file_read_semaphore = asyncio.Semaphore(100)  # Control file I/O concurrency
+        # Store the thread count and create a *single* LLM semaphore
+        self.llm_threads = llm_threads or 20
+        self.llm_semaphore = asyncio.Semaphore(self.llm_threads)
+        self.file_read_semaphore = asyncio.Semaphore(100)
+
+    async def _call_llm(self, prompt: str, **kwargs) -> str:
+        """Helper to serialize *all* asynchronous LLM calls."""
+        async with self.llm_semaphore:
+            llm = LlmModel(
+                api_key=self.llm_model_api_key,
+                model=self.llm_model,
+                base_url=self.llm_model_base_url,
+                use_mock_llm=self.use_mock_llm,
+                max_tokens=kwargs.get("max_tokens", 500),
+                temperature=kwargs.get("temperature", None),
+            )
+            # If someone passes temperature, the LlmModel constructor will pick it up.
+            return await llm.send_prompt_async(prompt)
 
     def get_commit_info(self, commit):
         start_time = time.time()
@@ -265,33 +278,21 @@ class GitCommitManager:
         if not contents_dict.get(file_path, "").strip():
             return "eddf150cd15072ba4a8474209ec090fedd4d79e4"
 
-        # Process with LLM with concurrency control
-        async with self.semaphore:
-            llm = LlmModel(
-                api_key=self.llm_model_api_key,
-                model=self.llm_model,
-                base_url=self.llm_model_base_url,
-                use_mock_llm=self.use_mock_llm,
-                max_tokens=500
-            )
-            prompt = f"Summarize this {file_path}:\n{contents_dict[file_path]}"
-            return await llm.send_prompt_async(prompt)
+        # Process with LLM (now goes through our single llm_semaphore)
+        prompt = f"Summarize this {file_path}:\n{contents_dict[file_path]}"
+        return await self._call_llm(prompt, max_tokens=500)
 
     async def amplify_commits(self, base_prompt, temperature, per_file=False):
         start_time = time.time()
-        # Use the same thread count parameter here too
-        thread_count = self.llm_threads or 10  # Default to 10 if not specified
-        sem = asyncio.Semaphore(thread_count)
 
         async def generate_message(commit_index, prompt):
-            async with sem:
-                logger.info(f"Calling generate_message with use_mock_llm: {self.use_mock_llm}")
-                llm_instance = LlmModel(api_key=self.llm_model_api_key, model=self.llm_model, temperature=temperature, base_url=self.llm_model_base_url, use_mock_llm=self.use_mock_llm, max_tokens=200)
-                try:
-                    message = await llm_instance.send_prompt_async(prompt)
-                    self.new_commits[commit_index]['message'].append(message)
-                except Exception as e:
-                    logger.error(f"Error generating commit message for commit {commit_index}: {e}")
+            # All calls funnel through the global _call_llm
+            try:
+                logger.info(f"Generating commit message (temp={temperature})")
+                message = await self._call_llm(prompt, temperature=temperature, max_tokens=200)
+                self.new_commits[commit_index]['message'].append(message)
+            except Exception as e:
+                logger.error(f"Error generating commit message for commit {commit_index}: {e}")
 
         tasks = []
         for commit_index, commit in enumerate(self.new_commits):
