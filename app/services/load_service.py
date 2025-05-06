@@ -28,8 +28,10 @@ async def load_project_data(load_request: LoadRequest):
     use_mock_llm = load_request.use_mock_llm or False
     amplification_level = load_request.amplification_level
 
+
     depth_level = load_request.depth_level # Extract depth_level
     llm_model = load_request.llm_model or "gpt-4o-mini"  # Extract llm_model with fallback
+    llm_threads = load_request.llm_threads  # Extract the llm_threads parameter
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
@@ -67,6 +69,7 @@ async def load_project_data(load_request: LoadRequest):
                 raise
 
 
+
         parser = GitCommitManager(
             commits_logs_json,
             project,
@@ -76,7 +79,8 @@ async def load_project_data(load_request: LoadRequest):
             llm_model=llm_model,
             ignore_files=ignore_files,
             head=head,
-            use_mock_llm=use_mock_llm
+            use_mock_llm=use_mock_llm,
+            llm_threads=llm_threads  # Pass the thread parameter
         )
 
 

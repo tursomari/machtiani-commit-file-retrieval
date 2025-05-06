@@ -47,6 +47,7 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
 
 
         logger.info(f"Calling load with use_mock_llm: {data.use_mock_llm}")
+
         load_request = LoadRequest(
             embeddings_model=None,
             llm_model=None,
@@ -58,7 +59,8 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
             head=data.head,
             use_mock_llm=data.use_mock_llm or False,
             amplification_level=data.amplification_level,
-            depth_level=data.depth_level
+            depth_level=data.depth_level,
+            llm_threads=data.llm_threads  # Add this line to pass the thread parameter
         )
 
         result_load = await handle_load(load_request)

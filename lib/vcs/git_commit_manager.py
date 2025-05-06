@@ -40,6 +40,7 @@ class GitCommitManager:
         files_embeddings: Dict[str, str] = {},
         skip_summaries: bool = False,
         use_mock_llm: bool = False,
+        llm_threads: int = None,  # Add this parameter
     ):
         start_time = time.time()
         if files_embeddings:
@@ -84,7 +85,10 @@ class GitCommitManager:
         elapsed_time = time.time() - start_time
         logger.critical(f"Initialization completed in {elapsed_time:.2f} seconds")
 
-        self.semaphore = asyncio.Semaphore(20)  # Control concurrent LLM requests
+        # Store the thread count and use it for semaphores
+        self.llm_threads = llm_threads
+        thread_count = llm_threads or 20  # Default to 20 if not specified
+        self.semaphore = asyncio.Semaphore(thread_count)  # Control concurrent LLM requests
         self.file_read_semaphore = asyncio.Semaphore(100)  # Control file I/O concurrency
 
     def get_commit_info(self, commit):
@@ -275,7 +279,9 @@ class GitCommitManager:
 
     async def amplify_commits(self, base_prompt, temperature, per_file=False):
         start_time = time.time()
-        sem = asyncio.Semaphore(10)  # Adjust based on API limits
+        # Use the same thread count parameter here too
+        thread_count = self.llm_threads or 10  # Default to 10 if not specified
+        sem = asyncio.Semaphore(thread_count)
 
         async def generate_message(commit_index, prompt):
             async with sem:

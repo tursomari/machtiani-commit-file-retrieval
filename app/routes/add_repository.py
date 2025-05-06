@@ -20,6 +20,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
         response = await process_add_repository(data)
 
         logger.info(f"Calling add-repository route with use_mock_llm: {data.use_mock_llm}")
+
         load_request = LoadRequest(
             llm_model = None,
             embeddings_model=None,
@@ -31,7 +32,8 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
             head=data.head,
             use_mock_llm=data.use_mock_llm or False,
             amplification_level=data.amplification_level,
-            depth_level=data.depth_level
+            depth_level=data.depth_level,
+            llm_threads=data.llm_threads  # Add thread parameter
         )
 
         # Add the background task to handle loading

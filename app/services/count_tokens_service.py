@@ -78,6 +78,7 @@ async def count_tokens_load(load_request: LoadRequest):
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
 
+
     parser = GitCommitManager(
         commits_logs_json,
         project,
@@ -88,7 +89,8 @@ async def count_tokens_load(load_request: LoadRequest):
         ignore_files=ignore_files,
         skip_summaries=True,
         head=head,
-        use_mock_llm = load_request.use_mock_llm or False
+        use_mock_llm=load_request.use_mock_llm or False,
+        llm_threads=load_request.llm_threads  # Pass the thread parameter
     )
 
 

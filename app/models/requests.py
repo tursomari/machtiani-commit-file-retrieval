@@ -43,6 +43,7 @@ class AddRepositoryRequest(BaseModel):
             raise ValueError("API key cannot be empty if provided")
         return v
 
+
 class LoadRequest(BaseModel):
     llm_model: Optional[str] = None
     embeddings_model: Optional[str] = None
@@ -55,6 +56,7 @@ class LoadRequest(BaseModel):
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
     depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0)
+    llm_threads: Optional[int] = None  # Add this field to control LLM concurrency
 
 class DeleteStoreRequest(BaseModel):
     project_name: str
@@ -62,6 +64,7 @@ class DeleteStoreRequest(BaseModel):
     vcs_type: VCSType
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
+
 
 class FetchAndCheckoutBranchRequest(BaseModel):
     codehost_url: HttpUrl
@@ -77,6 +80,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
     depth_level: int = Field(default=DEFAULT_DEPTH_LEVEL, gt=0)
+    llm_threads: Optional[int] = None  # Add this field to control LLM concurrency
 
     @validator('llm_model_api_key')
     def validate_api_key(cls, v):
