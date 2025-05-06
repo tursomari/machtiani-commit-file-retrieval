@@ -77,13 +77,14 @@ async def count_tokens_load(load_request: LoadRequest):
     logger.debug("%s's commit logs file path: %s", project, commits_logs_file_path)
 
     commits_logs_json = await asyncio.to_thread(read_json_file, commits_logs_file_path)
+
     parser = GitCommitManager(
         commits_logs_json,
         project,
         llm_model_api_key=llm_model_api_key,
         llm_model_base_url=llm_model_base_url,
         embeddings_model_api_key=embeddings_model_api_key,
-        llm_model="gpt-4o-mini",
+        llm_model=load_request.llm_model or "gpt-4o-mini",
         ignore_files=ignore_files,
         skip_summaries=True,
         head=head,

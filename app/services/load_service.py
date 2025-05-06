@@ -27,7 +27,9 @@ async def load_project_data(load_request: LoadRequest):
     head = load_request.head
     use_mock_llm = load_request.use_mock_llm or False
     amplification_level = load_request.amplification_level
+
     depth_level = load_request.depth_level # Extract depth_level
+    llm_model = load_request.llm_model or "gpt-4o-mini"  # Extract llm_model with fallback
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
     commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
@@ -64,13 +66,14 @@ async def load_project_data(load_request: LoadRequest):
                 logger.critical(f"Commit logs validation error: {e}")
                 raise
 
+
         parser = GitCommitManager(
             commits_logs_json,
             project,
             llm_model_api_key=llm_model_api_key,
             llm_model_base_url=llm_model_base_url,
             embeddings_model_api_key=embeddings_model_api_key,
-            llm_model="gpt-4o-mini",
+            llm_model=llm_model,
             ignore_files=ignore_files,
             head=head,
             use_mock_llm=use_mock_llm
