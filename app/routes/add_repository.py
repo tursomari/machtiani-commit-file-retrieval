@@ -22,7 +22,7 @@ async def handle_add_repository(data: AddRepositoryRequest, background_tasks: Ba
         logger.info(f"Calling add-repository route with use_mock_llm: {data.use_mock_llm}")
 
         load_request = LoadRequest(
-            llm_model = None,
+            llm_model=data.llm_model,
             embeddings_model=None,
             embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,
             llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key and data.llm_model_api_key.get_secret_value().strip() else None,

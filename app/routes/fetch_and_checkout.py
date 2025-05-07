@@ -50,7 +50,7 @@ async def handle_fetch_and_checkout_branch(data: FetchAndCheckoutBranchRequest):
 
         load_request = LoadRequest(
             embeddings_model=None,
-            llm_model=None,
+            llm_model=data.llm_model,
             embeddings_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
             llm_model_api_key=data.llm_model_api_key.get_secret_value() if data.llm_model_api_key else None,
             llm_model_base_url=data.llm_model_base_url,

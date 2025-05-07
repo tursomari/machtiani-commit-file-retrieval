@@ -23,10 +23,10 @@ class FileSummaryGenerator:
         llm_model_base_url: HttpUrl,
         embeddings_model_api_key: str,
         git_project_path: str,
+        llm_model: str,
         ignore_files: list = None,
         existing_files_embeddings=None,
         embeddings_model="all-MiniLM-L6-v2",
-        llm_model="gpt-4o-mini",
         use_mock_llm: bool = False,
     ):
         self.logger = logging.getLogger(__name__)

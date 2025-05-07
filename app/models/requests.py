@@ -26,6 +26,7 @@ class AddRepositoryRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
     llm_model_base_url: HttpUrl
+    llm_model: str
     head: str
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"
@@ -77,6 +78,7 @@ class FetchAndCheckoutBranchRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     llm_model_api_key: Optional[SecretStr] = None
     llm_model_base_url: HttpUrl
+    llm_model: str
     head: str
     use_mock_llm: Optional[bool] = False
     amplification_level: AmplificationLevel = AmplificationLevel.LOW  # Default to "low"

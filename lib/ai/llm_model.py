@@ -11,7 +11,7 @@ from openai.types.chat import ChatCompletionMessageParam, ChatCompletionChunk # 
 logger = logging.getLogger(__name__)
 
 class LlmModel:
-    def __init__(self, api_key: str, base_url: str, model: str = "gpt-4o-mini", temperature: float = None, timeout: int = 3600, max_retries: int = 5, use_mock_llm: bool = False, max_tokens: int = None):
+    def __init__(self, api_key: str, base_url: str, model: str, temperature: float = None, timeout: int = 3600, max_retries: int = 5, use_mock_llm: bool = False, max_tokens: int = None):
         """
         Initialize the LlmModel with OpenAI clients.
 

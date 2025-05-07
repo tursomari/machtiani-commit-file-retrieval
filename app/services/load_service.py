@@ -30,7 +30,7 @@ async def load_project_data(load_request: LoadRequest):
 
 
     depth_level = load_request.depth_level # Extract depth_level
-    llm_model = load_request.llm_model or "gpt-4o-mini"  # Extract llm_model with fallback
+    llm_model = load_request.llm_model
     llm_threads = load_request.llm_threads  # Extract the llm_threads parameter
 
     git_project_path = os.path.join(DataDir.REPO.get_path(project), "git")
