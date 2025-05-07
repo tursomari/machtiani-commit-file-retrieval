@@ -16,7 +16,7 @@ from lib.utils.utilities import (
 logger = logging.getLogger(__name__)
 
 
-async def check_repo_lock(
+async def status_service(
     codehost_url: HttpUrl,
 ):
     """ Check if the repo.lock file is present after verifying push access. """

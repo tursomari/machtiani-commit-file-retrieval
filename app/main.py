@@ -45,7 +45,7 @@ from lib.utils.enums import (
 from app.routes import (
     test_pull_access,
     get_project_info,
-    check_repo_lock,
+    status_route,
     get_file_summary,
     load,
     add_repository as route_add_repository,
@@ -107,7 +107,7 @@ executor = ProcessPoolExecutor(max_workers=10)
 
 
 app.include_router(test_pull_access.router)
-app.include_router(check_repo_lock.router)
+app.include_router(status_route.router)
 app.include_router(get_file_summary.router)
 app.include_router(load.router)
 app.include_router(route_add_repository.router)
