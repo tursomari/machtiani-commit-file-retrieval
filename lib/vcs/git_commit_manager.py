@@ -23,7 +23,7 @@ from lib.utils.utilities import (
     validate_commits_logs,
 )
 
-from lib.utils.log_utils import log_error
+from lib.utils.log_utils import log_error, LoggedError
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +264,9 @@ class GitCommitManager:
         try:
             summary = await self.summarize_file(file_path)
             commit['summaries'][file_index] = summary
+        except LoggedError:
+            # Propagate logged errors to fail fast
+            raise
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {e}")
             commit['summaries'][file_index] = f"Error: {e}"
@@ -299,8 +302,12 @@ class GitCommitManager:
                 logger.info(f"Generating commit message (temp={temperature})")
                 message = await self._call_llm(prompt, temperature=temperature, max_tokens=200)
                 self.new_commits[commit_index]['message'].append(message)
+            except LoggedError:
+                # Propagate logged errors to fail fast
+                raise
             except Exception as e:
                 logger.error(f"Error generating commit message for commit {commit_index}: {e}")
+                log_error(f"Error generating commit message for commit {commit_index}: {e}", self.project_name)
 
         tasks = []
         for commit_index, commit in enumerate(self.new_commits):

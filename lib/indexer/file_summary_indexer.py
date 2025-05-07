@@ -13,7 +13,7 @@ from lib.utils.utilities import (
     validate_files_embeddings,
     validate_commits_logs,
 )
-from lib.utils.log_utils import log_error
+from lib.utils.log_utils import log_error, LoggedError
 
 class FileSummaryGenerator:
     def __init__(
@@ -107,7 +107,6 @@ class FileSummaryGenerator:
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
                 log_error(f"Error generating summary for {file_path}: {e}", self.project_name)
-                return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
 
         summaries = [None] * len(contents)  # Initialize a list to hold summaries in order
         max_workers = 10  # Specify the number of threads here
@@ -120,8 +119,12 @@ class FileSummaryGenerator:
                 try:
                     summary = future.result()
                     summaries[index] = summary  # Place the summary in the correct index
+                except LoggedError:
+                    # Propagate logged errors to fail fast
+                    raise
                 except Exception as e:
                     self.logger.error(f"Error summarizing content at index '{index}': {e}")
+                    log_error(f"Error summarizing content at index '{index}': {e}", self.project_name)
 
         return summaries
 

@@ -1,8 +1,17 @@
+
 import os
 import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+class LoggedError(Exception):
+    """Exception for errors that have been logged."""
+
+    def __init__(self, message: str, project_name: str):
+        self.message = message
+        self.project_name = project_name
+        super().__init__(f"Error in project '{project_name}': {message}")
 
 def reset_logs(project_name: str) -> None:
     """
@@ -24,14 +33,18 @@ def reset_logs(project_name: str) -> None:
     except Exception as e:
         logger.error(f"Error resetting logs for project {project_name}: {e}")
 
+
 def log_error(error_message: str, project_name: str) -> None:
     """
-    Write an error message to the logs.txt file for a specific project.
+    Write an error message to the logs.txt file for a specific project and return an error.
     This should be called if there are any errors during generating messages for commits.
 
     Args:
         error_message (str): The error message to write
         project_name (str): The name of the project
+
+    Raises:
+        LoggedError: After logging the error, an exception is raised to fail fast.
     """
     from app.utils import DataDir
 
@@ -43,6 +56,9 @@ def log_error(error_message: str, project_name: str) -> None:
         logger.info(f"Logged error for project {project_name}: {error_message}")
     except Exception as e:
         logger.error(f"Error logging error for project {project_name}: {e}")
+
+    # Raise after logging to ensure the error propagates
+    raise LoggedError(error_message, project_name)
 
 def read_logs(project_name: str) -> Optional[str]:
     """
