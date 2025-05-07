@@ -12,6 +12,7 @@ from lib.utils.utilities import (
     is_locked,
     get_lock_file_path,
 )
+from lib.utils.log_utils import read_logs
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,15 @@ async def status_service(
     lock_file_path = get_lock_file_path(project_name)
 
     lock_file_exists, lock_time_duration = await is_locked(lock_file_path)
+    # Read logs for this project
+    error_logs = read_logs(project_name)
 
-    return {
+    # Build status response
+    result = {
         "lock_file_present": lock_file_exists,
         "lock_time_duration": lock_time_duration
     }
+    # Include error logs if present
+    if error_logs:
+        result["error_logs"] = error_logs
+    return result

@@ -32,6 +32,7 @@ from lib.utils.utilities import (
 )
 
 from app.utils import DataDir, retrieve_file_contents, count_tokens, add_all_existing_repos_as_safe, delete_all_repo_lock_files
+from lib.utils.log_utils import reset_logs
 
 from typing import Optional, List, Dict
 from lib.utils.enums import (
@@ -102,6 +103,12 @@ else:
 
 add_all_existing_repos_as_safe("/data/users/repositories/")
 delete_all_repo_lock_files("/data/users/repositories/")
+# Reset logs for all existing repositories at startup
+for project_name in DataDir.list_projects():
+    try:
+        reset_logs(project_name)
+    except Exception as e:
+        logger.error(f"Failed to reset logs for project {project_name}: {e}")
 
 executor = ProcessPoolExecutor(max_workers=10)
 

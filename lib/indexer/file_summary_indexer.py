@@ -13,6 +13,7 @@ from lib.utils.utilities import (
     validate_files_embeddings,
     validate_commits_logs,
 )
+from lib.utils.log_utils import log_error
 
 class FileSummaryGenerator:
     def __init__(
@@ -105,6 +106,7 @@ class FileSummaryGenerator:
                 return llm_instance.send_prompt(prompt)
             except Exception as e:
                 self.logger.error(f"Error generating summary for {file_path}: {e}")
+                log_error(f"Error generating summary for {file_path}: {e}", self.project_name)
                 return "eddf150cd15072ba4a8474209ec090fedd4d79e4"  # Return nonsense
 
         summaries = [None] * len(contents)  # Initialize a list to hold summaries in order

@@ -1,5 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, Body
+from lib.utils.log_utils import reset_logs
 from app.models.requests import LoadRequest  # Import LoadRequest model
 from app.models.responses import LoadResponse, LoadErrorResponse
 from app.services.load_service import load_project_data
@@ -9,11 +10,17 @@ logger = logging.getLogger(__name__)
 
 @router.post("/load/", response_model=LoadResponse, responses={423: {"model": LoadErrorResponse}, 500: {"model": LoadErrorResponse}})
 async def handle_load(load_request: LoadRequest):  # Use LoadRequest instead of dict
+    # Reset logs for this project on each Load call
     try:
-        await load_project_data(load_request)  # Pass LoadRequest instance
+        reset_logs(load_request.project_name)
+    except Exception as e:
+        logger.error(f"Failed to reset logs for project {load_request.project_name}: {e}")
+    try:
+        await load_project_data(load_request)
         return {"status": True, "message": "Load operation completed successfully."}
     except RuntimeError as e:
         raise HTTPException(status_code=423, detail=str(e))
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+

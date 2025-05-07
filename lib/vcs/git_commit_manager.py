@@ -23,6 +23,8 @@ from lib.utils.utilities import (
     validate_commits_logs,
 )
 
+from lib.utils.log_utils import log_error
+
 logger = logging.getLogger(__name__)
 
 class GitCommitManager:
@@ -102,7 +104,12 @@ class GitCommitManager:
                 temperature=kwargs.get("temperature", None),
             )
             # If someone passes temperature, the LlmModel constructor will pick it up.
-            return await llm.send_prompt_async(prompt)
+            try:
+                return await llm.send_prompt_async(prompt)
+            except Exception as e:
+                logger.error(f"Error during async LLM call: {e}", exc_info=True)
+                log_error(f"Error during async OpenAI call: {e}", self.project_name)
+                raise
 
     def get_commit_info(self, commit):
         start_time = time.time()
