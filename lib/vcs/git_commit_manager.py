@@ -6,7 +6,7 @@ import logging
 import asyncio
 from pydantic import HttpUrl
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict
+from typing import List, Dict, Optional, Callable
 from lib.utils.enums import FilePathEntry
 from lib.vcs.git_content_manager import GitContentManager
 from lib.indexer.file_summary_indexer import FileSummaryGenerator
@@ -23,11 +23,13 @@ from lib.utils.utilities import (
     validate_commits_logs,
 )
 
-from lib.utils.log_utils import log_error, LoggedError
+
+from lib.utils.log_utils import LogsStatus, reset_status, log_error, LoggedError
 
 logger = logging.getLogger(__name__)
 
 class GitCommitManager:
+
     def __init__(
         self,
         commits_logs,
@@ -49,6 +51,10 @@ class GitCommitManager:
             validate_files_embeddings(files_embeddings)
         if commits_logs:  # This is always checked since it's initialized in __init__
             validate_commits_logs(commits_logs)
+
+        self.status_tracker = LogsStatus(project_name)
+        self._processed_items = 0
+        self._total_items = 0
 
         self.is_first_run = True
         self.embeddings_model_api_key = embeddings_model_api_key
@@ -90,7 +96,17 @@ class GitCommitManager:
         # Store the thread count and create a *single* LLM semaphore
         self.llm_threads = llm_threads or 20
         self.llm_semaphore = asyncio.Semaphore(self.llm_threads)
+
         self.file_read_semaphore = asyncio.Semaphore(100)
+        self.status_manager_hook = None
+        self.stage_key_hook = None
+        self.overall_progress_calculator_hook = None
+
+    def _get_progress_percentage(self):
+        """Calculate progress as a percentage."""
+        if self._total_items == 0:
+            return 0
+        return min(100, int((self._processed_items / self._total_items) * 100))
 
     async def _call_llm(self, prompt: str, **kwargs) -> str:
         """Helper to serialize *all* asynchronous LLM calls."""
@@ -196,12 +212,20 @@ class GitCommitManager:
             logger.error(f"Error accessing repository: {e}")
             return []
 
-    async def add_commits_and_summaries_to_log(self, repo_path, max_depth):
+    async def add_commits_and_summaries_to_log(
+        self,
+        repo_path: str,
+        depth_level: int,
+        *,                       # ←  keyword‑only so old calls still work
+        status_manager_hook: Optional[LogsStatus] = None,
+        stage_key_hook: Optional[str] = None,
+        overall_progress_calculator_hook: Optional[Callable[[dict], int]] = None,
+    ):
         start_time = time.time()
         logger.critical("Starting add_commits_and_summaries_to_log")
 
         # Retrieve and filter commits
-        all_new_commits = await asyncio.to_thread(self.get_commits_up_to_depth_or_oid, repo_path, max_depth)
+        all_new_commits = await asyncio.to_thread(self.get_commits_up_to_depth_or_oid, repo_path, depth_level)
         existing_oids = {commit['oid'] for commit in self.commits_logs}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
@@ -216,20 +240,23 @@ class GitCommitManager:
             if existing_files_summaries_json:
                 validate_files_embeddings(existing_files_summaries_json)
 
-            self.summary_cache = await asyncio.to_thread(
-                FileSummaryGenerator(
-                    project_name=self.project_name,
-                    commit_logs=self.new_commits,
-                    llm_model_api_key=self.llm_model_api_key,
-                    llm_model_base_url=self.llm_model_base_url,
-                    embeddings_model_api_key=self.embeddings_model_api_key,
-                    git_project_path=self.git_project_path,
-                    llm_model=self.llm_model,
-                    ignore_files=self.ignore_files,
-                    existing_files_embeddings=existing_files_summaries_json,
-                    use_mock_llm=self.use_mock_llm,
-                ).generate
+            # Instantiate FileSummaryGenerator and then await its async generate method
+            generator = FileSummaryGenerator(
+                project_name=self.project_name,
+                commit_logs=self.new_commits, # Pass the new commits to be summarized
+                llm_model_api_key=self.llm_model_api_key,
+                llm_model_base_url=self.llm_model_base_url,
+                embeddings_model_api_key=self.embeddings_model_api_key,
+                git_project_path=self.git_project_path,
+                llm_model=self.llm_model,
+                ignore_files=self.ignore_files,
+                existing_files_embeddings=existing_files_summaries_json,
+                use_mock_llm=self.use_mock_llm,
+               status_manager_hook=status_manager_hook,
+               stage_key_hook=stage_key_hook,
+               overall_progress_calculator_hook=overall_progress_calculator_hook,
             )
+            self.summary_cache = await generator.generate() # Await the async method directly
 
         # Process all files across all commits with maximum concurrency
         if not self.skip_summaries:
@@ -264,6 +291,9 @@ class GitCommitManager:
         try:
             summary = await self.summarize_file(file_path)
             commit['summaries'][file_index] = summary
+
+            # Update progress counter
+            self._processed_items += 1
         except LoggedError:
             # Propagate logged errors to fail fast
             raise
@@ -293,48 +323,147 @@ class GitCommitManager:
         prompt = f"Summarize this {file_path}:\n{contents_dict[file_path]}"
         return await self._call_llm(prompt, max_tokens=500)
 
-    async def amplify_commits(self, base_prompt, temperature, per_file=False):
+    async def amplify_commits(self, base_prompt, temperature, per_file=False,
+                              status_manager_hook: Optional[LogsStatus] = None,
+                              stage_key_hook: Optional[str] = None,
+                              overall_progress_calculator_hook: Optional[Callable[[dict], int]] = None,
+                              sub_operation_total_steps: int = 1,  # For multi-call stages like MID/HIGH amplification
+                              current_sub_operation_step: int = 1):
         start_time = time.time()
 
-        async def generate_message(commit_index, prompt):
-            # All calls funnel through the global _call_llm
-            try:
-                logger.info(f"Generating commit message (temp={temperature})")
-                message = await self._call_llm(prompt, temperature=temperature, max_tokens=200)
-                self.new_commits[commit_index]['message'].append(message)
-            except LoggedError:
-                # Propagate logged errors to fail fast
-                raise
-            except Exception as e:
-                logger.error(f"Error generating commit message for commit {commit_index}: {e}")
-                log_error(f"Error generating commit message for commit {commit_index}: {e}", self.project_name)
+        start_time = time.time()
 
-        tasks = []
-        for commit_index, commit in enumerate(self.new_commits):
-            diffs = commit.get('diffs', {})
-            if per_file and len(diffs) > 1:
-                for file_name, diff_info in diffs.items():
-                    diff_text = diff_info.get('diff', '')
-                    diff_block = f"{file_name}\n{diff_text}"
-                    prompt = base_prompt + diff_block
+        # Use provided hooks or fallback to own tracker (less ideal for unified status)
+        status_updater = status_manager_hook if status_manager_hook and stage_key_hook else self.status_tracker
+        current_stage_key = stage_key_hook if status_manager_hook and stage_key_hook else self.project_name  # Fallback
+
+        # Calculate base progress for sub-operations
+        base_progress_offset = ((current_sub_operation_step - 1) / sub_operation_total_steps) * 100
+        progress_range_for_this_sub_op = (1 / sub_operation_total_steps) * 100
+
+        def get_scaled_progress_percentage():
+            """ Scales internal _processed_items/_total_items to fit sub-operation's slot """
+            if self._total_items == 0:
+                return base_progress_offset
+            internal_progress = min(100, int((self._processed_items / self._total_items) * 100))
+            return base_progress_offset + (internal_progress / 100.0 * progress_range_for_this_sub_op)
+
+        self._processed_items = 0
+        self._total_items = len(self.new_commits)  # This needs to be set based on current call context
+        # ... adjust _total_items based on per_file etc. for THIS call ...
+
+        if status_updater and stage_key_hook:  # Only use periodic updates if hooked into the main status
+            initial_progress_for_stage = get_scaled_progress_percentage()
+            await status_updater.update_stage_progress(
+                current_stage_key,
+                int(initial_progress_for_stage),
+                overall_progress_val=(
+                    overall_progress_calculator_hook(
+                        await status_updater.read_status_async()
+                    )
+                    if overall_progress_calculator_hook
+                    else None
+                ),
+            )
+
+            await status_updater.start_periodic_updates(
+                current_stage_key,
+                get_scaled_progress_percentage,  # Use the scaled progress function
+                interval=1.0,
+                overall_calculator=overall_progress_calculator_hook,
+            )
+        else:  # Fallback to old behavior if not hooked (writes to its own status.txt/json)
+            self.status_tracker.update_status(0)  # This would need to be LogsStatus.update_overall_progress_only or similar
+            await self.status_tracker.start_periodic_updates(
+                self.project_name, self._get_progress_percentage, interval=1.0
+            )
+
+        try:
+            async def generate_message(commit_index, prompt_for_llm):
+                # ... (LLM call) ...
+                # self.new_commits[commit_index]['message'].append(message)
+                self._processed_items += 1
+                # Periodic updater handles the actual status file write.
+                # If not using periodic (e.g., fallback), then:
+                #     self.status_tracker.update_status(self._get_progress_percentage())
+
+
+            tasks = []
+            for commit_index, commit in enumerate(self.new_commits):
+                diffs = commit.get('diffs', {})
+                if per_file and len(diffs) > 1:
+                    for file_name, diff_info in diffs.items():
+                        diff_text = diff_info.get('diff', '')
+                        diff_block = f"{file_name}\n{diff_text}"
+                        prompt = base_prompt + diff_block
+                        tasks.append(generate_message(commit_index, prompt))
+                elif not per_file:
+                    if diffs:
+                        diff_blocks = [
+                            f"{file_name}\n{diff_info.get('diff', '')}"
+                            for file_name, diff_info in diffs.items()
+                        ]
+                        combined_diffs = "\n\n".join(diff_blocks)
+                        prompt = base_prompt + combined_diffs
+                    else:
+                        prompt = base_prompt
                     tasks.append(generate_message(commit_index, prompt))
-            elif not per_file:
-                if diffs:
-                    diff_blocks = [
-                        f"{file_name}\n{diff_info.get('diff', '')}"
-                        for file_name, diff_info in diffs.items()
-                    ]
-                    combined_diffs = "\n\n".join(diff_blocks)
-                    prompt = base_prompt + combined_diffs
-                else:
-                    prompt = base_prompt
-                tasks.append(generate_message(commit_index, prompt))
 
-        if tasks:
-            await asyncio.gather(*tasks)
-        logger.info(f"Amplified new commits: {self.new_commits}")
-        elapsed_time = time.time() - start_time
-        logger.critical(f"amplify_commits completed in {elapsed_time:.2f} seconds")
+            if tasks:
+                await asyncio.gather(*tasks)
+
+            logger.info(f"Amplified new commits: {self.new_commits}")
+            elapsed_time = time.time() - start_time
+            logger.critical(f"amplify_commits completed in {elapsed_time:.2f} seconds")
+
+        except Exception as e:
+            # Log error appropriately
+            if status_updater and stage_key_hook:  # Mark hooked stage as failed
+                await status_updater.mark_stage_status(
+                    current_stage_key,
+                    "failed",
+                    error=str(e),
+                    overall_progress_val=(
+                        overall_progress_calculator_hook(
+                            await status_updater.read_status_async()
+                        )
+                        if overall_progress_calculator_hook
+                        else None
+                    ),
+                )
+            raise
+        finally:
+            if status_updater and stage_key_hook:
+                final_progress_for_stage = get_scaled_progress_percentage()
+                # Ensure it's 100% of its slot if successful for this sub-operation
+                if current_sub_operation_step == sub_operation_total_steps:
+                    # If this is the last sub-op for the stage
+                    final_progress_for_stage = 100  # The whole stage is now 100
+                else:
+                    # Make sure this part of the sub-op is at its max
+                    final_progress_for_stage = (
+                        base_progress_offset + progress_range_for_this_sub_op
+                    )
+
+                await status_updater.stop_periodic_updates(
+                    current_stage_key,
+                    success=True,
+                    overall_calculator=overall_progress_calculator_hook,
+                )
+                # After stopping, explicitly set the progress for this sub-op's completion
+                await status_updater.update_stage_progress(
+                    current_stage_key,
+                    int(final_progress_for_stage),
+                    overall_progress_val=(
+                        overall_progress_calculator_hook(
+                            await status_updater.read_status_async()
+                        )
+                        if overall_progress_calculator_hook
+                        else None
+                    ),
+                )
+            else:  # Fallback
+                await self.status_tracker.stop_periodic_updates(self.project_name)
 
     def is_file_deleted(self, file_path):
         start_time = time.time()

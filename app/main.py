@@ -32,7 +32,7 @@ from lib.utils.utilities import (
 )
 
 from app.utils import DataDir, retrieve_file_contents, count_tokens, add_all_existing_repos_as_safe, delete_all_repo_lock_files
-from lib.utils.log_utils import reset_logs
+from lib.utils.log_utils import reset_logs, LogsStatus
 
 from typing import Optional, List, Dict
 from lib.utils.enums import (
@@ -109,6 +109,18 @@ for project_name in DataDir.list_projects():
         reset_logs(project_name)
     except Exception as e:
         logger.error(f"Failed to reset logs for project {project_name}: {e}")
+
+# Reset status for all existing repositories at startup - using the async method properly
+@app.on_event("startup")
+async def reset_all_statuses():
+    """Reset status for all existing repositories at startup"""
+    for project_name in DataDir.list_projects():
+        try:
+            logs_status = LogsStatus(project_name)
+            await logs_status.reset_status()
+            logger.info(f"Reset status for project {project_name}")
+        except Exception as e:
+            logger.error(f"Failed to reset status for project {project_name}: {e}")
 
 executor = ProcessPoolExecutor(max_workers=10)
 
