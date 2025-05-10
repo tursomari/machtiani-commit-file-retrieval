@@ -41,6 +41,39 @@ No relevant files found.
 Please make sure all the possibly relevant file paths are relative to the root directory of the provided repository structure.
 """
 
+    refine_relevant_files_prompt = """
+Let's refine our file selection. I've identified some potentially relevant files and obtained their summaries:
+
+### Initial Relevant Files with Summaries ###
+{file_summaries}
+###
+
+Given these summaries and the original problem, please identify any ADDITIONAL files that may be relevant.
+
+### GitHub Problem Description ###
+{problem_statement}
+###
+
+### Repository Structure ###
+{structure}
+###
+
+Please only provide the full paths of ADDITIONAL files (not already mentioned above) that may be relevant.
+The returned files should be separated by new lines ordered by most to least important and wrapped with triple backticks ```.
+For example:
+```
+additional_file1.py
+folder/additional_file2.py
+```
+
+If no additional files seem relevant, return:
+```
+No additional relevant files.
+```
+
+Please make sure all the possibly relevant file paths are relative to the root directory of the provided repository structure.
+"""
+
     def __init__(
         self,
         problem_statement: str,
@@ -181,6 +214,7 @@ Please make sure all the possibly relevant file paths are relative to the root d
 
     def _parse_model_output(self, content):
         """Parse the model output to extract file paths."""
+        logger.debug(f"Parsing LLM output: {content!r}")
         if not content:
             return []
 
@@ -212,6 +246,10 @@ Please make sure all the possibly relevant file paths are relative to the root d
         if len(suggested_files) == 1 and suggested_files[0].lower() == "no relevant files found.":
             return []
 
+        # Handle the "No additional relevant files." message
+        if len(suggested_files) == 1 and suggested_files[0].lower() == "no additional relevant files.":
+            return []
+
         # Basic validation: rudimentary check if lines look like paths (contain '/', '.', or alphanumeric)
         # This is optional and can be refined.
         valid_files = []
@@ -224,6 +262,7 @@ Please make sure all the possibly relevant file paths are relative to the root d
                 logger.warning(f"Ignoring potentially invalid line from LLM output: '{file_path}'")
 
 
+        logger.debug(f"Parsed valid files: {valid_files}")
         return valid_files
 
     def _find_matching_files(self, suggested_files):
@@ -237,6 +276,7 @@ Please make sure all the possibly relevant file paths are relative to the root d
             List of matching file paths (as strings relative to root_dir) that actually exist
         """
         existing_files = []
+        logger.debug(f"Finding matching files for suggested list: {suggested_files}")
         for file_path_str in suggested_files:
             # Ensure the path is treated as relative to the root directory
             # Path() handles joining correctly.
@@ -252,51 +292,159 @@ Please make sure all the possibly relevant file paths are relative to the root d
                 logger.critical(f"Error checking suggested file '{file_path_str}': {e}")
 
 
+        logger.debug(f"Matched existing files: {existing_files}")
         return existing_files
 
-    def localize_files(self, mock_response=None):
+    def _get_file_summaries(self, file_paths, project_name):
         """
-        Identify relevant files for the given problem statement using the LLM.
+        Get summaries for the given file paths using the get_file_summary service.
 
         Args:
-            mock_response: Optional mock response string for testing, bypassing the LLM call.
+            file_paths: List of file paths to get summaries for
+            project_name: The name of the project
 
         Returns:
-            Tuple of (list_of_found_files, prompt_used)
+            List of dictionaries containing file paths and summaries
         """
-        # Generate the prompt
+        logger.info(f"Fetching file summaries for files: {file_paths}")
+        try:
+            import asyncio
+            from app.services.get_file_summary_service import get_file_summaries
+
+            # Create an event loop and run the async function in it
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            summaries = loop.run_until_complete(get_file_summaries(file_paths, project_name))
+            loop.close()
+            logger.info(f"Retrieved file summaries for files: {[s.get('file_path', 'unknown') for s in summaries]}")
+            return summaries
+        except Exception as e:
+            logger.error(f"Error getting file summaries: {e}")
+            return []
+
+    def _format_file_summaries(self, summaries):
+        """
+        Format file summaries for display in the prompt.
+
+        Args:
+            summaries: List of dictionaries with keys 'file_path' and 'summary'
+
+        Returns:
+            Formatted string of file paths and summaries
+        """
+        logger.debug(f"Formatting file summaries, summaries count: {len(summaries)}")
+        if not summaries:
+            return "No file summaries available."
+
+        formatted = []
+        for summary in summaries:
+            file_path = summary.get('file_path', 'Unknown file')
+            summary_text = summary.get('summary', 'No summary available')
+            formatted.append(f"File: {file_path}\nSummary: {summary_text}\n")
+
+        logger.debug(f"Formatted summaries: {formatted}")
+        return "\n".join(formatted)
+
+    def localize_files(self, project_name=None, mock_response=None, mock_additional_response=None):
+        """
+        Identify relevant files for the given problem statement using the LLM in a two-step process.
+
+        Args:
+            project_name: Optional project name for retrieving file summaries
+            mock_response: Optional mock response string for testing first LLM call
+            mock_additional_response: Optional mock response for second LLM call
+
+        Returns:
+            Tuple of (list_of_found_files, list_of_prompts_used)
+        """
+        # First phase: get initial relevant files
         structure_display = self._format_structure()
-        prompt = self.obtain_relevant_files_prompt.format(
+        first_prompt = self.obtain_relevant_files_prompt.format(
             problem_statement=self.problem_statement,
             structure=structure_display
         )
-        logger.info("LLM Prompt Sending")
-        logger.info(prompt)
+        logger.info("First Phase LLM Prompt Sending")
+        logger.info(first_prompt)
 
         if mock_response is not None:
-            logger.info("Using Mock Response")
-            model_output = mock_response
+            logger.info("Using Mock Response for first phase")
+            first_model_output = mock_response
         elif self.llm.use_mock_llm:
-             # Use the mock generation from LlmModel if use_mock_llm was True
-             logger.info("Using LlmModel Mock Generation")
-             model_output = self.llm.send_prompt(prompt) # Assuming mock generate works
-             logger.info(f"Mock Output:\n{model_output}")
+            logger.info("Using LlmModel Mock Generation for first phase")
+            first_model_output = self.llm.send_prompt(first_prompt)
+            logger.info(f"Mock Output:\n{first_model_output}")
         else:
-            # Call the actual LLM via the LlmModel instance
-            logger.info("Calling LLM")
+            logger.info("Calling LLM for first phase")
             try:
-                # Assuming LlmModel has a method like 'generate' or 'invoke'
-                # Adjust the method name and arguments as per LlmModel's interface
-                model_output = self.llm.send_prompt(prompt) # Or self.llm.invoke(prompt), etc.
-                logger.info("LLM Response Received")
-                logger.info(model_output)
+                first_model_output = self.llm.send_prompt(first_prompt)
+                logger.info("First Phase LLM Response Received")
+                logger.info(first_model_output)
             except Exception as e:
-                logger.critical(f"Error calling LLM: {e}")
-                return [], prompt # Return empty list on error
+                logger.critical(f"Error calling LLM for first phase: {e}")
+                return [], [first_prompt]
 
-        # Parse the model output
-        suggested_files = self._parse_model_output(model_output)
+        # Parse the first model output
+        first_suggested_files = self._parse_model_output(first_model_output)
+        logger.debug(f"First phase suggested files: {first_suggested_files}")
         # Verify suggested files exist
-        found_files = self._find_matching_files(suggested_files)
+        first_found_files = self._find_matching_files(first_suggested_files)
+        logger.info(f"First phase found existing files: {first_found_files}")
 
-        return found_files, prompt
+        if not first_found_files:
+            logger.warning(f"Early exit from first phase: found_files={first_found_files}, project_name={project_name}")
+            return first_found_files, [first_prompt]
+
+        # Second phase: get file summaries and find additional files
+        summaries = self._get_file_summaries(first_found_files, project_name)
+        logger.info(f"Received file summaries: {summaries}")
+
+        if not summaries:
+            logger.warning("Could not retrieve file summaries, skipping second phase")
+            return first_found_files, [first_prompt]
+
+        # Format summaries for the second prompt
+        formatted_summaries = self._format_file_summaries(summaries)
+        logger.debug(f"Formatted file summaries to send to LLM: {formatted_summaries}")
+
+        # Create the refined prompt with file summaries
+        second_prompt = self.refine_relevant_files_prompt.format(
+            file_summaries=formatted_summaries,
+            problem_statement=self.problem_statement,
+            structure=structure_display
+        )
+
+        logger.info("Second Phase LLM Prompt Sending")
+        logger.info(second_prompt)
+
+        if mock_additional_response is not None:
+            logger.info("Using Mock Response for second phase")
+            second_model_output = mock_additional_response
+        elif self.llm.use_mock_llm:
+            logger.info("Using LlmModel Mock Generation for second phase")
+            second_model_output = self.llm.send_prompt(second_prompt)
+            logger.info(f"Mock Output:\n{second_model_output}")
+        else:
+            logger.info("Calling LLM for second phase")
+            try:
+                second_model_output = self.llm.send_prompt(second_prompt)
+                logger.info("Second Phase LLM Response Received")
+                logger.info(second_model_output)
+            except Exception as e:
+                logger.critical(f"Error calling LLM for second phase: {e}")
+                return first_found_files, [first_prompt, second_prompt]
+
+        # Parse the second model output
+        additional_suggested_files = self._parse_model_output(second_model_output)
+        logger.debug(f"Second phase suggested file paths: {additional_suggested_files}")
+        # Verify additional suggested files exist
+        additional_found_files = self._find_matching_files(additional_suggested_files)
+        logger.info(f"Second phase found existing additional files: {additional_found_files}")
+
+        # Combine both sets of files, avoiding duplicates
+        # Combine both sets of files, preserving order and removing duplicates
+        # Files present in the first phase are kept in order, then any new files from the second phase
+        combined = first_found_files + additional_found_files
+        all_files = list(dict.fromkeys(combined))
+
+        logger.info(f"All relevant files: {all_files}")
+        return all_files, [first_prompt, second_prompt]

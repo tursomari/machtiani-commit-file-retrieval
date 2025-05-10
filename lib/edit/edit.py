@@ -200,69 +200,112 @@ def edit_file(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List
         - updated content string
         - list of error messages (empty if fully successful)
     """
-    prompt = file_edit_prompt.format(instructions=instructions, content=content)
-    logger.info("Sending edit prompt to LLM")
-    response = llm.send_prompt(prompt)
+    max_retries = 1
+    attempt = 0
+    original_content = content
+    while True:
+        logger.info(f"Attempt {attempt+1} of {max_retries}")
+        # initial edit prompt
+        prompt = file_edit_prompt.format(instructions=instructions, content=content)
+        logger.info("Sending edit prompt to LLM")
+        response = llm.send_prompt(prompt)
 
-    parse_result = parse_search_replace(response)
+        parse_result = parse_search_replace(response)
 
-    if parse_result == "irrelevant":
-        logger.info("File marked as irrelevant to instructions.")
-        return content, ["File was deemed irrelevant to the instructions."]
+        if parse_result == "irrelevant":
+            logger.info("File marked as irrelevant to instructions.")
+            return content, ["File was deemed irrelevant to the instructions."]
 
-    edits = parse_result
-    updated_content, errors, success_count = apply_edits(content, edits)
+        edits = parse_result
+        updated_content, errors, success_count = apply_edits(content, edits)
 
-    # Change this condition to check for any errors, not just zero successes
-    if errors:  # Changed from: if success_count == 0
-        logger.info("Some edits failed, attempting entire file fallback.")
-        fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
-        fallback_response = llm.send_prompt(fallback_prompt)
-        updated_full = parse_entire_file_update(fallback_response)
+        if errors:
+            logger.info("Some edits failed, attempting entire file fallback.")
+            fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
+            fallback_response = llm.send_prompt(fallback_prompt)
+            updated_full = parse_entire_file_update(fallback_response)
 
-        if updated_full is not None:
-            logger.info("Fallback entire file update succeeded.")
-            return updated_full, []
-        else:
-            logger.error("Fallback entire file update failed.")
-            errors.append("Fallback update failed after partial edit application.")
+            if updated_full is not None:
+                updated_content = updated_full
+                errors = []
+            else:
+                logger.error("Fallback entire file update failed.")
+                errors.append("Fallback update failed after partial edit application.")
 
+        # confirmation step
+        patches_summary = edits if isinstance(edits, list) else []
+        confirm_prompt = f"Problem statement:\n{instructions}\n\nPatches made:\n{patches_summary}\n\nAre these correct? Reply only `yes` or `no`."
+        confirm_resp = llm.send_prompt(confirm_prompt).strip()
+        if confirm_resp == "`yes`":
+            return updated_content, errors
 
-    return updated_content, errors
+        # if user says no, retry
+        attempt += 1
+        if attempt >= max_retries:
+            logger.info("Max retries reached, returning last result.")
+            return updated_content, errors
 
+        # reset content for retry
+        content = original_content
 
 async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List[str]]:
     """
     Async version of edit_file.
     """
-    prompt = file_edit_prompt.format(instructions=instructions, content=content)
-    logger.info("Sending async edit prompt to LLM")
-    response = await llm.send_prompt_async(prompt)
+    max_retries = 3  # Define max retries, adjust as needed
+    attempt = 0
+    original_content = content
 
-    parse_result = parse_search_replace(response)
+    while True:
+        logger.info(f"Async Attempt {attempt+1} of {max_retries}")
+        # initial edit prompt
+        prompt = file_edit_prompt.format(instructions=instructions, content=content)
+        logger.info("Sending async edit prompt to LLM")
+        response = await llm.send_prompt_async(prompt)
 
-    if parse_result == "irrelevant":
-        logger.info("File marked as irrelevant to instructions.")
-        return content, ["File was deemed irrelevant to the instructions."]
+        parse_result = parse_search_replace(response)
 
-    edits = parse_result
-    updated_content, errors, success_count = apply_edits(content, edits)
+        if parse_result == "irrelevant":
+            logger.info("File marked as irrelevant to instructions (async).")
+            return content, ["File was deemed irrelevant to the instructions."]
 
-    # Change this condition to check for any errors, not just zero successes
-    if errors:  # Changed from: if success_count == 0
-        logger.info("Some edits failed, attempting entire file fallback (async).")
-        fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
-        fallback_response = await llm.send_prompt_async(fallback_prompt)
-        updated_full = parse_entire_file_update(fallback_response)
+        edits = parse_result
+        updated_content, errors, success_count = apply_edits(content, edits)
 
-        if updated_full is not None:
-            logger.info("Fallback entire file update succeeded.")
-            return updated_full, []
-        else:
-            logger.error("Fallback entire file update failed.")
-            errors.append("Fallback update failed after partial edit application.")
+        # If there are errors applying search/replace edits, attempt fallback
+        if errors:
+            logger.info("Some async edits failed, attempting entire file fallback.")
+            fallback_prompt = file_update_prompt.format(instructions=instructions, content=content)
+            fallback_response = await llm.send_prompt_async(fallback_prompt)
+            updated_full = parse_entire_file_update(fallback_response)
 
-    return updated_content, errors
+            if updated_full is not None:
+                updated_content = updated_full
+                errors = [] # Clear errors if fallback succeeded
+                logger.info("Fallback entire file update succeeded (async).")
+            else:
+                logger.error("Fallback entire file update failed (async).")
+                errors.append("Fallback update failed after partial edit application (async).")
+
+        # confirmation step
+        patches_summary = edits if isinstance(edits, list) else []
+        confirm_prompt = f"Problem statement:\\n{instructions}\\n\\nPatches made:\\n{patches_summary}\\n\\nAre these correct? Reply only `yes` or `no`."
+        confirm_resp = await llm.send_prompt_async(confirm_prompt)
+        confirm_resp = confirm_resp.strip()
+
+        if confirm_resp == "`yes`":
+            logger.info("Confirmation received: yes (async).")
+            return updated_content, errors
+        # if user says no or something else, retry
+        attempt += 1
+        if attempt >= max_retries:
+            logger.info("Max async retries reached, returning last result.")
+            return updated_content, errors
+
+        # reset content for retry - use the output from the last attempt before retrying
+        # If there were errors and no successful fallback, we might still want to retry with the latest content state
+        # However, the original logic in edit_file resets to original_content. Sticking to that for consistency.
+        content = original_content
 
 
 def find_files_to_create(
