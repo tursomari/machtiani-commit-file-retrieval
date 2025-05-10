@@ -139,11 +139,12 @@ def parse_search_replace(response: str) -> Union[List[Dict[str, str]], str]:
         for match in re.finditer(pattern, edit_block, re.DOTALL):
             search = match.group(1)
             replace = match.group(2)
+            raw_block = match.group(0).rstrip('\n')  # Capture the entire original block
             # DO NOT strip leading spaces, preserve indentation
             # Remove possible trailing newlines only
             search = search.rstrip('\n')
             replace = replace.rstrip('\n')
-            edits.append({'search': search, 'replace': replace})
+            edits.append({'search': search, 'replace': replace, 'raw': raw_block})
 
     return edits
 
@@ -232,21 +233,45 @@ def edit_file(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List
                 logger.error("Fallback entire file update failed.")
                 errors.append("Fallback update failed after partial edit application.")
 
-        # confirmation step
-        patches_summary = edits if isinstance(edits, list) else []
-        confirm_prompt = f"Problem statement:\n{instructions}\n\nPatches made:\n{patches_summary}\n\nAre these correct? Reply only `yes` or `no`."
-        confirm_resp = llm.send_prompt(confirm_prompt).strip()
-        if confirm_resp == "`yes`":
+        if isinstance(edits, list) and edits:
+            patches_summary = "\n\n".join([f"```edit\n{edit['raw']}\n```" for edit in edits])
+        else:
+            patches_summary = "No patches made."
+
+        # More explicit confirm prompt
+        confirm_prompt = (
+            f"I applied the following patches based on your instructions:\n\n"
+            f"{updated_content}\n\n"
+            "Please confirm:\n"
+            "- Reply `Yes` if all patches are correct and should be applied.\n"
+            "- Reply `No` if any patch is incorrect, and specify what needs to change.\n"
+        )
+        logger.debug(f"Confirm prompt:\n{confirm_prompt}")
+        confirm_resp = llm.send_prompt(confirm_prompt)
+        resp_norm = confirm_resp.strip().lower()
+
+        if re.search(r"\b(y|yes)\b", resp_norm):
+            logger.info("Confirmation received: yes (async).")
             return updated_content, errors
 
-        # if user says no, retry
+        if re.search(r"\b(n|no)\b", resp_norm):
+            attempt += 1
+            if attempt >= max_retries:
+                logger.warning("Max async retries reached after feedback, returning last result.")
+                return updated_content, errors
+
+            # Reset content and loop back to re-edit
+            content = original_content
+            continue
+
+        # If we got an unclear answer, retry confirmation
+        logger.warn(f"Unrecognized confirmation response: {confirm_resp!r}")
         attempt += 1
         if attempt >= max_retries:
-            logger.info("Max retries reached, returning last result.")
+            logger.warning("Max async retries reached with no clear confirmation, returning last result.")
             return updated_content, errors
-
-        # reset content for retry
-        content = original_content
+        # on unclear, just re-prompt confirmation without changing content
+        continue
 
 async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tuple[str, List[str]]:
     """
@@ -288,24 +313,45 @@ async def edit_file_async(llm: LlmModel, content: str, instructions: str) -> Tup
                 errors.append("Fallback update failed after partial edit application (async).")
 
         # confirmation step
-        patches_summary = edits if isinstance(edits, list) else []
-        confirm_prompt = f"Problem statement:\\n{instructions}\\n\\nPatches made:\\n{patches_summary}\\n\\nAre these correct? Reply only `yes` or `no`."
-        confirm_resp = await llm.send_prompt_async(confirm_prompt)
-        confirm_resp = confirm_resp.strip()
+        if isinstance(edits, list) and edits:
+            patches_summary = "\n\n".join([f"```edit\n{edit['raw']}\n```" for edit in edits])
+        else:
+            patches_summary = "No patches made."
 
-        if confirm_resp == "`yes`":
+        # More explicit confirm prompt
+        confirm_prompt = (
+            f"I applied the following patches based on your instructions:\n\n"
+            f"{updated_content}\n\n"
+            "Please confirm:\n"
+            "- Reply `Yes` if all patches are correct and should be applied.\n"
+            "- Reply `No` if any patch is incorrect, and specify what needs to change.\n"
+        )
+        logger.debug(f"Confirm prompt:\n{confirm_prompt}")
+        confirm_resp = await llm.send_prompt_async(confirm_prompt)
+        resp_norm = confirm_resp.strip().lower()
+
+        if re.search(r"\b(y|yes)\b", resp_norm):
             logger.info("Confirmation received: yes (async).")
             return updated_content, errors
-        # if user says no or something else, retry
+
+        if re.search(r"\b(n|no)\b", resp_norm):
+            attempt += 1
+            if attempt >= max_retries:
+                logger.warning("Max async retries reached after feedback, returning last result.")
+                return updated_content, errors
+
+            # Reset content and loop back to re-edit
+            content = original_content
+            continue
+
+        # If we got an unclear answer, retry confirmation
+        logger.warn(f"Unrecognized confirmation response: {confirm_resp!r}")
         attempt += 1
         if attempt >= max_retries:
-            logger.info("Max async retries reached, returning last result.")
+            logger.warning("Max async retries reached with no clear confirmation, returning last result.")
             return updated_content, errors
-
-        # reset content for retry - use the output from the last attempt before retrying
-        # If there were errors and no successful fallback, we might still want to retry with the latest content state
-        # However, the original logic in edit_file resets to original_content. Sticking to that for consistency.
-        content = original_content
+        # on unclear, just re-prompt confirmation without changing content
+        continue
 
 
 def find_files_to_create(
