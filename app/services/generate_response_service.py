@@ -197,8 +197,9 @@ async def infer_file_service(
                 responses.append(localized_response)
 
         except Exception as e:
-            logger.critical("Critical error during file localization for prompt '%s': %s", prompt, e)
-            raise RuntimeError(f"Error in file localization or filtering: {e}")
+            logger.error("Error during file localization for prompt '%s'", prompt, exc_info=True)
+            logger.critical("File localization failed for prompt '%s'", prompt)
+            return []
         return responses
 
     # Launch both paths concurrently
