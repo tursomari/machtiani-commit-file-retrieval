@@ -128,7 +128,7 @@ async def load_project_data(load_request: LoadRequest):
                 await asyncio.to_thread(write_json_file, parser.new_commits, mock_new_commits_file_path)
                 logger.info(f"Saved mock new commits log to {mock_new_commits_file_path}")
         else:
-            logger.info(f"New commits added: {parser.commits_logs}")
+            logger.info(f"New commits added: {parser.new_commits}")
             await asyncio.to_thread(write_json_file, parser.commits_logs, commits_logs_file_path)
 
         commits_embeddings_file_path = os.path.join(DataDir.COMMITS_EMBEDDINGS.get_path(project), "commits_embeddings.json")

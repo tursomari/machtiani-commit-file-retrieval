@@ -205,17 +205,23 @@ class GitCommitManager:
         existing_oids = {commit['oid'] for commit in self.commits_logs}
         self.new_commits = [commit for commit in all_new_commits if commit['oid'] not in existing_oids]
 
-        # Handle first-run summaries if needed
-        if not self.skip_summaries and self.is_first_run:
+        # Generate file summaries and update embeddings for new commits
+        if not self.skip_summaries and self.new_commits:
             files_summaries_file_path = os.path.join(
                 DataDir.CONTENT_EMBEDDINGS.get_path(self.project_name),
                 "files_embeddings.json"
             )
-            existing_files_summaries_json = await asyncio.to_thread(read_json_file, files_summaries_file_path)
+            try:
+                existing_files_summaries_json = await asyncio.to_thread(
+                    read_json_file, files_summaries_file_path
+                ) or {}
+            except Exception:
+                existing_files_summaries_json = {}
 
             if existing_files_summaries_json:
                 validate_files_embeddings(existing_files_summaries_json)
 
+            # Generate summaries and embeddings for files in new commits
             self.summary_cache = await asyncio.to_thread(
                 FileSummaryGenerator(
                     project_name=self.project_name,
