@@ -172,7 +172,10 @@ async def infer_file_service(
 
             logger.critical("Starting file localization")
             logger.debug("Starting file localization for prompt: '%s'...", prompt)
-            localized_files_raw, _ = await loop.run_in_executor(None, file_localizer.localize_files)
+            # Pass the project folder name to localize_files to enable summary retrieval
+            localized_files_raw, _ = await loop.run_in_executor(
+                None, file_localizer.localize_files, project
+            )
             logger.debug("File localization completed for prompt '%s', found %d file(s)", prompt, len(localized_files_raw))
             localized_file_entries_unfiltered = [FilePathEntry(path=fp) for fp in localized_files_raw]
             logger.debug("Inferred files from localization (before ignore filter): %s",

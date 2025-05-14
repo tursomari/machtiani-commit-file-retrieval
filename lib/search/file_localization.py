@@ -25,7 +25,7 @@ Please look through the following GitHub problem description and Repository stru
 ###
 
 Please only provide the full paths relative to the repository root directory and return at most 5 files.
-The returned files should be separated by new lines ordered by most to least important and wrapped with triple backticks ```.
+The returned files should be separated by new lines, listed in order of relevancy (most relevant at the top), and wrapped with triple backticks ```.
 For example:
 ```
 file1.py
@@ -59,7 +59,7 @@ Given these summaries and the original problem, please identify any ADDITIONAL f
 ###
 
 Please only provide the full paths of ADDITIONAL files (not already mentioned above) that may be relevant.
-The returned files should be separated by new lines ordered by most to least important and wrapped with triple backticks ```.
+The returned files should be separated by new lines, listed in order of relevancy (most relevant at the top), and wrapped with triple backticks ```.
 For example:
 ```
 additional_file1.py
@@ -306,6 +306,10 @@ Please make sure all the possibly relevant file paths are relative to the root d
         Returns:
             List of dictionaries containing file paths and summaries
         """
+        # Require project name for summaries
+        if not project_name:
+            logger.error("Project name is required to retrieve file summaries.")
+            return []
         logger.info(f"Fetching file summaries for files: {file_paths}")
         try:
             import asyncio
@@ -390,17 +394,15 @@ Please make sure all the possibly relevant file paths are relative to the root d
         first_found_files = self._find_matching_files(first_suggested_files)
         logger.info(f"First phase found existing files: {first_found_files}")
 
+        # If no files found, skip summary-based refinement
         if not first_found_files:
-            logger.warning(f"Early exit from first phase: found_files={first_found_files}, project_name={project_name}")
+            logger.warning(f"Skipping second phase: no initial files found")
             return first_found_files, [first_prompt]
 
         # Second phase: get file summaries and find additional files
         summaries = self._get_file_summaries(first_found_files, project_name)
         logger.info(f"Received file summaries: {summaries}")
 
-        if not summaries:
-            logger.warning("Could not retrieve file summaries, skipping second phase")
-            return first_found_files, [first_prompt]
 
         # Format summaries for the second prompt
         formatted_summaries = self._format_file_summaries(summaries)
@@ -440,11 +442,21 @@ Please make sure all the possibly relevant file paths are relative to the root d
         additional_found_files = self._find_matching_files(additional_suggested_files)
         logger.info(f"Second phase found existing additional files: {additional_found_files}")
 
-        # Combine both sets of files, avoiding duplicates
+        # Prioritize top 3 from first_found_files and top 2 from additional_found_files
+        prioritized = []
+        for f in first_found_files[:3]:
+            if f not in prioritized:
+                prioritized.append(f)
+        for f in additional_found_files[:2]:
+            if f not in prioritized:
+                prioritized.append(f)
         # Combine both sets of files, preserving order and removing duplicates
-        # Files present in the first phase are kept in order, then any new files from the second phase
         combined = first_found_files + additional_found_files
-        all_files = list(dict.fromkeys(combined))
+        remaining = []
+        for f in combined:
+            if f not in prioritized and f not in remaining:
+                remaining.append(f)
+        all_files = prioritized + remaining
 
         logger.info(f"All relevant files: {all_files}")
         return all_files, [first_prompt, second_prompt]

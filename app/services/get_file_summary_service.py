@@ -28,23 +28,24 @@ async def fetch_summary_from_commit(file_path: str, commits_log: List[Dict]) -> 
     return None
 
 async def get_file_summaries(file_paths: List[str], project_name: str) -> List[Dict[str, str]]:
-    project = url_to_folder_name(project_name)
-    commits_logs_dir_path = DataDir.COMMITS_LOGS.get_path(project)
-    commits_logs_file_path = os.path.join(commits_logs_dir_path, "commits_logs.json")
-
-    # Read the commit logs asynchronously
-    commits_log = await asyncio.to_thread(read_json_file, commits_logs_file_path)
-
-    # Create a list of async tasks for fetching summaries from the commit log
-    tasks = [fetch_summary_from_commit(file_path, commits_log) for file_path in file_paths]
-    results = await asyncio.gather(*tasks)
-
-    # Prepare the output, filtering out None results
-    summaries = [result for result in results if result is not None]
-
-    if len(summaries) < len(file_paths):
-        missing_files = [file_path for file_path, result in zip(file_paths, results) if result is None]
-        for file_path in missing_files:
+    # Require project name
+    if not project_name:
+        logger.error("Project name is required to retrieve file summaries.")
+        return []
+    # Prepare path to embeddings JSON
+    embeddings_dir = DataDir.CONTENT_EMBEDDINGS.get_path(project_name)
+    embeddings_file = os.path.join(embeddings_dir, "files_embeddings.json")
+    try:
+        data = await asyncio.to_thread(read_json_file, embeddings_file)
+    except Exception as e:
+        # In case read_json_file raises, though it normally returns {} on missing file
+        logger.error(f"Error loading file embeddings from '{embeddings_file}': {e}")
+        return []
+    summaries: List[Dict[str, str]] = []
+    for file_path in file_paths:
+        entry = data.get(file_path)
+        if isinstance(entry, dict) and 'summary' in entry:
+            summaries.append({'file_path': file_path, 'summary': entry['summary']})
+        else:
             logger.warning(f"No summary found for file path: {file_path}")
-
     return summaries
