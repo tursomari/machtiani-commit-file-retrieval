@@ -86,7 +86,7 @@ async def handle_load(load_request: LoadRequest):
         # Phase 2: Process new commits in batches
         if new_commits_to_process:
             total_new_commits = len(new_commits_to_process)
-            BATCH_SIZE = load_request.llm_threads
+            BATCH_SIZE = load_request.llm_threads * 3
             total_batches = (total_new_commits + BATCH_SIZE - 1) // BATCH_SIZE
 
             logger.critical(
